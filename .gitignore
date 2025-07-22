@@ -166,3 +166,7 @@ data/
 
 # ignoring prototype files
 _*
+
+# ignoring results files as they are generated when running the notebooks
+# also to prevent storing large datasets
+results/
