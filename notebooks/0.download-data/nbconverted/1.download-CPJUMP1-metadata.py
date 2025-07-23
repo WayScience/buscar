@@ -54,7 +54,7 @@ exp_metadata_path = (data_dir / "CPJUMP1-experimental-metadata.csv").resolve()
 
 # Loading in the notebook configurations and downloading the experimental metadata
 
-# In[4]:
+# In[ ]:
 
 
 # loading config file and setting experimental metadata URL
@@ -62,7 +62,7 @@ nb_configs = io_utils.load_configs(config_path)
 CPJUMP1_exp_metadata_url = nb_configs["links"]["CPJUMP1-experimental-metadata-source"]
 
 # read in the experimental metadata CSV file and only filter down to plays that
-# have an ORF perturbation
+# have an CRISPR perturbation
 exp_metadata = pl.read_csv(
     CPJUMP1_exp_metadata_url, separator="\t", has_header=True, encoding="utf-8"
 )
