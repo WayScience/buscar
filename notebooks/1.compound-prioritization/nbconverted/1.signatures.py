@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 
-# # Getting signatures
+# # Extracting Morphological Signatures
 #
-# In this notebook, we will extract morphology signatures associated with two distinct cellular states. For example, we may compare treated versus control conditions within each cellular state.
+# In this notebook, we extract morphological signatures associated with two distinct cellular states:
+# - **On-morphology features**: Features that significantly change with the cellular state
+# - **Off-morphology features**: Features that do not show significant changes
 #
-# We will systematically retrieve all signatures from control samples across all cellular states. Signature combinations will be generated based on cellular states and their respective treatments or conditions.
-#
-# This workflow will be applied to three datasets: Pilot-CFReT, MitoCheck, and CPJUMP1 (CRISPR only).
+# We identify and categorize features as either on- or off-morphology signatures using a systematic workflow.
+# This approach is applied to three datasets: Pilot-CFReT, MitoCheck, and CPJUMP1 (CRISPR only).
 
-# In[1]:
+# In[ ]:
 
 
 import json
@@ -24,7 +25,7 @@ from utils.data_utils import split_meta_and_features
 from utils.io_utils import load_profiles
 from utils.signatures import get_signatures
 
-# In[13]:
+# In[ ]:
 
 
 # parameters
@@ -33,7 +34,7 @@ method = "ks_test"
 
 # Setting input and output paths
 
-# In[3]:
+# In[ ]:
 
 
 # setting data directory path
@@ -42,13 +43,23 @@ data_sc_profiles_path = (data_dir / "sc-profiles").resolve(strict=True)
 data_results_dir = pathlib.Path("../0.download-data/results/").resolve(strict=True)
 
 # setting dataset paths
-jump_crispr_data_path = (data_results_dir / "concat_crispr_profiles.parquet").resolve(strict=True)
+jump_crispr_data_path = (data_results_dir / "concat_crispr_profiles.parquet").resolve(
+    strict=True
+)
 
 # setting mitocheck profile path
-mitocheck_profiles_path = (data_sc_profiles_path / "mitocheck" / "concat_mitocheck_cp_profiles_shared_feats.parquet").resolve(strict=True)
+mitocheck_profiles_path = (
+    data_sc_profiles_path
+    / "mitocheck"
+    / "concat_mitocheck_cp_profiles_shared_feats.parquet"
+).resolve(strict=True)
 
 # setting cfret profile path
-cfret_plate_plat = (data_sc_profiles_path / "cfret" / "localhost230405150001_sc_feature_selected.parquet").resolve(strict=True)
+cfret_plate_plat = (
+    data_sc_profiles_path
+    / "cfret"
+    / "localhost230405150001_sc_feature_selected.parquet"
+).resolve(strict=True)
 
 # setting making a results directory and creating it
 results_dir = pathlib.Path("results").resolve()
@@ -63,15 +74,16 @@ signature_results_dir.mkdir(exist_ok=True)
 
 # ### Loading CPJUMP CRISPR profiles
 
-# In[26]:
+# In[ ]:
 
 
 # loading CPJUMP CRISPR profiles
-sc_jump_crispr_profiles = load_profiles(
-    jump_crispr_data_path)
+sc_jump_crispr_profiles = load_profiles(jump_crispr_data_path)
 
 # splitting metadata and features
-sc_jump_crispr_meta, sc_jump_crispr_feats = split_meta_and_features(sc_jump_crispr_profiles)
+sc_jump_crispr_meta, sc_jump_crispr_feats = split_meta_and_features(
+    sc_jump_crispr_profiles
+)
 
 # displaying the first few rows of the profiles
 sc_jump_crispr_profiles.head()
@@ -79,7 +91,7 @@ sc_jump_crispr_profiles.head()
 
 # ## Generating on and off morpholgy signatures
 
-# ### Generating on and off morphology signatures for CPJUMP CRISPR data
+# ### Get signatures from CPJUMP1 dataset
 
 # In[ ]:
 
@@ -88,18 +100,29 @@ sc_jump_crispr_profiles.head()
 cp_jump_meta_df = sc_jump_crispr_profiles[sc_jump_crispr_meta]
 
 # creating positive control genes list
-negcon_profiles_df = sc_jump_crispr_profiles.filter(pl.col("Metadata_control_type") == "negcon")
+negcon_profiles_df = sc_jump_crispr_profiles.filter(
+    pl.col("Metadata_control_type") == "negcon"
+)
 
 # treatment profiles
 trt_profiles_df = sc_jump_crispr_profiles.filter(pl.col("Metadata_pert_type") == "trt")
 
 # selecting positive control profiles
 # poscon_cp = known chemical probs that module specific genes
-poscon_profiles_df = sc_jump_crispr_profiles.filter(pl.col("Metadata_control_type") == "poscon_cp")
-poscon_genes = cp_jump_meta_df.filter(pl.col("Metadata_control_type") == "poscon_cp")["Metadata_gene"].unique().sort().to_list()
+poscon_profiles_df = sc_jump_crispr_profiles.filter(
+    pl.col("Metadata_control_type") == "poscon_cp"
+)
+poscon_genes = (
+    cp_jump_meta_df.filter(pl.col("Metadata_control_type") == "poscon_cp")[
+        "Metadata_gene"
+    ]
+    .unique()
+    .sort()
+    .to_list()
+)
 
 # displaying the number of positive control genes and their names
-pprint.pprint(f"Number of positive control genes: {len(poscon_genes)}" )
+pprint.pprint(f"Number of positive control genes: {len(poscon_genes)}")
 pprint.pprint(f"These are poscon genes: {poscon_genes}")
 
 # display dataframe of positive control profiles
@@ -120,25 +143,30 @@ for gene_name, gene_group_df in trt_profiles_df.group_by("Metadata_gene"):
         exp_profiles=gene_group_df,
         morph_feats=sc_jump_crispr_feats,
         method=method,
-        )
+    )
     # Counting compartment signatures
-    on_morph_compartments_counts = dict(Counter([feat.split("_")[0] for feat in on_morph_sig]))
+    on_morph_compartments_counts = dict(
+        Counter([feat.split("_")[0] for feat in on_morph_sig])
+    )
 
     # store in dict
     results[f"negcon_{gene_name}"] = {
         "on_morph_sig": on_morph_sig,
         "off_morph_sig": off_morph_sig,
-        "on_morph_compartments_counts": on_morph_compartments_counts,}
+        "on_morph_compartments_counts": on_morph_compartments_counts,
+    }
 
 # writing results to a json file
-with open(signature_results_dir / f"{method}_negcon_trt_signature_results.json", "w") as f:
+with open(
+    signature_results_dir / f"{method}_negcon_trt_signature_results.json", "w"
+) as f:
     json.dump(results, f, indent=4)
 
 
 # In[ ]:
 
 
-# now create a dataframe from the results
+# create a dataframe from the results
 counts = []
 for key, value in results.items():
     gene_name = key.replace("negcon_", "")  # remove prefix to get just gene name
@@ -161,7 +189,7 @@ on_sig_compartment_counts.write_csv(
 )
 
 
-# ### Generating signatures for Mitocheck data
+# ### Generating signatures from Mitocheck data
 #
 
 # Loading in mitocheck data
@@ -179,18 +207,20 @@ mito_feats = mitocheck_profiles.drop(mito_meta).columns
 
 # Splitting them into control and treated profiles
 
-# In[5]:
+# In[ ]:
 
 
 # selecting column that contains the phenotype class
 phenotype_class = "Mitocheck_Phenotypic_Class"
 
 # splitting control and treated profiles
-mitocheck_negcontrol_profiles = mitocheck_profiles.filter(pl.col(phenotype_class) == "negcon")
+mitocheck_negcontrol_profiles = mitocheck_profiles.filter(
+    pl.col(phenotype_class) == "negcon"
+)
 mitocheck_trt_profiles = mitocheck_profiles.filter(pl.col(phenotype_class) != "negcon")
 
 
-# In[6]:
+# In[ ]:
 
 
 # group by plate first
@@ -204,25 +234,32 @@ for class_name, class_group_df in mitocheck_trt_profiles.group_by(phenotype_clas
         exp_profiles=class_group_df,
         morph_feats=mito_feats,
         method=method,
-        )
+    )
     # Counting compartment signatures
-    off_morph_compartments_counts = dict(Counter([feat.split("_")[0] for feat in off_morph_sig]))
-    on_morph_compartments_counts = dict(Counter([feat.split("_")[0] for feat in on_morph_sig]))
+    off_morph_compartments_counts = dict(
+        Counter([feat.split("_")[0] for feat in off_morph_sig])
+    )
+    on_morph_compartments_counts = dict(
+        Counter([feat.split("_")[0] for feat in on_morph_sig])
+    )
 
     # store in dict
     results[f"negcon_{class_name}"] = {
         "off_morph_compartments_counts": off_morph_compartments_counts,
         "on_morph_compartments_counts": on_morph_compartments_counts,
         "on_morph_sig": on_morph_sig,
-        "off_morph_sig": off_morph_sig}
+        "off_morph_sig": off_morph_sig,
+    }
 
 
 # writing results to a json file
-with open(signature_results_dir / f"{method}_mitocheck_trt_signature_results.json", "w") as f:
+with open(
+    signature_results_dir / f"{method}_mitocheck_trt_signature_results.json", "w"
+) as f:
     json.dump(results, f, indent=4)
 
 
-# ### Generating signatures for CFReT data
+# ### Generating signatures from CFReT data
 
 # In[10]:
 
