@@ -24,7 +24,7 @@ import sys
 import polars as pl
 
 sys.path.append("../../")
-from utils.utils import split_meta_and_features
+from utils.data_utils import split_meta_and_features
 
 # ## Helper functions
 #
