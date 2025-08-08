@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-# Here's an improved version:
-#
 # # Compound Prioritization Analysis
 #
 # In this notebook, we conduct a compound prioritization analysis to identify potential candidate compounds from high-content drug screens. This process enables us to select compounds with the most promising biological effects based on their morphological impact.
