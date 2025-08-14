@@ -166,3 +166,6 @@ data/
 
 # ignoring prototype files
 _*
+
+# ignoring results directory
+results/
