@@ -18,7 +18,7 @@ from statsmodels.stats.multitest import multipletests
 from statsmodels.stats.weightstats import ttest_ind
 
 
-def __add_significance_label(
+def _add_significance_label(
     pvals_df: pl.DataFrame, sig_threshold: float | None = 0.05
 ) -> pl.DataFrame:
     """Add significance labels to p-values based on a threshold.
@@ -68,7 +68,7 @@ def p_val_correction(p_values: np.ndarray, method: str = "fdr_bh") -> np.ndarray
     return corrected_p_values
 
 
-def __split_morphology_features(pval_df: pl.DataFrame) -> tuple[list[str], list[str]]:
+def _split_morphology_features(pval_df: pl.DataFrame) -> tuple[list[str], list[str]]:
     """Split features into two groups based on their significance.
 
     This function separates features into two categories: those that are
@@ -105,7 +105,7 @@ def __split_morphology_features(pval_df: pl.DataFrame) -> tuple[list[str], list[
     return on_morph_feats, off_morph_feats
 
 
-def welchs_ttest(
+def apply_welchs_ttest(
     ref_profiles: pl.DataFrame,
     exp_profiles: pl.DataFrame,
     morph_feats: list[str],
@@ -177,19 +177,58 @@ def welchs_ttest(
             )
         )
         # Add significance labels based on corrected p-values
-        .pipe(__add_significance_label, sig_threshold=sig_threshold)
+        .pipe(_add_significance_label, sig_threshold=sig_threshold)
     )
 
 
-def perm_test(
+def apply_perm_test(
     ref_profiles: pl.DataFrame,
     exp_profiles: pl.DataFrame,
     morph_feats: list[str],
     n_resamples: int | None = 1000,
     correction_method: str | None = "fdr_bh",
+    statistic: Literal["mean", "median"] = "mean",
     sig_threshold: float | None = 0.05,
     seed: int | None = 0,
 ) -> pl.DataFrame:
+    """Perform a permutation test for each feature in the morphology profiles and
+    identify significant features.
+
+    Performs a permutation test for each feature in the morphology profiles
+    and identifies significant features based on a specified p-value correction method
+    and significance threshold. Returns a DataFrame containing feature names, p-values,
+    corrected p-values, and significance labels.
+
+    Parameters
+    ----------
+    ref_profiles : pl.DataFrame
+        Reference DataFrame containing morphology features.
+    exp_profiles : pl.DataFrame
+        Experimental DataFrame containing morphology features.
+    morph_feats : list[str]
+        List of morphology feature names to perform the permutation test on.
+    n_resamples : int, optional
+        Number of resamples for the permutation test. Default is 1000.
+    correction_method : str, optional
+        Method for p-value correction (e.g., "fdr_bh"). Default is "fdr_bh".
+    statistic : Literal["mean", "median"], optional
+        Statistic to use for the permutation test. Default is "mean".
+    sig_threshold : float, optional
+        Significance threshold for labeling features. Default is 0.05.
+    seed : int, optional
+        Random seed for reproducibility. Default is 0.
+
+    Returns
+    -------
+    pl.DataFrame
+        DataFrame with the following columns:
+        - "features": Feature names.
+        - "pval": Raw p-values.
+        - "corrected_p_value": Corrected p-values after multiple testing correction.
+        - "is_significant": Boolean indicating if the feature is significant based on
+        the threshold.
+    """
+
     # setting internal statistical functions (since it's a required input for permutation_test)
     def diff_of_means(ref_vals, exp_vals):
         return np.mean(exp_vals) - np.mean(ref_vals)
@@ -197,7 +236,13 @@ def perm_test(
     def diff_of_medians(ref_vals, exp_vals):
         return np.median(exp_vals) - np.median(ref_vals)
 
-    # setting up dictionary to store functions
+    # if the statistic is mean, use diff_of_means, if median, use diff_of_medians
+    if statistic == "mean":
+        statistic_func = diff_of_means
+    elif statistic == "median":
+        statistic_func = diff_of_medians
+
+    # setting up dictionary to store p-values
     pvals = {}
 
     # iterate through each feature and perform permutation test
@@ -212,7 +257,7 @@ def perm_test(
         try:
             result = permutation_test(
                 data=(ref_vals, exp_vals),
-                statistic=diff_of_means,
+                statistic=statistic_func,
                 alternative="two-sided",
                 n_resamples=n_resamples,
                 random_state=seed,
@@ -235,7 +280,7 @@ def perm_test(
     )
 
     # correct p-values using the specified method
-    # correct p-values using Benjamini-Hochberg method
+    # correct p-values using the specified correction method
     return (
         pvals_df.with_columns(
             # calculate and add corrected p-values using the specified method
@@ -246,11 +291,11 @@ def perm_test(
         )
         # from the output generated above:
         # Add significance label based on corrected p-values using the pipe() method
-        .pipe(__add_significance_label, sig_threshold=sig_threshold)
+        .pipe(_add_significance_label, sig_threshold=sig_threshold)
     )
 
 
-def ks_test(
+def apply_ks_test(
     ref_profiles: pl.DataFrame,
     exp_profiles: pl.DataFrame,
     morph_feats: list[str],
@@ -281,7 +326,12 @@ def ks_test(
     Returns
     -------
     pl.DataFrame
-        DataFrame containing feature names, p-values, corrected p-values, and significance labels.
+        DataFrame with the following columns:
+        - "features": Feature names.
+        - "pval": Raw p-values.
+        - "corrected_p_value": Corrected p-values after multiple testing correction.
+        - "is_significant": Boolean indicating if the feature is significant based on
+        the threshold.
     """
 
     # Perform KS-test for each column and directly create a DataFrame.
@@ -331,7 +381,7 @@ def ks_test(
         )
         # from the output generated above:
         # Add significance label based on corrected p-values using the pipe() method
-        .pipe(__add_significance_label, sig_threshold=sig_threshold)
+        .pipe(_add_significance_label, sig_threshold=sig_threshold)
     )
 
 
@@ -344,6 +394,7 @@ def get_signatures(
     fdr_method: str | None = "fdr_bh",
     p_threshold: float | None = 0.05,
     permutation_resamples: int | None = 1000,
+    permutation_statistic: Literal["mean", "median"] = "mean",
     seed: int | None = 0,
 ) -> tuple[list[str], list[str]]:
     """Identifies significant and non-significant features between two profiles.
@@ -390,7 +441,7 @@ def get_signatures(
     # selecting statistical test to determine the significance of the morphology features
     # and to create the on-morphology and off-morphology signatures
     if test_method == "ks_test":
-        pvals_df = ks_test(
+        pvals_df = apply_ks_test(
             ref_profiles=ref_profiles,
             exp_profiles=exp_profiles,
             morph_feats=morph_feats,
@@ -398,17 +449,18 @@ def get_signatures(
             sig_threshold=p_threshold,
         )
     elif test_method == "permutation_test":
-        pvals_df = perm_test(
+        pvals_df = apply_perm_test(
             ref_profiles=ref_profiles,
             exp_profiles=exp_profiles,
             morph_feats=morph_feats,
             n_resamples=permutation_resamples,
             correction_method=fdr_method,
             sig_threshold=p_threshold,
+            statistic=permutation_statistic,
             seed=seed,
         )
     elif test_method == "welchs_ttest":
-        pvals_df = welchs_ttest(
+        pvals_df = apply_welchs_ttest(
             ref_profiles=ref_profiles,
             exp_profiles=exp_profiles,
             morph_feats=morph_feats,
@@ -417,7 +469,7 @@ def get_signatures(
         )
 
     # Split the features into significant and non-significant based on the significance label
-    on_morphology_feats, off_morphology_feats = __split_morphology_features(
+    on_morphology_feats, off_morphology_feats = _split_morphology_features(
         pvals_df=pvals_df
     )
     return on_morphology_feats, off_morphology_feats
