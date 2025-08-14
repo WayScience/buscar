@@ -8,8 +8,11 @@ of morphology features. It returns two lists of features: significant (on-morpho
 - Off-morphology signatures: non-significant features not associated with the cellular state
 """
 
+from typing import Literal
+
 import numpy as np
 import polars as pl
+from beartype import beartype
 from scipy.stats import ks_2samp, permutation_test
 from statsmodels.stats.multitest import multipletests
 from statsmodels.stats.weightstats import ttest_ind
@@ -233,9 +236,7 @@ def perm_test(
             # calculate and add corrected p-values using the specified method
             pl.Series(
                 "corrected_p_value",
-                p_val_correction(
-                    pvals_df["pval"].to_numpy(), method=correction_method
-                ),
+                p_val_correction(pvals_df["pval"].to_numpy(), method=correction_method),
             )
         )
         # from the output generated above:
@@ -320,9 +321,7 @@ def ks_test(
             # calculate and add corrected p-values using the specified method
             pl.Series(
                 "corrected_p_value",
-                p_val_correction(
-                    pvals_df["pval"].to_numpy(), method=correction_method
-                ),
+                p_val_correction(pvals_df["pval"].to_numpy(), method=correction_method),
             )
         )
         # from the output generated above:
@@ -331,11 +330,12 @@ def ks_test(
     )
 
 
+@beartype  # handles type checking
 def get_signatures(
     ref_profiles: pl.DataFrame,
     exp_profiles: pl.DataFrame,
     morph_feats: list[str],
-    method: str | None = "ks_test",
+    test_method: Literal["ks_test", "permutation_test", "welchs_ttest"] = "ks_test",
     fdr_method: str | None = "fdr_bh",
     p_threshold: float | None = 0.05,
     permutation_resamples: int | None = 1000,
@@ -357,15 +357,15 @@ def get_signatures(
         Experimental profile as a Polars DataFrame.
     morph_feats : list[str]
         List of morphology feature names to compare.
-    method : str, optional
+    test_method : Literal["ks_test", "permutation_test", "welchs_ttest"], optional
         Statistical method to use for comparison. Default is "ks_test".
-    p_threshold : Optional[float], optional
-        Significance threshold for p-values. Default is 0.05.
-    fdr_method : str, optional
+    fdr_method : str | None, optional
         Method for p-value correction. Default is "fdr_bh".
-    permutation_resamples : int, optional
+    p_threshold : float | None, optional
+        Significance threshold for p-values. Default is 0.05.
+    permutation_resamples : int | None, optional
         Number of resamples for permutation test. Default is 1000.
-    seed : int, optional
+    seed : int | None, optional
         Random seed for reproducibility. Default is 0.
     Returns
     -------
@@ -377,37 +377,14 @@ def get_signatures(
     Raises
     ------
     TypeError
-        If input types are not as expected.
-    ValueError
-        If an invalid method is specified.
+        If input types are not as expected (handled by @beartype decorator).
     """
     # set seed for reproducibility
     np.random.seed(seed)
 
-    # checking if the method is valid
-    supported_methods = ["ks_test", "permutation_test", "welchs_ttest"]
-    if method not in supported_methods:
-        raise ValueError(
-            f"{method} is not a valid method. Supported methods are: {supported_methods}"
-        )
-
-    # type check
-    if not isinstance(ref_profiles, pl.DataFrame):
-        raise TypeError("ref_profiles must be a DataFrame")
-    if not isinstance(exp_profiles, pl.DataFrame):
-        raise TypeError("exp_profiles must be a DataFrame")
-    if not isinstance(morph_feats, list):
-        raise TypeError("morph_feats must be a list")
-    if not all(isinstance(feat, str) for feat in morph_feats):
-        raise TypeError("All elements in morph_feats must be strings")
-    if p_threshold is not None and not isinstance(p_threshold, (int, float)):
-        raise TypeError("p_threshold must be an int or float")
-    if fdr_method is not None and not isinstance(fdr_method, str):
-        raise TypeError("fdr_method must be a string")
-
     # selecting statistical test to determine the significance of the morphology features
     # and to create the on-morphology and off-morphology signatures
-    if method == "ks_test":
+    if test_method == "ks_test":
         pvals_df = ks_test(
             ref_profiles=ref_profiles,
             exp_profiles=exp_profiles,
@@ -415,7 +392,7 @@ def get_signatures(
             correction_method=fdr_method,
             sig_threshold=p_threshold,
         )
-    elif method == "permutation_test":
+    elif test_method == "permutation_test":
         pvals_df = perm_test(
             ref_profiles=ref_profiles,
             exp_profiles=exp_profiles,
@@ -425,7 +402,7 @@ def get_signatures(
             sig_threshold=p_threshold,
             seed=seed,
         )
-    elif method == "welchs_ttest":
+    elif test_method == "welchs_ttest":
         pvals_df = welchs_ttest(
             ref_profiles=ref_profiles,
             exp_profiles=exp_profiles,
@@ -435,9 +412,7 @@ def get_signatures(
         )
 
     # Split the features into significant and non-significant based on the significance label
-    # on_morphology = significant morphology features
-    # off_morphology = non-significant morpholgoy features
     on_morphology_feats, off_morphology_feats = __split_morphology_features(
-        pval_df=pvals_df
+        pvals_df=pvals_df
     )
     return on_morphology_feats, off_morphology_feats
