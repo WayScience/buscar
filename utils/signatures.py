@@ -38,7 +38,7 @@ def __add_significance_label(
     pl.DataFrame
         DataFrame with added significance labels.
     """
-    # setting
+    # setting labels if values are significant
     return pvals_df.with_columns(
         pl.when(pl.col("corrected_p_value") < sig_threshold)
         .then(True)
@@ -84,8 +84,10 @@ def __split_morphology_features(pval_df: pl.DataFrame) -> tuple[list[str], list[
     -------
     tuple
         A tuple containing two lists:
-        - The first list contains the names of significant features. (on-morphology signature)
-        - The second list contains the names of non-significant features. (off-morphology signature)
+        - The first list contains the names of significant features. (on-morphology
+        signature)
+        - The second list contains the names of non-significant features.
+        (off-morphology signature)
 
     Raises
     ------
@@ -110,7 +112,8 @@ def welchs_ttest(
     correction_method: str | None = "fdr_bh",
     sig_threshold: float | None = 0.05,
 ) -> pl.DataFrame:
-    """Perform Welch's t-test for each feature in the provided profiles and return a DataFrame with p-values.
+    """Perform Welch's t-test for each feature in the provided profiles and return a
+    DataFrame with p-values.
 
     Parameters
     ----------
@@ -121,7 +124,8 @@ def welchs_ttest(
     morph_feats : list[str]
         List of feature names to perform the statistical test on.
     correction_method : str, optional
-        Method for multiple testing correction (e.g., "fdr_bh", "bonferroni"). Default is "fdr_bh".
+        Method for multiple testing correction (e.g., "fdr_bh", "bonferroni"). Default
+        is "fdr_bh".
     sig_threshold : float, optional
         Significance threshold for corrected p-values. Default is 0.05.
 
@@ -132,7 +136,8 @@ def welchs_ttest(
         - "features": Feature names.
         - "pval": Raw p-values.
         - "corrected_p_value": Corrected p-values after multiple testing correction.
-        - "is_significant": Boolean indicating if the feature is significant based on the threshold.
+        - "is_significant": Boolean indicating if the feature is significant based on
+        the threshold.
     """
     # Dictionary to store p-values for each feature
     pvals = {}
