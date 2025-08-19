@@ -1,9 +1,9 @@
 # Poetry configuration file for the single-cell compound prioritization project
 
 [tool.poetry]
-name = "single-cell-compound-prio"
+name = "buSCar"
 version = "0.1.0"
-description = "single-cell compound prioritization framekwork"
+description = "A Python framework for prioritizing compounds in high-content imaging drug screening using single-cell profiles."
 authors = ["Erik Serrano <erikishere3@gmail.com>"]
 readme = "README.md"
 
@@ -19,8 +19,8 @@ pycytominer = ">=1.2.3,<2.0.0"
 jupyter = "^1.1.1"
 ipykernel = "^6.29.5"
 tqdm = "^4.67.1"
-beartype = "^0.21.0"
 pot = "^0.9.5"
+beartype = "^0.21.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
