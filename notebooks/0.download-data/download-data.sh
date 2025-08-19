@@ -9,5 +9,6 @@ source activate buscar
 jupyter nbconvert --output-dir=nbconverted --to script *.ipynb
 
 # execute the script
-python nbconvert/1.download-CPJUMP1-metadata.py
-python nbconvert/2.preprocessing.py
+python nbconverted/1.download-CPJUMP1-metadata.py
+python nbconverted/2.preprocessing.py
+python nbconverted/3.subset-jump-controls.py
