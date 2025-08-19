@@ -18,35 +18,6 @@ from statsmodels.stats.multitest import multipletests
 from statsmodels.stats.weightstats import ttest_ind
 
 
-def _add_significance_label(
-    pvals_df: pl.DataFrame, sig_threshold: float | None = 0.05
-) -> pl.DataFrame:
-    """Add significance labels to p-values based on a threshold.
-
-    Adds a new column to the dataframe indicating whether each p-value is
-    significant or not based on the provided threshold.
-
-    Parameters
-    ----------
-    pvals_df : pl.DataFrame
-        DataFrame containing p-values.
-    sig_threshold : float, optional
-        Significance threshold. Default is 0.05.
-
-    Returns
-    -------
-    pl.DataFrame
-        DataFrame with added significance labels.
-    """
-    # setting labels if values are significant
-    return pvals_df.with_columns(
-        pl.when(pl.col("corrected_p_value") < sig_threshold)
-        .then(True)
-        .otherwise(False)
-        .alias("is_significant")
-    )
-
-
 @beartype
 def _split_morphology_features(pval_df: pl.DataFrame) -> tuple[list[str], list[str]]:
     """Split features into two groups based on their significance.
