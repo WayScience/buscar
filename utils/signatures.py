@@ -414,8 +414,5 @@ def get_signatures(
     )
 
     # Split the features into significant and non-significant based on the significance label
-    on_morphology_feats, off_morphology_feats = _split_morphology_features(
-        pvals_df=pvals_df
-    )
-
-    return on_morphology_feats, off_morphology_feats
+    # this returns a tuple (on_morphology_feats, off_morphology_feats)
+    return _split_morphology_features(pvals_df=pvals_df)
