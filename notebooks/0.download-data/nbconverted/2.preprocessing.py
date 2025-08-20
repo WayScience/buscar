@@ -209,6 +209,8 @@ with open(results_dir / "concat_profiles_meta_features.json", "w") as f:
 complete_crispr_platemap_df.write_csv(
     results_dir / "complete_crispr_platemap.csv")
 
-# Save the concated profiles
+# save control profiles only
+
+# Save the concatenated profiles
 loaded_profiles.write_parquet(
     results_dir / "concat_crispr_profiles.parquet")
