@@ -115,26 +115,32 @@ def load_group_stratified_data(
 
     dataset_path = dataset_path.resolve(strict=True)
 
-    # Load only the grouping columns to determine groups
+    # load only the grouping columns to determine groups
     metadata_df = pl.read_parquet(dataset_path, columns=group_columns).with_row_index(
         "original_idx"
     )
 
-    # Sample indices for each group based on the group_columns
+    # sample indices for each group based on the group_columns
     sampled_indices = (
-        metadata_df.group_by(group_columns)
+        metadata_df
+        # group rows by the specified columns (e.g., Plate and Well combinations)
+        .group_by(group_columns)
+        # for each group, randomly sample a fraction of the original row indices
         .agg(
             pl.col("original_idx")
-            .sample(fraction=sample_percentage)
-            .alias("sampled_idx")
+            .sample(fraction=sample_percentage)  # sample specified percentage from each group
+            .alias("sampled_idx")  # rename the sampled indices column
         )
+        # extract only the sampled indices column, discarding group identifiers
         .select("sampled_idx")
+        # convert list of indices per group into individual rows (flatten the structure)
         .explode("sampled_idx")
+        # extract the sampled indices as a single column series
         .get_column("sampled_idx")
-        .sort()  # Sort for efficient parquet reading
+        .sort()
     )
 
-    # Load the entire dataset and filter to sampled indices
+    # load the entire dataset and filter to sampled indices
     sampled_df = (
         pl.read_parquet(dataset_path)
         .with_row_index("idx")
