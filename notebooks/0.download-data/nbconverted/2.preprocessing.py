@@ -24,7 +24,7 @@ import sys
 import polars as pl
 
 sys.path.append("../../")
-from utils.utils import split_meta_and_features
+from utils.data_utils import split_meta_and_features
 
 # ## Helper functions
 #
@@ -114,6 +114,7 @@ profiles_dir = (data_dir / "sc-profiles").resolve(strict=True)
 
 # Experimental metadata
 exp_metadata_path = (data_dir / "CPJUMP1-experimental-metadata.csv").resolve(strict=True)
+exp_platemaps_path = (data_dir / "CPJUMP1-plate-maps.csv").resolve(strict=True)
 
 # Setting feature selection path
 shared_features_config_path = (data_dir / "feature_selected_sc_qc_features.json").resolve(strict=True)
@@ -130,6 +131,7 @@ results_dir.mkdir(exist_ok=True)
 
 # Load experimental metadata
 exp_metadata = pl.read_csv(exp_metadata_path)
+platemap_df = pl.read_csv(exp_platemaps_path)
 crispr_plate_names = exp_metadata.select("Assay_Plate_Barcode").unique().to_series().to_list()
 crispr_plate_paths = [
         (profiles_dir / f"{plate}_feature_selected_sc_qc.parquet").resolve(strict=True) for plate in crispr_plate_names
@@ -165,9 +167,32 @@ loaded_profiles = loaded_profiles.with_row_index("index")
 meta_cols, features_cols = split_meta_and_features(loaded_profiles)
 
 
-# Saving the concatenated CRISPR profiles and feature space information
+# Generating a complete platemap containing well positions and all relevant metadata.
 
 # In[6]:
+
+
+# select columns that only start with Metadata
+meta_cols = [col for col in loaded_profiles.columns if col.startswith("Metadata")]
+features_cols = [col for col in loaded_profiles.columns if col.startswith("Feature")]
+
+treatment_metadata_df = loaded_profiles[["Metadata_broad_sample", "Metadata_Well", "Metadata_gene", "Metadata_pert_type", "Metadata_control_type"]]
+
+# group these duplicates based on Metadata_broad_sample and Metadata_Well
+complete_crispr_platemap_df = (
+	treatment_metadata_df
+	.group_by(["Metadata_broad_sample", "Metadata_Well"])
+	.agg([
+		pl.col("Metadata_gene").first().alias("Metadata_gene"),
+		pl.col("Metadata_pert_type").first().alias("Metadata_pert_type"),
+		pl.col("Metadata_control_type").first().alias("Metadata_control_type"),
+	])
+)[["Metadata_Well", "Metadata_broad_sample", "Metadata_gene", "Metadata_pert_type", "Metadata_control_type"]].sort(by="Metadata_Well")
+
+
+# Saving the concatenated CRISPR profiles and feature space information
+
+# In[7]:
 
 
 # Saving metadata and features of the concat profile into a json file
@@ -179,6 +204,10 @@ meta_features_dict = {
 }
 with open(results_dir / "concat_profiles_meta_features.json", "w") as f:
     json.dump(meta_features_dict, f, indent=4)
+
+# save complete plate map
+complete_crispr_platemap_df.write_csv(
+    results_dir / "complete_crispr_platemap.csv")
 
 # Save the concated profiles
 loaded_profiles.write_parquet(

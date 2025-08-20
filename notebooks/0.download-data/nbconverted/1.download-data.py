@@ -32,10 +32,14 @@ from utils import io_utils
 
 
 
+
 def download_compressed_file(
-    source_url: str, output_path: pathlib.Path | str, chunk_size: int = 8192, extract: bool = True
+    source_url: str,
+    output_path: pathlib.Path | str,
+    chunk_size: int = 8192,
+    extract: bool = True,
 ):
-    """ Downloads a compressed file from a URL with progress tracking.
+    """Downloads a compressed file from a URL with progress tracking.
 
     Downloads a file from the specified URL and saves it to the given output path.
     The download is performed in chunks to handle large files efficiently, and the progress is displayed using
@@ -108,30 +112,29 @@ def download_compressed_file(
 
         # extract the file if requested
         if extract:
-
             # ensring that the path is a directory if the output path is a file
             # this is necessary for extraction
             extract_dir = output_path
             if extract_dir.is_file():
                 extract_dir = output_path.parent
 
-            if output_path.suffix == '.gz':
+            if output_path.suffix == ".gz":
                 # handle gzip files
-                extracted_path = output_path.with_suffix('')
-                with gzip.open(output_path, 'rb') as f_in:
-                    with open(extracted_path, 'wb') as f_out:
+                extracted_path = output_path.with_suffix("")
+                with gzip.open(output_path, "rb") as f_in:
+                    with open(extracted_path, "wb") as f_out:
                         f_out.write(f_in.read())
                 print(f"Extracted to: {extracted_path}")
 
-            elif output_path.suffix == '.zip':
+            elif output_path.suffix == ".zip":
                 # handle zip files
-                with zipfile.ZipFile(output_path, 'r') as zip_ref:
+                with zipfile.ZipFile(output_path, "r") as zip_ref:
                     zip_ref.extractall(extract_dir)
                 print(f"Extracted to: {extract_dir}")
 
-            elif output_path.suffix in ['.tar', '.tgz'] or '.tar.' in output_path.name:
+            elif output_path.suffix in [".tar", ".tgz"] or ".tar." in output_path.name:
                 # handle tar files
-                with tarfile.open(output_path, 'r:*') as tar_ref:
+                with tarfile.open(output_path, "r:*") as tar_ref:
                     tar_ref.extractall(extract_dir)
                 print(f"Extracted to: {extract_dir}")
 
@@ -167,6 +170,7 @@ data_dir.mkdir(exist_ok=True)
 
 # setting a path to save the experimental metadata
 exp_metadata_path = (data_dir / "CPJUMP1-experimental-metadata.csv").resolve()
+exp_platemaps_path = (data_dir / "CPJUMP1-plate-maps.csv").resolve()
 
 # setting profile directory
 profiles_dir = (data_dir / "sc-profiles").resolve()
@@ -192,10 +196,16 @@ cfret_dir.mkdir(exist_ok=True)
 nb_configs = io_utils.load_configs(config_path)
 CPJUMP1_exp_metadata_url = nb_configs["links"]["CPJUMP1-experimental-metadata-source"]
 
-# read in the experimental metadata CSV file and only filter down to plays that
-# have an CRISPR perturbation
+if pert_type == "crispr":
+    platemap_url = nb_configs["links"]["CPJUMP-plate-maps-source"]
+
+
+# loading in the experimental metadata and plate maps using their url links
 exp_metadata = pl.read_csv(
     CPJUMP1_exp_metadata_url, separator="\t", has_header=True, encoding="utf-8"
+)
+plate_map = pl.read_csv(
+    platemap_url, separator="\t", has_header=True, encoding="utf-8"
 )
 
 # filtering the metadata to only includes plates that their perturbation types are crispr
@@ -203,9 +213,9 @@ exp_metadata = exp_metadata.filter(exp_metadata["Perturbation"].str.contains(per
 
 # save the experimental metadata as a csv file
 exp_metadata.write_csv(exp_metadata_path)
+plate_map.write_csv(exp_platemaps_path)
 
-# display
-exp_metadata
+exp_metadata.head()
 
 
 # Creating a dictionary to group plates by their corresponding experimental batch
@@ -221,7 +231,9 @@ exp_metadata_batches = exp_metadata["Batch"].unique().to_list()
 
 for batch in exp_metadata_batches:
     # getting the plates in the batch
-    plates_in_batch = exp_metadata.filter(exp_metadata["Batch"] == batch)["Assay_Plate_Barcode"].to_list()
+    plates_in_batch = exp_metadata.filter(exp_metadata["Batch"] == batch)[
+        "Assay_Plate_Barcode"
+    ].to_list()
 
     # adding the plates to the dictionary
     batch_plates_dict[batch] = plates_in_batch
@@ -271,7 +283,9 @@ else:
 cfret_source = nb_configs["links"]["CFReT-profiles-source"]
 
 # use the correct filename from the source URL
-output_path = (cfret_dir / "localhost230405150001_sc_feature_selected.parquet").resolve()
+output_path = (
+    cfret_dir / "localhost230405150001_sc_feature_selected.parquet"
+).resolve()
 
 # checking if the download already exists if it does not exist
 # download the file
