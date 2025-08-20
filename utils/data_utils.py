@@ -74,6 +74,7 @@ def load_group_stratified_data(
     dataset_path: str | pathlib.Path,
     group_columns: list[str] = ["Metadata_Plate", "Metadata_Well"],
     sample_percentage: float = 0.2,
+    seed: int = 0
 ) -> pl.DataFrame:
     """Memory-efficiently sample a percentage of rows from each group in a dataset.
 
@@ -128,7 +129,7 @@ def load_group_stratified_data(
         # for each group, randomly sample a fraction of the original row indices
         .agg(
             pl.col("original_idx")
-            .sample(fraction=sample_percentage)  # sample specified percentage from each group
+            .sample(fraction=sample_percentage, seed=seed)  # sample specified percentage from each group
             .alias("sampled_idx")  # rename the sampled indices column
         )
         # extract only the sampled indices column, discarding group identifiers
