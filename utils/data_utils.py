@@ -1,3 +1,5 @@
+import pathlib
+
 import pandas as pd
 import polars as pl
 from beartype import beartype
@@ -65,3 +67,79 @@ def split_meta_and_features(
         meta_cols = infer_cp_features(profile, metadata=metadata_tag)
 
     return (meta_cols, features_cols)
+
+
+@beartype
+def load_group_stratified_data(
+    dataset_path: str | pathlib.Path,
+    group_columns: list[str] = ["Metadata_Plate", "Metadata_Well"],
+    sample_percentage: float = 0.2,
+) -> pl.DataFrame:
+    """Memory-efficiently sample a percentage of rows from each group in a dataset.
+
+    This function performs stratified sampling by loading only the grouping columns first
+    to dtermine group memberships and sizes, then samples indices from each group, and
+    finally loads the full dataset filtered to only the sampled rows. This approach
+    minimizes memory usage compared to loading the entire dataset upfront.
+
+    Parameters
+    ----------
+    dataset_path : str or pathlib.Path
+        Path to the parquet dataset file to sample from
+    group_columns : list[str], default ["Metadata_Plate", "Metadata_Well"]
+        Column names to use for grouping. Sampling will be performed independently
+        within each unique combination of these columns
+    sample_percentage : float, default 0.2
+        Fraction of rows to sample from each group (must be between 0.0 and 1.0)
+
+    Returns
+    -------
+    pl.DataFrame
+        Subsampled dataframe containing the sampled rows from each group,
+        preserving all original columns
+
+    Raises
+    ------
+    ValueError
+        If sample_percentage is not between 0 and 1
+    FileNotFoundError
+        If dataset_path does not exist
+    """
+    # validate inputs
+    if not 0 <= sample_percentage <= 1:
+        raise ValueError("sample_percentage must be between 0 and 1")
+
+    # convert str types to pathlib types
+    if isinstance(dataset_path, str):
+        dataset_path = pathlib.Path(dataset_path)
+
+    dataset_path = dataset_path.resolve(strict=True)
+
+    # Load only the grouping columns to determine groups
+    metadata_df = pl.read_parquet(dataset_path, columns=group_columns).with_row_index(
+        "original_idx"
+    )
+
+    # Sample indices for each group based on the group_columns
+    sampled_indices = (
+        metadata_df.group_by(group_columns)
+        .agg(
+            pl.col("original_idx")
+            .sample(fraction=sample_percentage)
+            .alias("sampled_idx")
+        )
+        .select("sampled_idx")
+        .explode("sampled_idx")
+        .get_column("sampled_idx")
+        .sort()  # Sort for efficient parquet reading
+    )
+
+    # Load the entire dataset and filter to sampled indices
+    sampled_df = (
+        pl.read_parquet(dataset_path)
+        .with_row_index("idx")
+        .filter(pl.col("idx").is_in(sampled_indices))
+        .drop("idx")
+    )
+
+    return sampled_df
