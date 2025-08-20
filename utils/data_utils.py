@@ -71,7 +71,7 @@ def split_meta_and_features(
 
 @beartype
 def load_group_stratified_data(
-    dataset_path: str | pathlib.Path,
+    profiles: str | pathlib.Path | pl.DataFrame,
     group_columns: list[str] = ["Metadata_Plate", "Metadata_Well"],
     sample_percentage: float = 0.2,
     seed: int = 0
@@ -111,15 +111,17 @@ def load_group_stratified_data(
         raise ValueError("sample_percentage must be between 0 and 1")
 
     # convert str types to pathlib types
-    if isinstance(dataset_path, str):
-        dataset_path = pathlib.Path(dataset_path)
-
-    dataset_path = dataset_path.resolve(strict=True)
+    if isinstance(profiles, str):
+        profiles = pathlib.Path(profiles).resolve(strict=True)
 
     # load only the grouping columns to determine groups
-    metadata_df = pl.read_parquet(dataset_path, columns=group_columns).with_row_index(
-        "original_idx"
-    )
+    if isinstance(profiles, pl.DataFrame):
+        # if a polars DataFrame is provided, use it directly
+        metadata_df = profiles.select(group_columns).with_row_index("original_idx")
+    else:
+        metadata_df = pl.read_parquet(profiles, columns=group_columns).with_row_index(
+            "original_idx"
+        )
 
     # sample indices for each group based on the group_columns
     sampled_indices = (
@@ -143,7 +145,7 @@ def load_group_stratified_data(
 
     # load the entire dataset and filter to sampled indices
     sampled_df = (
-        pl.read_parquet(dataset_path)
+        profiles
         .with_row_index("idx")
         .filter(pl.col("idx").is_in(sampled_indices))
         .drop("idx")
