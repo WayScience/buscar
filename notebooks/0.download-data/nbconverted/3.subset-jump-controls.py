@@ -20,6 +20,3 @@ data_path = pathlib.Path("./data/CPJUMP1-experimental-metadata.csv")
 
 
 pd.read_csv(data_path).head(100)
-
-
-# In[ ]:
