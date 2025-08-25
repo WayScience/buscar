@@ -3,7 +3,7 @@
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.14"
-content-hash = "311520e59adf6ebd7f1357d69dd0c53e8e6cf79c10ea71a29feaf1c3e6ce34dd"
+content-hash = "b72323ab663907cc79d70ee7583e4ad6291f06da1ad021e3264e44456dc49fd8"
 
 [[package]]
 name = "anyio"
@@ -169,6 +169,24 @@ files = [
 
 [package.extras]
 dev = ["backports.zoneinfo", "freezegun (>=1.0,<2.0)", "jinja2 (>=3.0)", "pytest (>=6.0)", "pytest-cov", "pytz", "setuptools", "tzdata"]
+
+[[package]]
+name = "beartype"
+version = "0.21.0"
+description = "Unbearably fast near-real-time hybrid runtime-static type-checking in pure Python."
+optional = false
+python-versions = ">=3.9"
+files = [
+  {file = "beartype-0.21.0-py3-none-any.whl", hash = "sha256:b6a1bd56c72f31b0a496a36cc55df6e2f475db166ad07fa4acc7e74f4c7f34c0"},
+  {file = "beartype-0.21.0.tar.gz", hash = "sha256:f9a5078f5ce87261c2d22851d19b050b64f6a805439e8793aecf01ce660d3244"}
+]
+
+[package.extras]
+dev = ["autoapi (>=0.9.0)", "click", "coverage (>=5.5)", "equinox", "jax[cpu]", "jaxtyping", "langchain", "mypy (>=0.800)", "nuitka (>=1.2.6)", "numba", "numpy", "pandera", "pydata-sphinx-theme (<=0.7.2)", "pygments", "pyright (>=1.1.370)", "pytest (>=4.0.0)", "rich-click", "sphinx", "sphinx (>=4.2.0,<6.0.0)", "sphinxext-opengraph (>=0.7.5)", "sqlalchemy", "tox (>=3.20.1)", "typing-extensions (>=3.10.0.0)", "xarray"]
+doc-rtd = ["autoapi (>=0.9.0)", "pydata-sphinx-theme (<=0.7.2)", "sphinx (>=4.2.0,<6.0.0)", "sphinxext-opengraph (>=0.7.5)"]
+test = ["click", "coverage (>=5.5)", "equinox", "jax[cpu]", "jaxtyping", "langchain", "mypy (>=0.800)", "nuitka (>=1.2.6)", "numba", "numpy", "pandera", "pygments", "pyright (>=1.1.370)", "pytest (>=4.0.0)", "rich-click", "sphinx", "sqlalchemy", "tox (>=3.20.1)", "typing-extensions (>=3.10.0.0)", "xarray"]
+test-tox = ["click", "equinox", "jax[cpu]", "jaxtyping", "langchain", "mypy (>=0.800)", "nuitka (>=1.2.6)", "numba", "numpy", "pandera", "pygments", "pyright (>=1.1.370)", "pytest (>=4.0.0)", "rich-click", "sphinx", "sqlalchemy", "typing-extensions (>=3.10.0.0)", "xarray"]
+test-tox-coverage = ["coverage (>=5.5)"]
 
 [[package]]
 name = "beautifulsoup4"
@@ -2166,6 +2184,70 @@ style = ["great-tables (>=0.8.0)"]
 timezone = ["tzdata"]
 xlsx2csv = ["xlsx2csv (>=0.8.0)"]
 xlsxwriter = ["xlsxwriter"]
+
+[[package]]
+name = "pot"
+version = "0.9.5"
+description = "Python Optimal Transport Library"
+optional = false
+python-versions = ">=3.7"
+files = [
+  {file = "POT-0.9.5-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:34d766c38e65a69c087b01a854fe89fbd152c3e8af93da2227b6c40aed6d37b9"},
+  {file = "POT-0.9.5-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:b5407377256de11b6fdc94bbba9b50ea5a2301570905fc9014541cc8473806d9"},
+  {file = "POT-0.9.5-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:2f37039cd356198c1fb994e7d935b9bf75d44f2a40319d298bf8cc149eb360d5"},
+  {file = "POT-0.9.5-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:00a18427c9abdd107a2285ea0a814c6b22e95a1af8f88a37c56f23cd216f7a6b"},
+  {file = "POT-0.9.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f0dc608cea1107289a58dec33cddc1b0a3fea77ff36d66e2c8ac7aeea543969a"},
+  {file = "POT-0.9.5-cp310-cp310-win32.whl", hash = "sha256:8312bee055389db47adab063749c8d77b5981534177ca6cd9b91e4fb68f69d00"},
+  {file = "POT-0.9.5-cp310-cp310-win_amd64.whl", hash = "sha256:043706d69202ac87e140121ba32ed1b038f2b3fc4a5549586187239a583cd50d"},
+  {file = "POT-0.9.5-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:b5f000da00e408ff781672a4895bfa8daacec055bd534c9e66ead479f3c6d83c"},
+  {file = "POT-0.9.5-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:9eddd9ff29bdb17d4db8ba00ba18d42656c694a128591502bf59afc1369e1bb3"},
+  {file = "POT-0.9.5-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:7eb9b88c73387a9966775a6f6d077d9d071814783701d2656dc05b5032a9662d"},
+  {file = "POT-0.9.5-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c9f44446056f5fc9d132ed8e431732c33cbe754fb1e6d73636f1b6ae811be7df"},
+  {file = "POT-0.9.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d7f5d27bc9063e01b03d906bb77e7b3428065fdd72ed64233b249584ead2e2bf"},
+  {file = "POT-0.9.5-cp311-cp311-win32.whl", hash = "sha256:cd79a8b4d35b706f2124f73ebff3bb1ce3450e01cc8f610eda3b6ce13616b829"},
+  {file = "POT-0.9.5-cp311-cp311-win_amd64.whl", hash = "sha256:6680aadb69df2f75a413fe9c58bd1c5cb744d017a7c8ba8841654fd0dc75433b"},
+  {file = "POT-0.9.5-cp312-cp312-macosx_10_9_universal2.whl", hash = "sha256:7d57f96b333c9816a2af7817753108739b38155e52648c5967681dbd89d92ed2"},
+  {file = "POT-0.9.5-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:afad647c78f999439f8c5cbcf74b03c5c0afefb08727cd7d68994130fabfc761"},
+  {file = "POT-0.9.5-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:bca891c28592d6e0e8f04b35989de7005f0fb9b3923f00537f1b269c5084aa7b"},
+  {file = "POT-0.9.5-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:088c930a5fcd1e8e36fb6af710df47ce6e9331b6b5a28eb09c673df4186dcb10"},
+  {file = "POT-0.9.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:dfb18268fac1e982e21821a03f802802a0d579c4690988b764115dd886dc38f5"},
+  {file = "POT-0.9.5-cp312-cp312-win32.whl", hash = "sha256:931fa46ff8e01d47309207243988c783a2d8364452bc080b130c5d319349ad3f"},
+  {file = "POT-0.9.5-cp312-cp312-win_amd64.whl", hash = "sha256:be786612b391c2e4d3b5db4e7d51cdb2360284e3a6949990051c2eb102f60d3c"},
+  {file = "POT-0.9.5-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:844820020240bad66ca07255289df9ed1e46c5f71ba2401852833c0dd114c660"},
+  {file = "POT-0.9.5-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a76a5bed3af51db1a10c59ba376f500a743f8e20c2a6d4851c4535dbbed17714"},
+  {file = "POT-0.9.5-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8a03da3283cb04a1fa3258f0096ad9cfa3311192d5a6bee3a2ca0e15304f8652"},
+  {file = "POT-0.9.5-cp37-cp37m-win32.whl", hash = "sha256:dc50b8005b4dfa3478f0bf841c22d8b3500a8a04e5673da146d71f7039607e3a"},
+  {file = "POT-0.9.5-cp37-cp37m-win_amd64.whl", hash = "sha256:a9cab787bcb3ce6d23ef297c115baad34ed578a98b4a02afba8cb4e30e39d171"},
+  {file = "POT-0.9.5-cp38-cp38-macosx_10_9_universal2.whl", hash = "sha256:926ba491b5b1f43fb0f3bc6e9d92b6cc634c12e2fa778eba88d9350e82fc2c88"},
+  {file = "POT-0.9.5-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:1b77b630a303868ee14015a4306d7e852b174d4a734815c67e27cd45fd59cc07"},
+  {file = "POT-0.9.5-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:db0dd974328cbdd7b20477fb5757326dda22d77cb639f4759296fcd206db380f"},
+  {file = "POT-0.9.5-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:eb29c375d02bb5aadad527133e9c20dd73930d8e2294434dc5306fb740a49d9e"},
+  {file = "POT-0.9.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:293e0993d66b09db69c2282edbf859e1de57a3f15b99bd909609ce120380b398"},
+  {file = "POT-0.9.5-cp38-cp38-win32.whl", hash = "sha256:5996d538885b834e36a3838bc73adeb747bd54ab0a2b3178addbb35b3edafa45"},
+  {file = "POT-0.9.5-cp38-cp38-win_amd64.whl", hash = "sha256:0131aab58d57bf5876d826461d0968d1a655b611cc8c0297c38ab8a235e0d627"},
+  {file = "POT-0.9.5-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:95c29ee3e647b272bfcb35c3c4cb7409326a0a6d3bf3ed8460495e9ac3f3a76d"},
+  {file = "POT-0.9.5-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:b1bca1b3465eadab9d5e1c075122963da3e921102555d1c6b7ff3c1f437d3e18"},
+  {file = "POT-0.9.5-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:e64f5d8890e21eb1e7decac694c34820496238e7d9c95309411e58cb0b04d384"},
+  {file = "POT-0.9.5-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4fa190662670868126a2372499aec513bd4ac50b4565fe2014525c7cef11e2bf"},
+  {file = "POT-0.9.5-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f9b775daf69cb4043897050961f9b654c30261543e531d53248a99e5599db0c8"},
+  {file = "POT-0.9.5-cp39-cp39-win32.whl", hash = "sha256:ceea4cffebce88211cd63bfddc878e2f29a6b6347125cbac40fa214308315878"},
+  {file = "POT-0.9.5-cp39-cp39-win_amd64.whl", hash = "sha256:2f6af660505772833d4ccc189d9de264b429d9ec8e0cb564f33d2181e6f1bbce"},
+  {file = "pot-0.9.5.tar.gz", hash = "sha256:9644ee7ff51c3cffa3c2632b9dd9dff4f3520266f9fb771450935ffb646d6042"}
+]
+
+[package.dependencies]
+numpy = ">=1.16"
+scipy = ">=1.6"
+
+[package.extras]
+all = ["autograd", "cvxopt", "jax", "jaxlib", "matplotlib", "pymanopt", "scikit-learn", "tensorflow", "torch", "torch-geometric"]
+backend-jax = ["jax", "jaxlib"]
+backend-tf = ["tensorflow"]
+backend-torch = ["torch"]
+cvxopt = ["cvxopt"]
+dr = ["autograd", "pymanopt", "scikit-learn"]
+gnn = ["torch", "torch-geometric"]
+plot = ["matplotlib"]
 
 [[package]]
 name = "pre-commit"
