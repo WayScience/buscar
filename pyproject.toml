@@ -1,7 +1,7 @@
 # Poetry configuration file for the single-cell compound prioritization project
 
 [tool.poetry]
-name = "buSCar"
+name = "buscar"
 version = "0.1.0"
 description = "A Python framework for prioritizing compounds in high-content imaging drug screening using single-cell profiles."
 authors = ["Erik Serrano <erikishere3@gmail.com>"]
