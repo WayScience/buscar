@@ -13,8 +13,8 @@
       stroke="#ffffff"
       stroke-width="5"
       stroke-linecap="round"
-      stroke-dasharray="5 20 20 35 30 30 10 99999"
-      transform="rotate(90)"
+      stroke-dasharray="15 60 10 15 30 40 20 99999"
+      transform="rotate(20)"
       opacity="0.3"
       cx="0"
       cy="0"
@@ -22,45 +22,84 @@
     />
   </g>
 
-  <!-- background -->
-  <circle fill="#ffffff" opacity="0.5" cx="0" cy="0" r="20" />
-  <!-- compare -->
-  <path
-    fill="#9fa8da"
-    transform="rotate(135)"
-    d="
-      M 0 -20
-      L 0 20
-      A 20 20 0 0 0 0 -20
-    "
-  />
-
-  <!-- bonds -->
-  <path
-    fill="none"
-    stroke="#9fa8da"
+  <!-- enclosure -->
+  <g
+    stroke="#505060"
     stroke-width="3"
     stroke-linecap="round"
-    d="
-      M -10 0
-      L 10 0
-      M 0 -10
-      L 0 10
-    "
-  />
-  <!-- nuclei -->
-  <g fill="#3f51b5">
-    <circle cx="0" cy="0" r="3" />
-    <circle cx="0" cy="-10" r="3" />
-    <circle cx="10" cy="0" r="3" />
-    <circle cx="0" cy="10" r="3" />
-    <circle cx="-10" cy="0" r="3" />
+    stroke-linejoin="round"
+  >
+    <!-- glass -->
+    <path
+      fill="#ffffff"
+      fill-opacity="0.5"
+      d="
+        M -8 17
+        a 5 5 0 0 1 -5 -5
+        v -23
+        a 5 5 0 0 1 5 -5
+        h 16
+        a 5 5 0 0 1 5 5
+        v 23
+        a 5 5 0 0 1 -5 5
+        z
+      "
+    />
+    <!-- base -->
+    <path
+      fill="#505060"
+      fill-opacity="0.75"
+      d="
+        M -7 17
+        a 7 7 0 0 1 -7 7
+        h 28
+        a 7 7 0 0 1 -7 -7
+        z
+      "
+    />
+    <!-- top -->
+    <path
+      fill="none"
+      d="
+        M -2 -20
+        a 4 4 0 1 1 4 0
+        z
+        l -3 3
+        h 10
+        l -3 -3
+        z
+      "
+    />
   </g>
-
-  <!-- magnifier -->
-  <g fill="none" stroke="#505060" stroke-width="5" stroke-linecap="round">
-    <circle cx="0" cy="0" r="20" />
-    <line x1="14.1" y1="14.1" x2="24" y2="24" />
+  <!-- flame -->
+  <g
+    fill="#2196F3"
+    stroke="#2196F3"
+    stroke-width="1"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <!-- inner -->
+    <path
+      opacity="0.5"
+      d="
+        M 0 10
+        a 8 8 0 0 1 0 -8
+        a 8 8 0 0 1 0 8
+      "
+    />
+    <!-- outer -->
+    <path
+      opacity="0.75"
+      d="
+        M -1 13
+        a 12 12 0 0 1 0 -22
+        a 20 20 0 0 0 0 22
+        M 1 13
+        a 8 8 0 0 0 0 -15
+        a 13 13 0 0 1 0 15
+      "
+    />
   </g>
 
   <!-- text -->
@@ -75,7 +114,7 @@
   <g>
     <text x="60" y="1">
       <tspan fill="#ffffff">bu</tspan>
-      <tspan fill="#90caf9" dx="-10">SC</tspan>
+      <tspan fill="#90caf9" dx="-10">sc</tspan>
       <tspan fill="#ffffff" dx="-10">ar</tspan>
     </text>
   </g>
