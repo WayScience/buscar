@@ -1,33 +1,36 @@
 #!/usr/bin/env python
+# coding: utf-8
 
 # # 2. Preprocessing Data
-#
+# 
 # In this notebook, we explore the contents of the downloaded dataset and perform preprocessing steps to prepare the data for downstream analysis.
 # **Overview**
-#
+# 
 # We focus on concatenating profiles from plates containing CRISPR knockdown experiments. The workflow includes:
-#
+# 
 # 1. **Plate Selection**: Loading only plates with CRISPR knockdown wells from the experimental metadata
 # 2. **Feature Space Reduction**: Using the shared feature space defined in the [JUMP-single-cell repository](https://github.com/WayScience/JUMP-single-cell)
 # 3. **Data Concatenation**: Combining all selected plates into a single DataFrame with consistent features
 # 4. **Metadata Preservation**: Generating a JSON record containing metadata and shared feature information for reproducibility
-#
+# 
 # This preprocessing ensures all profiles share the same feature space and are ready for comparative analysis across different experimental conditions.
 
 # In[1]:
 
 
+import sys
 import json
 import pathlib
-import sys
+from typing import Optional
 
 import polars as pl
 
 sys.path.append("../../")
 from utils.data_utils import split_meta_and_features
 
-# ## Helper functions
-#
+
+# ## Helper functions 
+# 
 # Contains helper function that pertains to this notebook.
 
 # In[2]:
@@ -35,8 +38,8 @@ from utils.data_utils import split_meta_and_features
 
 def load_and_concat_profiles(
     profile_dir: str | pathlib.Path,
-    shared_features: list[str] | None = None,
-    specific_plates: list[pathlib.Path] | None = None,
+    shared_features: Optional[list[str]] = None,
+    specific_plates: Optional[list[pathlib.Path]] = None,
 ) -> pl.DataFrame:
     """
     Load all profile files from a directory and concatenate them into a single Polars DataFrame.
@@ -100,7 +103,7 @@ def load_and_concat_profiles(
 
 
 # Defining the input and output directories used throughout the notebook.
-#
+# 
 # > **Note:** The shared profiles utilized here are sourced from the [JUMP-single-cell](https://github.com/WayScience/JUMP-single-cell) repository. All preprocessing and profile generation steps are performed in that repository, and this notebook focuses on downstream analysis using the generated profiles.
 
 # In[3]:
@@ -144,7 +147,7 @@ shared_features = loaded_shared_features["shared-features"]
 
 
 # Using the filtered CRISPR plate file paths and shared features configuration, we load all individual profile files and concatenate them into a single comprehensive DataFrame. This step combines data from multiple experimental plates while maintaining the consistent feature space defined by the shared features list.
-#
+# 
 # The concatenation process ensures:
 # - All profiles use the same feature set for downstream compatibility
 # - Metadata columns are preserved across all plates
@@ -214,3 +217,4 @@ complete_crispr_platemap_df.write_csv(
 # Save the concatenated profiles
 loaded_profiles.write_parquet(
     results_dir / "concat_crispr_profiles.parquet")
+
