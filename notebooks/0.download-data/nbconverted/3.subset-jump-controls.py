@@ -1,24 +1,23 @@
 #!/usr/bin/env python
-# coding: utf-8
 
-# # 3. Subsetting CPJUMP1 controls 
-# 
+# # 3. Subsetting CPJUMP1 controls
+#
 # In this notebook, we subset control samples from the CPJUMP1 CRISPR dataset using stratified sampling. We generate 10 different random seeds to create multiple subsets, each containing 15% of the original control data stratified by plate and well metadata. This approach ensures reproducible sampling while maintaining the distribution of controls across experimental conditions.
-# 
+#
 # The subsampled datasets are saved as individual parquet files for downstream analysis and model training purposes.
-# 
+#
 
 # In[1]:
 
 
-import sys
 import json
 import pathlib
+import sys
+
 import polars as pl
 
 sys.path.append("../../")
 from utils.data_utils import split_meta_and_features
-
 
 # Load helper functions
 
@@ -122,7 +121,7 @@ download_module_results_dir = pathlib.Path("../0.download-data/results").resolve
 
 # setting directory where all the single-cell profiles are stored
 profiles_dir = (data_dir / "sc-profiles").resolve(strict=True)
-    
+
 exp_metadata_path = (
     profiles_dir / "cpjump1" / "CPJUMP1-experimental-metadata.csv"
 ).resolve(strict=True)
@@ -137,7 +136,7 @@ cpjump_crispr_data_dir = (data_dir / "sc-profiles" / "cpjump1-crispr-negcon").re
 cpjump_crispr_data_dir.mkdir(exist_ok=True)
 
 
-# setting negative control 
+# setting negative control
 negcon_data_dir = (profiles_dir / "cpjump1" / "negcon").resolve()
 negcon_data_dir.mkdir(exist_ok=True)
 poscon_data_dir = (profiles_dir / "cpjump1" / "poscon").resolve()
@@ -173,8 +172,8 @@ shared_features = loaded_shared_features["shared-features"]
 
 control_df = []
 for plate_path in crispr_plate_paths:
-    
-    # load plate data and filter to controls 
+
+    # load plate data and filter to controls
     plate_controls_df = pl.read_parquet(plate_path).filter(
         pl.col("Metadata_pert_type") == "control"
     )
@@ -188,7 +187,7 @@ for plate_path in crispr_plate_paths:
     # then append to list
     control_df.append(controls_df)
 
-# concatenate dataframes 
+# concatenate dataframes
 controls_df = pl.concat(control_df)
 
 
@@ -220,12 +219,11 @@ for seed_val in range(10):
     )
 
 
-# Selecting only positive controls and saving it 
+# Selecting only positive controls and saving it
 
 # In[ ]:
 
 
 # write as parquet file
-poscon_cp_df = controls_df.filter((pl.col("Metadata_control_type") == "poscon_cp")).select("Metadata_gene")
+poscon_cp_df = controls_df.filter(pl.col("Metadata_control_type") == "poscon_cp").select("Metadata_gene")
 poscon_cp_df.write_parquet(poscon_data_dir / "poscon_cp_df.parquet")
-
