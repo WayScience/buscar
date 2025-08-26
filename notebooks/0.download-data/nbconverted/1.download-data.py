@@ -1,36 +1,37 @@
 #!/usr/bin/env python
+# coding: utf-8
 
 # # Downloading Single-Cell Profiles
-#
+# 
 # This notebook focuses on downloading metadata and single-cell profiles from three key datasets:
-#
+# 
 # 1. **CPJUMP1 Pilot Dataset** ([link](https://github.com/jump-cellpainting/2024_Chandrasekaran_NatureMethods_CPJUMP1)): Metadata is downloaded and processed to identify and organize plates containing wells treated with CRISPR perturbations for downstream analysis.
 # 2. **MitoCheck Dataset**: Normalized and feature-selected single-cell profiles are downloaded for further analysis.
 # 3. **CFReT Dataset**: Normalized and feature-selected single-cell profiles from the CFReT plate are downloaded for downstream analysis.
 
-# In[1]:
+# In[ ]:
 
 
-import pathlib
-import pprint
 import sys
+import pprint
+import pathlib
 
-import polars as pl
 import requests
+import polars as pl
 from tqdm import tqdm
 
 sys.path.append("../../")
-import gzip
-import tarfile
-import zipfile
-
 from utils import io_utils
+
 
 # ## Helper functions
 
-# In[2]:
+# In[ ]:
 
 
+import gzip
+import zipfile
+import tarfile
 
 def download_compressed_file(
     source_url: str, output_path: pathlib.Path | str, chunk_size: int = 8192, extract: bool = True
@@ -102,7 +103,7 @@ def download_compressed_file(
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     if chunk:
                         file.write(chunk)
-
+                        
                         # this updates the progress bar
                         pbar.update(len(chunk))
 
@@ -114,7 +115,7 @@ def download_compressed_file(
             extract_dir = output_path
             if extract_dir.is_file():
                 extract_dir = output_path.parent
-
+            
             if output_path.suffix == '.gz':
                 # handle gzip files
                 extracted_path = output_path.with_suffix('')
@@ -122,13 +123,13 @@ def download_compressed_file(
                     with open(extracted_path, 'wb') as f_out:
                         f_out.write(f_in.read())
                 print(f"Extracted to: {extracted_path}")
-
+                
             elif output_path.suffix == '.zip':
                 # handle zip files
                 with zipfile.ZipFile(output_path, 'r') as zip_ref:
                     zip_ref.extractall(extract_dir)
                 print(f"Extracted to: {extract_dir}")
-
+                
             elif output_path.suffix in ['.tar', '.tgz'] or '.tar.' in output_path.name:
                 # handle tar files
                 with tarfile.open(output_path, 'r:*') as tar_ref:
@@ -146,7 +147,7 @@ def download_compressed_file(
 
 # Parameters used in this notebook
 
-# In[3]:
+# In[ ]:
 
 
 # setting perturbation type
@@ -155,7 +156,7 @@ pert_type = "crispr"
 
 # setting input and output paths
 
-# In[4]:
+# In[ ]:
 
 
 # setting config path
@@ -182,10 +183,10 @@ cfret_dir.mkdir(exist_ok=True)
 
 
 # ## Downloading CPJUMP1 Metadata
-#
+# 
 # In this section, we download and process the CPJUMP1 experimental metadata. This metadata contains information about assay plates, batches, and perturbation types, which is essential for organizing and analyzing single-cell profiles. Only plates treated with CRISPR perturbations are selected for downstream analysis.
 
-# In[5]:
+# In[ ]:
 
 
 # loading config file and setting experimental metadata URL
@@ -209,10 +210,10 @@ exp_metadata
 
 
 # Creating a dictionary to group plates by their corresponding experimental batch
-#
+# 
 # This step organizes the plate barcodes from the experimental metadata into groups based on their batch. Grouping plates by batch is useful for batch-wise data processing and downstream analyses.
 
-# In[6]:
+# In[ ]:
 
 
 # creating a dictionary for the batch and the associated plates with the a batch
@@ -224,19 +225,19 @@ for batch in exp_metadata_batches:
     plates_in_batch = exp_metadata.filter(exp_metadata["Batch"] == batch)["Assay_Plate_Barcode"].to_list()
 
     # adding the plates to the dictionary
-    batch_plates_dict[batch] = plates_in_batch
+    batch_plates_dict[batch] = plates_in_batch 
 
-# display batch (Keys) and plates (values) within each batch
+# display batch (Keys) and plates (values) within each batch 
 pprint.pprint(batch_plates_dict)
 
 
 # ## Downloading MitoCheck Data
-#
+# 
 # In this section, we download the MitoCheck data generated in [this study](https://pmc.ncbi.nlm.nih.gov/articles/PMC3108885/).
-#
+# 
 # Specifically, we are downloading data that has already been normalized and feature-selected. The normalization and feature selection pipeline is available [here](https://github.com/WayScience/mitocheck_data/tree/main/3.normalize_data).
 
-# In[7]:
+# In[ ]:
 
 
 # url source for the MitoCheck data
@@ -257,14 +258,14 @@ else:
 
 
 # ## Downloading CFReT Data
-#
+# 
 # In this section, we download feature-selected single-cell profiles from the CFReT plate `localhost230405150001`. This plate contains three treatments: DMSO (control), drug_x, and TGFRi. The dataset consists of high-content imaging data that has already undergone feature selection, making it suitable for downstream analysis.
-#
+# 
 # **Key Points:**
 # - Only the processed single-cell profiles are downloaded [here](https://github.com/WayScience/cellpainting_predicts_cardiac_fibrosis/tree/main/3.process_cfret_features/data/single_cell_profiles)
 # - The CFReT dataset was used and published in [this study](https://doi.org/10.1161/CIRCULATIONAHA.124.071956).
 
-# In[8]:
+# In[ ]:
 
 
 # setting the source for the CFReT data
@@ -273,12 +274,13 @@ cfret_source = nb_configs["links"]["CFReT-profiles-source"]
 # use the correct filename from the source URL
 output_path = (cfret_dir / "localhost230405150001_sc_feature_selected.parquet").resolve()
 
-# checking if the download already exists if it does not exist
+# checking if the download already exists if it does not exist 
 # download the file
 if output_path.exists():
     print(f"File {output_path} already exists. Skipping download.")
 else:
     download_compressed_file(
-        source_url=cfret_source,
-        output_path=output_path,
+        source_url=cfret_source, 
+        output_path=output_path, 
     )
+
