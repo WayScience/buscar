@@ -221,9 +221,9 @@ for seed_val in range(10):
 
 # Selecting only positive controls and saving it
 
-# In[ ]:
+# In[8]:
 
 
 # write as parquet file
-poscon_cp_df = controls_df.filter(pl.col("Metadata_control_type") == "poscon_cp").select("Metadata_gene")
+poscon_cp_df = controls_df.filter(pl.col("Metadata_control_type") == "poscon_cp")
 poscon_cp_df.write_parquet(poscon_data_dir / "poscon_cp_df.parquet")
