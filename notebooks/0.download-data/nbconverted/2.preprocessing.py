@@ -145,7 +145,7 @@ def split_data(
 #
 # > **Note:** The shared profiles utilized here are sourced from the [JUMP-single-cell](https://github.com/WayScience/JUMP-single-cell) repository. All preprocessing and profile generation steps are performed in that repository, and this notebook focuses on downstream analysis using the generated profiles.
 
-# In[3]:
+# In[10]:
 
 
 # Setting data directory
@@ -158,6 +158,9 @@ profiles_dir = (data_dir / "sc-profiles").resolve(strict=True)
 exp_metadata_path = (
     profiles_dir / "cpjump1" / "CPJUMP1-experimental-metadata.csv"
 ).resolve(strict=True)
+
+# Setting CFReT profiles directory
+cfret_profiles_dir = (profiles_dir / "cfret").resolve(strict=True)
 
 # Setting feature selection path
 shared_features_config_path = (
@@ -327,7 +330,7 @@ datasets = [
 
 # Splitting the metadata and feature columns for each dataset to enable targeted downstream analysis and ensure consistent data structure across all profiles.
 
-# In[8]:
+# In[ ]:
 
 
 cp_mitocheck_profile_meta = cp_mitocheck_profile.columns[:13]
@@ -335,9 +338,15 @@ cp_mitocheck_neg_control_profiles_meta = cp_mitocheck_neg_control_profiles.colum
 cp_mitocheck_pos_control_profiles_meta = cp_mitocheck_pos_control_profiles.columns[:13]
 
 # select morphology features by droping the metadata features and getting only the column names
-cp_mitocheck_profile_features = cp_mitocheck_profile.drop(cp_mitocheck_profile_meta).columns
-cp_mitocheck_neg_control_profiles_features = cp_mitocheck_neg_control_profiles.drop(cp_mitocheck_neg_control_profiles_meta).columns
-cp_mitocheck_pos_control_profiles_features = cp_mitocheck_pos_control_profiles.drop(cp_mitocheck_pos_control_profiles_meta).columns
+cp_mitocheck_profile_features = cp_mitocheck_profile.drop(
+    cp_mitocheck_profile_meta
+).columns
+cp_mitocheck_neg_control_profiles_features = cp_mitocheck_neg_control_profiles.drop(
+    cp_mitocheck_neg_control_profiles_meta
+).columns
+cp_mitocheck_pos_control_profiles_features = cp_mitocheck_pos_control_profiles.drop(
+    cp_mitocheck_pos_control_profiles_meta
+).columns
 
 
 # now find shared profiles between all feature columns
