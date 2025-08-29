@@ -1,37 +1,34 @@
 #!/usr/bin/env python
-# coding: utf-8
 
 # # 2. Preprocessing Data
-# 
+#
 # This notebook demonstrates how to preprocess single-cell profile data for downstream analysis. It covers the following steps:
-# 
+#
 # **Overview**
-# 
+#
 # - **Data Exploration**: Examining the structure and contents of the downloaded datasets
 # - **Metadata Handling**: Loading experimental metadata to guide data selection and organization
 # - **Feature Selection**: Applying a shared feature space for consistency across datasets
 # - **Profile Concatenation**: Merging profiles from multiple experimental plates into a unified DataFrame
 # - **Format Conversion**: Converting raw CSV files to Parquet format for efficient storage and access
 # - **Metadata and Feature Documentation**: Saving metadata and feature information to ensure reproducibility
-# 
+#
 # These preprocessing steps ensure that all datasets are standardized, well-documented, and ready for comparative and integrative analyses.
 
 # In[1]:
 
 
-import sys
 import json
 import pathlib
-from typing import Optional
+import sys
 
 import polars as pl
 
 sys.path.append("../../")
 from utils.data_utils import split_meta_and_features
 
-
-# ## Helper functions 
-# 
+# ## Helper functions
+#
 # Contains helper function that pertains to this notebook.
 
 # In[2]:
@@ -39,8 +36,8 @@ from utils.data_utils import split_meta_and_features
 
 def load_and_concat_profiles(
     profile_dir: str | pathlib.Path,
-    shared_features: Optional[list[str]] = None,
-    specific_plates: Optional[list[pathlib.Path]] = None,
+    shared_features: list[str] | None = None,
+    specific_plates: list[pathlib.Path] | None = None,
 ) -> pl.DataFrame:
     """
     Load all profile files from a directory and concatenate them into a single Polars DataFrame.
@@ -75,8 +72,7 @@ def load_and_concat_profiles(
             )
 
     def load_profile(file: pathlib.Path) -> pl.DataFrame:
-        """internal function to load a single profile file.
-        """
+        """internal function to load a single profile file."""
         profile_df = pl.read_parquet(file)
         meta_cols, _ = split_meta_and_features(profile_df)
         if shared_features is not None:
@@ -102,8 +98,10 @@ def load_and_concat_profiles(
     # Concatenate all loaded profiles
     return pl.concat(loaded_profiles, rechunk=True)
 
-    
-def split_data(pycytominer_output: pl.DataFrame, dataset: str = "CP_and_DP") -> pl.DataFrame:
+
+def split_data(
+    pycytominer_output: pl.DataFrame, dataset: str = "CP_and_DP"
+) -> pl.DataFrame:
     """
     Split pycytominer output to metadata dataframe and feature values using Polars.
 
@@ -139,12 +137,12 @@ def split_data(pycytominer_output: pl.DataFrame, dataset: str = "CP_and_DP") -> 
 
     # Select metadata and feature columns
     selected_cols = metadata_cols + feature_cols
-    
+
     return pycytominer_output.select(selected_cols)
 
 
 # Defining the input and output directories used throughout the notebook.
-# 
+#
 # > **Note:** The shared profiles utilized here are sourced from the [JUMP-single-cell](https://github.com/WayScience/JUMP-single-cell) repository. All preprocessing and profile generation steps are performed in that repository, and this notebook focuses on downstream analysis using the generated profiles.
 
 # In[3]:
@@ -157,7 +155,9 @@ data_dir = pathlib.Path("./data").resolve(strict=True)
 profiles_dir = (data_dir / "sc-profiles").resolve(strict=True)
 
 # Experimental metadata
-exp_metadata_path = (profiles_dir / "cpjump1" / "CPJUMP1-experimental-metadata.csv").resolve(strict=True)
+exp_metadata_path = (
+    profiles_dir / "cpjump1" / "CPJUMP1-experimental-metadata.csv"
+).resolve(strict=True)
 
 # Setting feature selection path
 shared_features_config_path = (
@@ -166,7 +166,9 @@ shared_features_config_path = (
 
 # setting mitocheck profiles directory
 mitocheck_profiles_dir = (profiles_dir / "mitocheck").resolve(strict=True)
-mitocheck_norm_profiles_dir = (mitocheck_profiles_dir / "normalized_data").resolve(strict=True)
+mitocheck_norm_profiles_dir = (mitocheck_profiles_dir / "normalized_data").resolve(
+    strict=True
+)
 
 # output directories
 cpjump1_output_dir = (profiles_dir / "cpjump1" / "trt-profiles").resolve()
@@ -185,10 +187,15 @@ results_dir.mkdir(exist_ok=True)
 # Load experimental metadata
 # selecting plates that pertains to the cpjump1 CRISPR dataset
 exp_metadata = pl.read_csv(exp_metadata_path)
-crispr_plate_names = exp_metadata.select("Assay_Plate_Barcode").unique().to_series().to_list()
+crispr_plate_names = (
+    exp_metadata.select("Assay_Plate_Barcode").unique().to_series().to_list()
+)
 crispr_plate_paths = [
-        (profiles_dir / "cpjump1" / f"{plate}_feature_selected_sc_qc.parquet").resolve(strict=True) for plate in crispr_plate_names
-    ]
+    (profiles_dir / "cpjump1" / f"{plate}_feature_selected_sc_qc.parquet").resolve(
+        strict=True
+    )
+    for plate in crispr_plate_names
+]
 # Load shared features
 with open(shared_features_config_path) as f:
     loaded_shared_features = json.load(f)
@@ -197,9 +204,9 @@ shared_features = loaded_shared_features["shared-features"]
 
 
 # ## Preprocessing CPJUMP1 CRISPR data
-# 
+#
 # Using the filtered CRISPR plate file paths and shared features configuration, we load all individual profile files and concatenate them into a single comprehensive DataFrame. This step combines data from multiple experimental plates while maintaining the consistent feature space defined by the shared features list.
-# 
+#
 # The concatenation process ensures:
 # - All profiles use the same feature set for downstream compatibility
 # - Metadata columns are preserved across all plates
@@ -217,10 +224,10 @@ else:
     loaded_profiles = load_and_concat_profiles(
         profile_dir=profiles_dir,
         specific_plates=crispr_plate_paths,
-        shared_features=shared_features
+        shared_features=shared_features,
     )
 
-    # Add index column 
+    # Add index column
     loaded_profiles = loaded_profiles.with_row_index("index")
 
     # Split meta and features
@@ -230,7 +237,7 @@ else:
     meta_features_dict = {
         "concat-profiles": {
             "meta-features": meta_cols,
-            "shared-features": features_cols
+            "shared-features": features_cols,
         }
     }
     with open(cpjump1_output_dir / "concat_profiles_meta_features.json", "w") as f:
@@ -243,45 +250,50 @@ else:
     loaded_profiles.write_parquet(concat_output_path)
 
 
-# ## Preprocessing MitoCheck
-# 
-# This section processes the MitoCheck dataset by loading the training and negative control data from compressed CSV files. The original CSV format is converted to Parquet for consistency with other processed data and improved performance.
-# 
-# Key preprocessing steps include:
-# - **Loading training data**: Reading the main MitoCheck profiles containing various phenotypic classes
-# - **Processing negative controls**: Loading control samples and adding phenotypic class labels
+# ## Preprocessing MitoCheck Dataset
+#
+# This section processes the MitoCheck dataset by loading training data, positive controls, and negative controls from compressed CSV files. The data is standardized and converted to Parquet format for consistency with other datasets and improved performance.
+#
+# **Key preprocessing steps:**
+#
+# - **Loading datasets**: Reading training data, positive controls, and negative controls from compressed CSV files
+# - **Control labeling**: Adding phenotypic class labels ("poscon" and "negcon") to distinguish control types
 # - **Feature filtering**: Extracting only Cell Profiler (CP) features to match the CPJUMP1 dataset structure
-# - **Standardization**: Ensuring consistent column naming and metadata structure across datasets
-# - **Feature alignment**: Identifying shared features between training and control data for unified analysis
-# 
-# The processed data is saved in Parquet format with optimized storage and maintained metadata integrity, enabling efficient downstream comparative analysis between MitoCheck and CPJUMP1 datasets.
+# - **Column standardization**: Removing "CP__" prefixes and ensuring consistent naming conventions
+# - **Feature alignment**: Identifying shared features across all three datasets (training, positive controls, negative controls)
+# - **Metadata preservation**: Maintaining consistent metadata structure across all profile types
+# - **Format conversion**: Saving processed data in optimized Parquet format for efficient downstream analysis
+#
+# The preprocessing ensures that all MitoCheck datasets share a common feature space and are ready for comparative analysis with CPJUMP1 profiles.
 
 # In[6]:
 
 
-output_path = (cpjump1_output_dir / "cpjump1_crispr_trt_profiles.parquet").resolve()
-if output_path.exists():
-    print("Output path already exists.")
-else:
+# load in mitocheck profiles and save as parquet
+# drop first column which is an additional index column
+mitocheck_profile = pl.read_csv(
+    mitocheck_norm_profiles_dir / "training_data.csv.gz",
+)
+mitocheck_profile = mitocheck_profile.select(mitocheck_profile.columns[1:])
 
-    # load in mitocheck profiles and save as parquet
-    mitocheck_profile = pl.read_csv(
-        mitocheck_norm_profiles_dir / "training_data.csv.gz",
-    )
+# load in the mitocheck positive controls
+mitocheck_pos_control_profiles = pl.read_csv(
+    mitocheck_norm_profiles_dir / "positive_control_data.csv.gz",
+)
 
-    # drop first column by index
-    # This is done to remove the index column that is not needed
-    mitocheck_profile = mitocheck_profile.select(mitocheck_profile.columns[1:])
+# loading in negative control profiles
+mitocheck_neg_control_profiles = pl.read_csv(
+    mitocheck_norm_profiles_dir / "negative_control_data.csv.gz",
+)
 
-    # loading in negative control profiles
-    mitocheck_neg_control_profiles = pl.read_csv(
-        mitocheck_norm_profiles_dir / "negative_control_data.csv.gz",
-        )
+# insert new column "Mitocheck_Phenotypic_Class" for both positive and negative controls
+mitocheck_neg_control_profiles = mitocheck_neg_control_profiles.with_columns(
+    pl.lit("negcon").alias("Mitocheck_Phenotypic_Class")
+).select(["Mitocheck_Phenotypic_Class"] + mitocheck_neg_control_profiles.columns)
 
-    # insert new column "Mitocheck_Phenotypic_Class"
-    mitocheck_neg_control_profiles = mitocheck_neg_control_profiles.with_columns(
-        pl.lit("negcon").alias("Mitocheck_Phenotypic_Class")
-    ).select(["Mitocheck_Phenotypic_Class"] + mitocheck_neg_control_profiles.columns)
+mitocheck_pos_control_profiles = mitocheck_pos_control_profiles.with_columns(
+    pl.lit("poscon").alias("Mitocheck_Phenotypic_Class")
+).select(["Mitocheck_Phenotypic_Class"] + mitocheck_pos_control_profiles.columns)
 
 
 # Filter Cell Profiler (CP) features and preprocess columns by removing the "CP__" prefix to standardize feature names for downstream analysis.
@@ -289,16 +301,27 @@ else:
 # In[7]:
 
 
-# split profiles 
+# split profiles to only retain cell profiler features
 cp_mitocheck_profile = split_data(mitocheck_profile, dataset="CP")
-cp_mitocheck_neg_control_profiles = split_data(mitocheck_neg_control_profiles, dataset="CP")
-
-# rename columns to remove "CP__" prefix and replace it with "NoCompartment_"
-cp_mitocheck_profile = cp_mitocheck_profile.rename(
-    lambda x: x.replace("CP__", "") if "CP__" in x else x
+cp_mitocheck_neg_control_profiles = split_data(
+    mitocheck_neg_control_profiles, dataset="CP"
 )
-cp_mitocheck_neg_control_profiles = cp_mitocheck_neg_control_profiles.rename(
-    lambda x: x.replace("CP__", "") if "CP__" in x else x
+cp_mitocheck_pos_control_profiles = split_data(
+    mitocheck_pos_control_profiles, dataset="CP"
+)
+
+# rename columns to remove "CP__" prefix for all datasets
+datasets = [
+    cp_mitocheck_profile,
+    cp_mitocheck_neg_control_profiles,
+    cp_mitocheck_pos_control_profiles,
+]
+(
+    cp_mitocheck_profile,
+    cp_mitocheck_neg_control_profiles,
+    cp_mitocheck_pos_control_profiles,
+) = (
+    df.rename(lambda x: x.replace("CP__", "") if "CP__" in x else x) for df in datasets
 )
 
 
@@ -307,38 +330,45 @@ cp_mitocheck_neg_control_profiles = cp_mitocheck_neg_control_profiles.rename(
 # In[8]:
 
 
-# get metadata features
 cp_mitocheck_profile_meta = cp_mitocheck_profile.columns[:13]
-cp_mitocheck_neg_control_profiles_meta = cp_mitocheck_neg_control_profiles.columns[:12]
+cp_mitocheck_neg_control_profiles_meta = cp_mitocheck_neg_control_profiles.columns[:13]
+cp_mitocheck_pos_control_profiles_meta = cp_mitocheck_pos_control_profiles.columns[:13]
 
-# morphology features 
+# select morphology features by droping the metadata features and getting only the column names
 cp_mitocheck_profile_features = cp_mitocheck_profile.drop(cp_mitocheck_profile_meta).columns
 cp_mitocheck_neg_control_profiles_features = cp_mitocheck_neg_control_profiles.drop(cp_mitocheck_neg_control_profiles_meta).columns
+cp_mitocheck_pos_control_profiles_features = cp_mitocheck_pos_control_profiles.drop(cp_mitocheck_pos_control_profiles_meta).columns
 
 
-# Identify the shared metadata and feature columns between the two datasets, concatenate them into a unified DataFrame containing only these shared columns, and save the result as a Parquet file for downstream analysis.
+# now find shared profiles between all feature columns
+shared_features = list(
+    set(cp_mitocheck_profile_features)
+    & set(cp_mitocheck_neg_control_profiles_features)
+    & set(cp_mitocheck_pos_control_profiles_features)
+)
+
+# now create a json file that contains the feature space configs
+mitocheck_feature_space_configs = {
+    "shared-features": shared_features,
+    "negcon-meta": cp_mitocheck_neg_control_profiles_meta,
+    "poscon-meta": cp_mitocheck_pos_control_profiles_meta,
+    "training-meta": cp_mitocheck_profile_meta,
+}
+
+with open(mitocheck_profiles_dir / "mitocheck_feature_space_configs.json", "w") as f:
+    json.dump(mitocheck_feature_space_configs, f)
+
 
 # In[9]:
 
 
-# find shared metadata columns
-cp_mitocheck_profile_meta_cols = set(cp_mitocheck_profile_meta)
-cp_mitocheck_neg_control_profiles_meta_cols = set(cp_mitocheck_neg_control_profiles_meta)
-shared_meta = cp_mitocheck_profile_meta_cols.intersection(cp_mitocheck_neg_control_profiles_meta_cols)
-
-# find shared feature columns
-cp_mitocheck_profile_features_cols = set(cp_mitocheck_profile_features)
-cp_mitocheck_neg_control_profiles_features_cols = set(cp_mitocheck_neg_control_profiles_features)
-shared_features = cp_mitocheck_profile_features_cols.intersection(cp_mitocheck_neg_control_profiles_features_cols)
-    
-# concat both shared metadata and features
-final_shared_features = list(shared_meta) + list(shared_features)
-
-# select only shared metadata and features from both profiles and concat
-cp_mitocheck_profiles_path = mitocheck_profiles_dir / "concat_mitocheck_cp_profiles_shared_feats.parquet"
-pl.concat([
-    cp_mitocheck_profile.select(final_shared_features),
-    cp_mitocheck_neg_control_profiles.select(final_shared_features)
-], rechunk=True
-).write_parquet(cp_mitocheck_profiles_path)
-
+# now convert preprocessed Mitocheck profiles to parquet files
+cp_mitocheck_profile[cp_mitocheck_profile_meta + shared_features].write_parquet(
+    mitocheck_profiles_dir / "treated_mitocheck_cp_profiles.parquet"
+)
+cp_mitocheck_pos_control_profiles[
+    cp_mitocheck_pos_control_profiles_meta + shared_features
+].write_parquet(mitocheck_profiles_dir / "poscon_mitocheck_cp_profiles.parquet")
+cp_mitocheck_neg_control_profiles[
+    cp_mitocheck_neg_control_profiles_meta + shared_features
+].write_parquet(mitocheck_profiles_dir / "negcon_mitocheck_cp_profiles.parquet")
