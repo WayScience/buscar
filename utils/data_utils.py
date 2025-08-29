@@ -425,3 +425,118 @@ def organelle_count_table_per_gene(
             ).fillna(0)
 
     return organelle_counted_per_gene
+
+
+def generate_consensus_signatures(
+    signatures_dict, features: list[str], min_consensus_threshold=0.5
+):
+    """
+    Generate consensus morphological signatures from multiple comparisons.
+
+    This function aggregates on-morphology signatures across different negative control samples
+    for each positive control, finding features that consistently appear across multiple comparisons.
+    The off-morphology signatures are then defined as the complement of on-morphology features
+    from the full feature set.
+
+    Parameters
+    ----------
+    signatures_dict : dict
+        Dictionary containing signature results with structure:
+        {comparison_id: {"controls": {"positive": gene, "negative": seed},
+                        "signatures": {"on": [...], "off": [...]}}}
+    features : list[str]
+        Complete list of all available morphological features
+    min_consensus_threshold : float, default 0.5
+        Minimum fraction of comparisons a feature must appear in to be included
+        in consensus (0.0 to 1.0). Use 1.0 for strict intersection (default behavior)
+
+    Returns
+    -------
+    dict
+        Dictionary with structure:
+        {gene: {"on": [feature1, feature2, ...], "off": [feature1, feature2, ...]}}
+        where "off" features are the complement of "on" features from the full feature set
+
+    Raises
+    ------
+    ValueError
+        If min_consensus_threshold is not between 0.0 and 1.0
+    KeyError
+        If required keys are missing from signatures_dict
+
+    """
+    # Input validation
+    if not 0.0 <= min_consensus_threshold <= 1.0:
+        raise ValueError(
+            f"min_consensus_threshold must be between 0.0 and 1.0, got {min_consensus_threshold}"
+        )
+
+    if not signatures_dict:
+        return {}
+
+    # Group on-morphology signatures by positive control gene
+    on_signatures_by_gene = defaultdict(list)
+
+    try:
+        for _, sig_results in signatures_dict.items():
+            positive_control = sig_results["controls"]["positive"]
+            on_signature_features = sig_results["signatures"]["on"]
+            on_signatures_by_gene[positive_control].append(on_signature_features)
+
+    except KeyError as e:
+        raise KeyError(f"Missing required key in signatures_dict: {e}")
+
+    # Generate consensus signatures for each gene
+    consensus_signatures = {}
+    full_features_set = set(features)
+
+    for gene, feature_lists in on_signatures_by_gene.items():
+        if not feature_lists:
+            consensus_on_features = []
+        else:
+            # Handle case with only one feature list
+            if len(feature_lists) == 1:
+                consensus_on_features = list(feature_lists[0])
+            else:
+                # Count feature occurrences across all lists
+                feature_counts = defaultdict(int)
+                total_lists = len(feature_lists)
+
+                for feature_list in feature_lists:
+                    unique_features = set(
+                        feature_list
+                    )  # Remove duplicates within same list
+                    for feature in unique_features:
+                        feature_counts[feature] += 1
+
+                # Determine consensus threshold
+                if min_consensus_threshold == 1.0:
+                    # Strict intersection - feature must appear in ALL lists
+                    min_count = total_lists
+                else:
+                    # Flexible threshold - feature must appear in at least X% of lists
+                    min_count = max(1, int(total_lists * min_consensus_threshold))
+
+                # Select features that meet the consensus threshold
+                consensus_on_features = [
+                    feature
+                    for feature, count in feature_counts.items()
+                    if count >= min_count
+                ]
+
+        # Sort on-features for consistency
+        consensus_on_features = sorted(consensus_on_features)
+
+        # Off-morphology features are the complement of on-morphology features
+        on_consensus_features_set = set(consensus_on_features)
+        consensus_off_features = sorted(
+            list(full_features_set - on_consensus_features_set)
+        )
+
+        # Store in gene-centric structure
+        consensus_signatures[gene] = {
+            "on": consensus_on_features,
+            "off": consensus_off_features,
+        }
+
+    return consensus_signatures
