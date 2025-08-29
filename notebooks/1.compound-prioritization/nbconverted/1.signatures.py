@@ -142,7 +142,7 @@ print("Unique positive control types:")
 print(cpjump1_poscon_df["Metadata_gene"].unique().to_list())
 
 
-# ### Loading in MitoCheck data
+# ### Loading MitoCheck data
 
 # In[5]:
 
@@ -162,10 +162,10 @@ print(f"Dataframe shape for negcon: {mitocheck_negcon_df.shape}")
 
 # ### Loading CFReT Dataset
 
-# In[6]:
+# In[ ]:
 
 
-# More efficient loading and filtering with lazy evaluation
+# load in CFReT data
 cfret_df = load_profiles(cfret_plate_path)
 
 # split features
