@@ -162,7 +162,7 @@ print(f"Dataframe shape for negcon: {mitocheck_negcon_df.shape}")
 
 # ### Loading CFReT Dataset
 
-# In[ ]:
+# In[6]:
 
 
 # load in CFReT data
@@ -249,7 +249,7 @@ else:
 
 # After generating the signatures for all combinations, the next step is to create consensus on and off morphological signatures. Due to the multiple randomly sampled negative controls present, we need to find the average morphological features affected per positive control. This consensus approach will help us analyze and compare across different positive controls to determine if we are capturing known biological effects.
 
-# In[ ]:
+# In[8]:
 
 
 # generate consensus signatures
