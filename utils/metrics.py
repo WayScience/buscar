@@ -80,9 +80,6 @@ def compute_earth_movers_distance(
         Earth mover's distance citation: https://doi.org/10.1023/A:1026543900054
     """
 
-    print(f"ref_profiles shape: {ref_profiles.shape}")
-    print(f"exp_profiles shape: {exp_profiles.shape}")
-
     # Check for empty DataFrames to avoid division by zero
     if ref_profiles.shape[0] == 0 or exp_profiles.shape[0] == 0:
         raise ValueError("ref_profiles and exp_profiles must not be empty.")
