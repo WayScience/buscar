@@ -10,7 +10,7 @@
 # 3. **Setting filtering thresholds**: Use percentile-based cutoffs to determine minimum viable cluster sizes
 # 4. **Applying refinement filters**: Remove treatment-cluster combinations below the threshold to create refined datasets suitable for phenotypic activity analysis
 #
-# This refinement ensures that downstream Earth Mover's Distance calculations are performed on sufficiently populated cell clusters, improving the reliability of morphological similarity measurements.
+# This refinement ensures that downstream Earth Mover's Distance [(EMD)](https://ieeexplore.ieee.org/document/710701) calculations are performed on sufficiently populated cell clusters, improving the reliability of morphological similarity measurements.
 
 # In[1]:
 
@@ -39,7 +39,7 @@ percentile_cutoff = 20
 
 # Setting input and output paths
 
-# In[3]:
+# In[ ]:
 
 
 # setting directories
