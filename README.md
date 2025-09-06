@@ -13,7 +13,6 @@ The framework emphasizes interpretability by identifying which morphological fea
 This distinction is crucial for tracking both on-target and off-target morphological effects during compound screening.
 By integrating these perspectives, buscar helps prioritize compounds that are most effective for specific tasks, such as phenotype reversal.
 
-
 ## Implementation
 ![buscar-framework](./media/buscar-framework.png)
 > **Figure:** Schematic overview of the buscar framework, highlighting its five main modules and their roles in compound assessment.
@@ -27,7 +26,6 @@ buscar has 5 main modules:
 | Refinement    | Evaluates clusters from the Heterogeneity module to remove uninformative or small clusters (e.g., those with few cells), which can skew phenotypic measurements due to label imbalance.                                                                                                    |
 | Activity      | Measures the phenotypic activity of selected treatment groups versus controls using both on-morphology and off-morphological signatures. Produces two scores: one for on-morphology activity, and one for off-morphology activity.                                                         |
 | Hits          | Identifies compounds that perform well based on both on-morphology and off-morphological activity scores from the Activity module.                                                                                                                                                         |
-
 
 ## How to install
 

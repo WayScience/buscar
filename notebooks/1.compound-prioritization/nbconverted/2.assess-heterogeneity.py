@@ -17,6 +17,7 @@ import polars as pl
 
 sys.path.append("../../")
 from utils.heterogeneity import assess_heterogeneity
+from utils.io_utils import load_profiles
 
 # Setting paths
 
@@ -27,14 +28,15 @@ from utils.heterogeneity import assess_heterogeneity
 download_module_path = pathlib.Path("../0.download-data/").resolve(strict=True)
 sc_profiles_path = (download_module_path / "data" / "sc-profiles").resolve(strict=True)
 
-# set paths for the profiles
-mitocheck_profile_path = (sc_profiles_path / "mitocheck" / "concat_mitocheck_cp_profiles_shared_feats.parquet").resolve(strict=True)
-cfret_profile_path = (sc_profiles_path / "cfret" / "localhost230405150001_sc_feature_selected.parquet").resolve(strict=True)
-cpjump1_crispir_path = (download_module_path / "results" / "concat_crispr_profiles.parquet").resolve(strict=True)
+
+# setting profiles paths
+cfret_profiles_path = (sc_profiles_path / "cfret" / "localhost230405150001_sc_feature_selected.parquet").resolve(strict=True)
+cpjump1_trt_crispr_profiles_path = (sc_profiles_path / "cpjump1" / "trt-profiles" / "cpjump1_crispr_trt_profiles.parquet").resolve(strict=True)
+mitocheck_trt_profiles_path = (sc_profiles_path / "mitocheck" / "treated_mitocheck_cp_profiles.parquet").resolve(strict=True)
 
 # create signature output paths
-results_dir = pathlib.Path("./results").resolve()
-results_dir.mkdir(exist_ok=True)
+results_dir = pathlib.Path("./results/cluster-labels").resolve()
+results_dir.mkdir(exist_ok=True, parents=True)
 
 
 # Loading datasets
@@ -43,23 +45,33 @@ results_dir.mkdir(exist_ok=True)
 
 
 # load all profiles
-mitocheck_profile_df = pl.read_parquet(mitocheck_profile_path)
-cfret_profile_df = pl.read_parquet(cfret_profile_path)
-cpjump1_crispir_df = pl.read_parquet(cpjump1_crispir_path)
+mitocheck_trt_profile_df = load_profiles(mitocheck_trt_profiles_path)
+cfret_profile_df = load_profiles(cfret_profiles_path)
+cpjump1_trt_crispr_df = load_profiles(cpjump1_trt_crispr_profiles_path)
 
 
-# Splitting datasets, only selected the treated profiles
+# ## Clustering profiles
+
+# ### Assessing heterogeneity for MitoCheck data
 
 # In[4]:
 
 
 # separate metadata based on phenotypic class
-mito_trt = mitocheck_profile_df.filter(pl.col("Mitocheck_Phenotypic_Class") != "negcon")
-
 # split metadata and features
-mito_meta = mito_trt.columns[:12]
-mito_features = mito_trt.columns[12:]
+mito_meta = mitocheck_trt_profile_df.columns[:13]
+mito_features = mitocheck_trt_profile_df.columns[13:]
 
+
+# In[ ]:
+
+
+mitocheck_cluster_results = assess_heterogeneity(profiles=mitocheck_trt_profile_df, meta=mito_meta, features=mito_features, n_trials=500, n_jobs=1, study_name="mitocheck_heterogeneity", seed=0)
+with open(results_dir / "mitocheck_cluster_results.pkl", "wb") as f:
+    pickle.dump(mitocheck_cluster_results, f)
+
+
+# ### Assessing heterogeneity for CFReT data
 
 # In[5]:
 
@@ -72,28 +84,7 @@ cfret_meta = cfret_trt.columns[:19]
 cfret_feats = cfret_trt.columns[19:]
 
 
-# In[6]:
-
-
-# selecting only treated profiles from cpjump1
-cpjump1_trt = cpjump1_crispir_df.filter(pl.col("Metadata_pert_type") == "trt")
-
-# split metadata and features for cpjump1
-cpjump1_meta = cpjump1_trt.columns[:18]
-cpjump1_feats = cpjump1_trt.columns[18:]
-
-
-# ## Clustering profiles
-
-# In[7]:
-
-
-mitocheck_cluster_results = assess_heterogeneity(profiles=mito_trt, meta=mito_meta, features=mito_features, n_trials=500, n_jobs=1, study_name="mitocheck_heterogeneity", seed=0)
-with open(results_dir / "mitocheck_cluster_results.pkl", "wb") as f:
-    pickle.dump(mitocheck_cluster_results, f)
-
-
-# In[8]:
+# In[ ]:
 
 
 cfret_cluster_results = assess_heterogeneity(profiles=cfret_trt, meta=cfret_meta, features=cfret_feats, n_trials=500, n_jobs=1, study_name="cfret_heterogeneity", seed=0)
@@ -101,9 +92,19 @@ with open(results_dir / "cfret_cluster_results.pkl", "wb") as f:
     pickle.dump(cfret_cluster_results, f)
 
 
-# In[ ]:
+# ### Assessing heterogeneity for CPJUMP1 CRISPR data
+
+# In[6]:
 
 
-cpjump1_cluster_results = assess_heterogeneity(profiles=cpjump1_trt, meta=cpjump1_meta, features=cpjump1_feats, n_trials=500, n_jobs=1, study_name="cpjump1_heterogeneity", seed=0)
+# split metadata and features for cpjump1
+cpjump1_meta = cpjump1_trt_crispr_df.columns[:18]
+cpjump1_feats = cpjump1_trt_crispr_df.columns[18:]
+
+
+# In[7]:
+
+
+cpjump1_cluster_results = assess_heterogeneity(profiles=cpjump1_trt_crispr_df, meta=cpjump1_meta, features=cpjump1_feats, n_trials=10, n_jobs=1, study_name="cpjump1_heterogeneity", seed=0)
 with open(results_dir / "cpjump1_cluster_results.pkl", "wb") as f:
     pickle.dump(cpjump1_cluster_results, f)
