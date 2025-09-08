@@ -1,3 +1,12 @@
+"""
+Profile refinement utilities for filtering out poor quality clusters.
+
+This module provides functions to refine cell profile data by removing treatment-cluster
+combinations that have insufficient data quality or representation. The primary method
+implemented filters based on cell count thresholds using percentile cutoffs to exclude
+clusters with too few cells for reliable analysis.
+"""
+
 from typing import Literal
 
 import numpy as np
