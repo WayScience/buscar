@@ -52,8 +52,45 @@ def refined_profiles_by_cluster_cell_counts(
     profile: pl.DataFrame,
     treatment_col: str,
     cluster_col: str = "Metadata_cluster",
-    percentile_cutoff: int | float = 20,
+    percentile_cutoff: float = 20.0,
 ) -> pl.DataFrame:
+    """ Filter profiles to retain only clusters with cell counts above a
+    specified percentile threshold.
+
+    This function removes clusters with low cell counts by calculating a
+    threshold based on the distribution of cell counts across all
+    treatment-cluster combinations and filtering out groups that fall below this
+    threshold.
+
+    Parameters
+    ----------
+    profile : pl.DataFrame
+        Input DataFrame containing cell profiles with treatment and cluster
+        metadata.
+    treatment_col : str
+        Name of the column containing treatment identifiers.
+    cluster_col : str, default "Metadata_cluster"
+        Name of the column containing cluster labels.
+    percentile_cutoff : float, default 20.0
+        Percentile threshold for filtering clusters. Clusters with cell counts
+        below this percentile will be removed. Accepts values between 0 and 100.
+
+    Returns
+    -------
+    pl.DataFrame
+        Filtered DataFrame containing only profiles from clusters with cell
+        counts at or above the specified percentile threshold. The temporary
+        "cell_count" column is removed from the final output.
+
+    Raises
+    ------
+    ValueError
+        If `percentile_cutoff` is not between 0 and 100.
+    """
+    # raise an error if percentile_cutoff is not between 0 and 100
+    if not (0 <= percentile_cutoff <= 100):
+        raise ValueError("percentile_cutoff must be between 0 and 100")
+
     # group by treatment  and cluster label, count cells per group
     cell_counts_per_cluster = get_cell_counts_per_cluster(
         profile, treatment_col, cluster_col
