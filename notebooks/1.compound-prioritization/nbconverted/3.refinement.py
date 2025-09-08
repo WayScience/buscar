@@ -39,7 +39,7 @@ percentile_cutoff = 20
 
 # Setting input and output paths
 
-# In[ ]:
+# In[3]:
 
 
 # setting directories
@@ -110,10 +110,12 @@ mitocheck_cell_counts_per_cluster = get_cell_counts_per_cluster(
 
 # create a histogram
 plt.hist(mitocheck_cell_counts_per_cluster, bins=30)
-plt.axvline(np.percentile(mitocheck_cell_counts_per_cluster, percentile_cutoff), color='r', linestyle='dashed', linewidth=1)
+plt.axvline(np.percentile(mitocheck_cell_counts_per_cluster, percentile_cutoff), color='r', linestyle='dashed', linewidth=1, label='cutoff')
 plt.xlabel("Cell Count")
 plt.ylabel("Frequency")
 plt.title("Distribution of Cell Counts per cluster (Mitocheck)")
+plt.legend()
+plt.savefig(refined_profiles_dir / "mitocheck_cell_counts_distribution.png", dpi=300, bbox_inches='tight')
 plt.show()
 
 
@@ -130,12 +132,14 @@ cfret_cell_counts_per_cluster = get_cell_counts_per_cluster(
 # In[9]:
 
 
+# create a histogram
 plt.hist(cfret_cell_counts_per_cluster, bins=30)
-plt.axvline(np.percentile(cfret_cell_counts_per_cluster, percentile_cutoff), color='r', linestyle='dashed', linewidth=1)
+plt.axvline(np.percentile(cfret_cell_counts_per_cluster, percentile_cutoff), color='r', linestyle='dashed', linewidth=1, label='cutoff')
 plt.xlabel("Cell Count")
 plt.ylabel("Frequency")
 plt.title("Distribution of Cell Counts per cluster (CFRET)")
-plt.show()
+plt.legend()
+plt.savefig(refined_profiles_dir / "cfret_cell_counts_distribution.png", dpi=300, bbox_inches='tight')
 
 
 # ## Refine profiles
