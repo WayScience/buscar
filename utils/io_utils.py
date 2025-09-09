@@ -1,3 +1,4 @@
+import json
 import pathlib
 import pickle
 
@@ -9,7 +10,7 @@ def load_configs(fpath: str | pathlib.Path) -> dict:
     Parameters
     ----------
     fpath : str or pathlib.Path
-        Path to the YAML or pickle configuration file.
+        Path to the YAML, JSON, or pickle configuration file.
     Returns
     -------
     dict
@@ -38,12 +39,20 @@ def load_configs(fpath: str | pathlib.Path) -> dict:
             config = yaml.safe_load(yaml_content)
         except yaml.YAMLError as e:
             raise ValueError(f"Error parsing YAML file {fpath}: {e}")
+    elif fpath.suffix.lower() == ".json":
+        json_content = fpath.read_text(encoding="utf-8")
+        try:
+            config = json.loads(json_content)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Error parsing JSON file {fpath}: {e}")
     elif fpath.suffix.lower() in [".pkl", ".pickle"]:
         try:
-            with open(fpath, 'rb') as f:
+            with open(fpath, "rb") as f:
                 config = pickle.load(f)
         except (pickle.PickleError, EOFError) as e:
             raise ValueError(f"Error parsing pickle file {fpath}: {e}")
     else:
-        raise ValueError(f"Unsupported file format: {fpath.suffix}. Expected .yaml, .pkl, or .pickle")
+        raise ValueError(
+            f"Unsupported file format: {fpath.suffix}. Expected .yaml, .json, .pkl, or .pickle"
+        )
     return config
