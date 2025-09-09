@@ -4,7 +4,7 @@ two morphological signatures ("on" and "off"). These signatures represent distin
 features within morphological profiles, enabling the measurement of differences between
 reference and experimental conditions.
 """
-import itertools
+
 from typing import Literal
 
 import numpy as np
@@ -50,7 +50,8 @@ def compute_earth_movers_distance(
     off_signature: list[str],
     distance_metric: Literal["euclidean", "cosine", "sqeuclidean"] = "euclidean",
 ):
-    """Compute the Earth Mover's Distance (EMD) between reference and experimental profiles.
+    """Compute the Earth Mover's Distance (EMD) between reference and
+    experimental profiles.
 
     Takes in the reference and experimental profiles, along with their on and off
     signatures, and computes the EMD. Two scores will be returned: the EMD for the
@@ -84,7 +85,7 @@ def compute_earth_movers_distance(
         raise ValueError("ref_profiles and exp_profiles must not be empty.")
     if exp_profiles.shape[0] == 0:
         raise ValueError("exp_profiles is empty, cannot compute weights.")
-    weights_exp = np.ones(exp_profiles.shape[0]) / exp_profiles.shape[0]
+
     # Compute a uniform distribution of weights for each point
     # This allows for each cell to be weighted equally in the EMD calculation.
     weights_ref = np.ones(ref_profiles.shape[0]) / ref_profiles.shape[0]
@@ -101,15 +102,22 @@ def compute_earth_movers_distance(
     # Create distance matrices between reference and experimental profiles.
     # These matrices quantify the cost of moving mass between distributions
     # in the Earth Mover's Distance calculation.
-    off_M = ot.dist(x=off_ref_profiles.to_numpy(), x2=off_exp_profiles.to_numpy(), metric=distance_metric)
-    on_M = ot.dist(x=on_ref_profiles.to_numpy(), x2=on_exp_profiles.to_numpy(), metric=distance_metric)
+    off_M = ot.dist(
+        x1=off_ref_profiles.to_numpy(),
+        x2=off_exp_profiles.to_numpy(),
+        metric=distance_metric,
+    )
+    on_M = ot.dist(
+        x1=on_ref_profiles.to_numpy(),
+        x2=on_exp_profiles.to_numpy(),
+        metric=distance_metric,
+    )
 
     # compute on and off emd scores
     on_emd = ot.emd2(weights_ref, weights_exp, on_M)
     off_emd = ot.emd2(weights_ref, weights_exp, off_M)
 
     return on_emd, off_emd
-
 
 @beartype
 def measure_phenotypic_activity(
@@ -175,28 +183,68 @@ def measure_phenotypic_activity(
         If on_signature or off_signature contain column names not present in the DataFrames.
     """
 
-    # generate all the possible combinations of treatment, ref_cluster, and exp_cluster lazily
-    treatment_cluster_combinations = itertools.product(
-        exp_profiles[treatment_col].unique().to_list(),
-        ref_profile[cluster_col].unique().to_list(),
-        exp_profiles[cluster_col].unique().to_list()
+    # Validate method
+    if method != "emd":
+        raise ValueError(
+            f"Unsupported method: {method}. Currently only 'emd' is supported."
+        )
+
+    # Validate required columns exist
+    if cluster_col not in ref_profile.columns:
+        raise KeyError(f"Column '{cluster_col}' not found in ref_profile")
+    if (
+        cluster_col not in exp_profiles.columns
+        or treatment_col not in exp_profiles.columns
+    ):
+        raise KeyError(
+            f"Required columns '{cluster_col}' or '{treatment_col}' not found in exp_profiles"
+        )
+
+    # get all unique combinations by using group by
+    ref_clusters = (
+        ref_profile.group_by(cluster_col)
+        .len()
+        .select(cluster_col)
+        .to_series()
+        .to_list()
     )
 
-    # iterate over treatment-cluster combinations and apply distance metric
+    exp_combinations = (
+        exp_profiles.group_by([treatment_col, cluster_col])
+        .len()
+        .select([treatment_col, cluster_col])
+        .rows()
+    )
+
+    # generate all treatment-cluster combinations
+    treatment_cluster_combinations = [
+        (treatment, ref_cluster, exp_cluster)
+        for treatment, exp_cluster in exp_combinations
+        for ref_cluster in ref_clusters
+    ]
+
+    # Calculate distances for each combination
     dist_scores = []
     for treatment, ref_cluster, exp_cluster in treatment_cluster_combinations:
-        # filter single-cells based on selected cluster
-        ref_cluster_population_df = ref_profile.filter(
-            pl.col(cluster_col).is_in([ref_cluster])
-        )
+        try:
+            # Get pre-filtered data
+            ref_cluster_population_df = ref_profile.filter(
+                pl.col(cluster_col) == ref_cluster
+            )
 
-        # filter single-cells based on treatment and selected cluster
-        exp_cluster_population_df = exp_profiles.filter(
-            (pl.col(treatment_col).is_in([treatment])) & (pl.col(cluster_col).is_in([exp_cluster]))
-        )
+            exp_cluster_population_df = exp_profiles.filter(
+                (pl.col(treatment_col) == treatment)
+                & (pl.col(cluster_col) == exp_cluster)
+            )
 
-        # calculate distances between on and profiles
-        if method == "emd":
+            # Skip if either population is empty
+            if (
+                ref_cluster_population_df.height == 0
+                or exp_cluster_population_df.height == 0
+            ):
+                continue
+
+            # Calculate EMD distances
             on_dist, off_dist = compute_earth_movers_distance(
                 ref_cluster_population_df,
                 exp_cluster_population_df,
@@ -205,16 +253,33 @@ def measure_phenotypic_activity(
                 distance_metric=emd_dist_matrix_method,
             )
 
-        # append the results
-        dist_scores.append(
+            # Store results
+            dist_scores.append(
+                {
+                    "ref_cluster": ref_cluster,
+                    "treatment": treatment,
+                    "exp_cluster": exp_cluster,
+                    "on_dist": on_dist,
+                    "off_dist": off_dist,
+                }
+            )
+
+        except Exception:
+            continue
+
+
+    # if no valid scores were computed,
+    # return an empty DataFrame with the correct schema
+    if not dist_scores:
+        # Return empty DataFrame with correct schema
+        return pl.DataFrame(
             {
-                "ref_cluster": ref_cluster,
-                "treatment": treatment,
-                "exp_cluster": exp_cluster,
-                "on_dist": on_dist,
-                "off_dist": off_dist,
+                "ref_cluster": [],
+                "treatment": [],
+                "exp_cluster": [],
+                "on_dist": [],
+                "off_dist": [],
             }
         )
 
-    # convert the results to a DataFrame
     return pl.DataFrame(dist_scores)

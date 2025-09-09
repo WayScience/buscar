@@ -1,22 +1,23 @@
-# buSCar
+# Buscar
+
+![Buscar Logo](./logo/with-text-for-light-bg.svg)
 
 ## About
 
-buSCar (**B**ioactive **U**nbiased **S**ingle-cell **C**ompound **A**ssessment and **R**anking) is a framework designed to leverage single-cell profiles to identify effective compounds in high-content drug screening.
-The name "buSCar" is also a play on the verb "buscar," which means "to search" or "to seek" in both Spanish and Portuguese, reflecting the framework's goal of searching for and prioritizing effective compounds.
+Buscar (**B**ioactive **U**nbiased **S**ingle-cell **C**ompound **A**ssessment and **R**anking) is a framework designed to leverage single-cell profiles to identify effective compounds in high-content drug screening.
+The name "buscar" is also a play on the verb "buscar," which means "to search" or "to seek" in both Spanish and Portuguese, reflecting the framework's goal of searching for and prioritizing effective compounds.
 Traditional high-content screening approaches typically use population-based (aggregated) profiles to evaluate the morphological activity induced by compounds, but these aggregated profiles can obscure the biological heterogeneity present when cells are exposed to different compounds.
-buSCar addresses this limitation by analyzing single-cell profiles, enabling a more nuanced assessment of compound activity.
+buscar addresses this limitation by analyzing single-cell profiles, enabling a more nuanced assessment of compound activity.
 
 The framework emphasizes interpretability by identifying which morphological features are strongly associated with specific cell states, as well as those that remain unaffected.
 This distinction is crucial for tracking both on-target and off-target morphological effects during compound screening.
-By integrating these perspectives, buSCar helps prioritize compounds that are most effective for specific tasks, such as phenotype reversal.
-
+By integrating these perspectives, buscar helps prioritize compounds that are most effective for specific tasks, such as phenotype reversal.
 
 ## Implementation
-![buSCar-framework](./media/buSCar-framework.png)
-> **Figure:** Schematic overview of the buSCar framework, highlighting its five main modules and their roles in compound assessment.
+![buscar-framework](./media/buscar-framework.png)
+> **Figure:** Schematic overview of the buscar framework, highlighting its five main modules and their roles in compound assessment.
 
-buSCar has 5 main modules:
+buscar has 5 main modules:
 
 | Module        | Description                                                                                                                                                                                                                                                                                |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -26,25 +27,24 @@ buSCar has 5 main modules:
 | Activity      | Measures the phenotypic activity of selected treatment groups versus controls using both on-morphology and off-morphological signatures. Produces two scores: one for on-morphology activity, and one for off-morphology activity.                                                         |
 | Hits          | Identifies compounds that perform well based on both on-morphology and off-morphological activity scores from the Activity module.                                                                                                                                                         |
 
-
 ## How to install
 
 ### 1. Clone the Repository
 
-Start by cloning the buSCar repository and navigating into the project directory:
+Start by cloning the buscar repository and navigating into the project directory:
 
 ```bash
-git clone https://github.com/WayScience/BuSCar.git
-cd BuSCar
+git clone https://github.com/WayScience/buscar.git
+cd buscar
 ```
 
 ### 2. Set Up a Conda Environment
 
-Create and activate a dedicated Conda environment for buSCar:
+Create and activate a dedicated Conda environment for buscar:
 
 ```bash
-conda create -n buSCar python=3.12
-conda activate buSCar
+conda create -n buscar python=3.12
+conda activate buscar
 ```
 
 ### 3. Install Poetry

@@ -28,7 +28,7 @@ def load_group_stratified_data(
     profiles: str | pathlib.Path | pl.DataFrame,
     group_columns: list[str] = ["Metadata_Plate", "Metadata_Well"],
     sample_percentage: float = 0.2,
-    seed: int = 0
+    seed: int = 0,
 ) -> pl.DataFrame:
     """Memory-efficiently sample a percentage of rows from each group in a dataset.
 
@@ -85,7 +85,9 @@ def load_group_stratified_data(
         # for each group, randomly sample a fraction of the original row indices
         .agg(
             pl.col("original_idx")
-            .sample(fraction=sample_percentage, seed=seed)  # sample specified percentage from each group
+            .sample(
+                fraction=sample_percentage, seed=seed
+            )  # sample specified percentage from each group
             .alias("sampled_idx")  # rename the sampled indices column
         )
         # extract only the sampled indices column, discarding group identifiers
@@ -99,8 +101,7 @@ def load_group_stratified_data(
 
     # load the entire dataset and filter to sampled indices
     sampled_df = (
-        profiles
-        .with_row_index("idx")
+        profiles.with_row_index("idx")
         .filter(pl.col("idx").is_in(sampled_indices.implode()))
         .drop("idx")
     )
@@ -172,7 +173,6 @@ shared_features = loaded_shared_features["shared-features"]
 
 control_df = []
 for plate_path in crispr_plate_paths:
-
     # load plate data and filter to controls
     plate_controls_df = pl.read_parquet(plate_path).filter(
         pl.col("Metadata_pert_type") == "control"
@@ -204,7 +204,6 @@ negcon_df
 
 
 for seed_val in range(10):
-
     # load the dataset with group stratified sub sampling
     subsampled_df = load_group_stratified_data(
         profiles=negcon_df,

@@ -28,9 +28,7 @@ from utils import io_utils
 
 # ## Helper functions
 
-# In[2]:
-
-
+# In[ ]:
 
 
 def download_compressed_file(
@@ -153,6 +151,7 @@ def download_compressed_file(
 
 
 # setting perturbation type
+# other options are "compound", "orf",
 pert_type = "crispr"
 
 
@@ -170,7 +169,6 @@ data_dir.mkdir(exist_ok=True)
 
 # setting a path to save the experimental metadata
 exp_metadata_path = (data_dir / "CPJUMP1-experimental-metadata.csv").resolve()
-exp_platemaps_path = (data_dir / "CPJUMP1-plate-maps.csv").resolve()
 
 # setting profile directory
 profiles_dir = (data_dir / "sc-profiles").resolve()
@@ -196,16 +194,10 @@ cfret_dir.mkdir(exist_ok=True)
 nb_configs = io_utils.load_configs(config_path)
 CPJUMP1_exp_metadata_url = nb_configs["links"]["CPJUMP1-experimental-metadata-source"]
 
-if pert_type == "crispr":
-    platemap_url = nb_configs["links"]["CPJUMP-plate-maps-source"]
-
-
-# loading in the experimental metadata and plate maps using their url links
+# read in the experimental metadata CSV file and only filter down to plays that
+# have an CRISPR perturbation
 exp_metadata = pl.read_csv(
     CPJUMP1_exp_metadata_url, separator="\t", has_header=True, encoding="utf-8"
-)
-plate_map = pl.read_csv(
-    platemap_url, separator="\t", has_header=True, encoding="utf-8"
 )
 
 # filtering the metadata to only includes plates that their perturbation types are crispr
@@ -213,9 +205,9 @@ exp_metadata = exp_metadata.filter(exp_metadata["Perturbation"].str.contains(per
 
 # save the experimental metadata as a csv file
 exp_metadata.write_csv(exp_metadata_path)
-plate_map.write_csv(exp_platemaps_path)
 
-exp_metadata.head()
+# display
+exp_metadata
 
 
 # Creating a dictionary to group plates by their corresponding experimental batch
@@ -230,13 +222,9 @@ batch_plates_dict = {}
 exp_metadata_batches = exp_metadata["Batch"].unique().to_list()
 
 for batch in exp_metadata_batches:
-    # getting the plates in the batch
-    plates_in_batch = exp_metadata.filter(exp_metadata["Batch"] == batch)[
+    batch_plates_dict[batch] = exp_metadata.filter(exp_metadata["Batch"] == batch)[
         "Assay_Plate_Barcode"
     ].to_list()
-
-    # adding the plates to the dictionary
-    batch_plates_dict[batch] = plates_in_batch
 
 # display batch (Keys) and plates (values) within each batch
 pprint.pprint(batch_plates_dict)
