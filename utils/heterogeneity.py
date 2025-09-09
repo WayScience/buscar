@@ -203,7 +203,6 @@ def _perform_clustering(adata: sc.AnnData, params: ClusteringParams) -> str:
     if not isinstance(params, ClusteringParams):
         raise TypeError("params must be an instance of ClusteringParams")
 
-
     # perform louvain or leiden clustering based on the method specified
     if params.method == ClusteringMethod.LOUVAIN:
         sc.tl.louvain(
@@ -324,7 +323,6 @@ def _create_optimization_objective(
     # creating the objective function for Optuna
     # this function will be called by Optuna to evaluate the hyperparameters
     def objective(trial: optuna.trial.Trial) -> float:
-
         # sample hyperparameters using Optuna trial
         # create ClusteringParams object with trial-suggested values
         # these parameters will be evaluated by the clustering pipeline
@@ -395,7 +393,7 @@ def optimized_clustering(
     seed: int = 0,
     study_name: str | None = None,
 ) -> tuple[optuna.Study, np.ndarray]:
-    """ Perform hyperparameter optimization for clustering.
+    """Perform hyperparameter optimization for clustering.
 
     This function wraps the `cluster_single_cells` function with an Optuna study
     to find the best clustering parameters based on silhouette score.

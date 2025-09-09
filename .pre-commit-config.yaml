@@ -53,12 +53,6 @@ repos:
         args: ["--fix"]
         additional_dependencies: ["ruff"]
 
-  # checks for shell scripts
--   repo: https://github.com/koalaman/shellcheck-precommit
-    rev: v0.11.0
-    hooks:
-    -   id: shellcheck
-
   # Final cleanup (whitespace and newlines)
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -72,3 +66,14 @@ repos:
     hooks:
     -   id: pre-commit-update
         args: ["--verbose"]
+
+-   repo: local
+    hooks:
+    -   id: shellcheck
+        name: ShellCheck
+        description: Test shell scripts with ShellCheck
+        entry: shellcheck
+        language: python
+        types: [shell]
+    args: ["--exclude=SC1091"]
+    require_serial: true

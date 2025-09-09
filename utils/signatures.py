@@ -166,6 +166,8 @@ def apply_perm_test(
             "pval": pval_list,
         }
     )
+
+
 @beartype
 def apply_ks_test(
     ref_profiles: pl.DataFrame,
@@ -321,9 +323,7 @@ def get_signatures(
 
     # calculate corrected pvalue
     corrected_pvals = multipletests(pvals_df["pval"].to_numpy(), method=fdr_method)[1]
-    pvals_df = pvals_df.with_columns(
-        pl.Series("corrected_p_value", corrected_pvals)
-    )
+    pvals_df = pvals_df.with_columns(pl.Series("corrected_p_value", corrected_pvals))
 
     # Determine significance using p_threshold
     pvals_df = pvals_df.with_columns(
@@ -331,5 +331,7 @@ def get_signatures(
     )
 
     # returns significant and non-significant features as lists
-    return (pvals_df.filter(pl.col("is_significant"))["features"].to_list(),
-            pvals_df.filter(~pl.col("is_significant"))["features"].to_list())
+    return (
+        pvals_df.filter(pl.col("is_significant"))["features"].to_list(),
+        pvals_df.filter(~pl.col("is_significant"))["features"].to_list(),
+    )

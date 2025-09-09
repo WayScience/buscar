@@ -44,17 +44,29 @@ percentile_cutoff = 20
 
 # setting directories
 data_dir = pathlib.Path("../0.download-data/data/sc-profiles").resolve(strict=True)
-results_dir = pathlib.Path("./results").resolve(strict=True) # change dirname from _results to results
+results_dir = pathlib.Path("./results").resolve(
+    strict=True
+)  # change dirname from _results to results
 cluster_labels_dir = (results_dir / "cluster-labels").resolve(strict=True)
 
 # setting cfret1 profile paths, signatures, cluster labels
-cfret_profiles_path = (data_dir / "cfret" / "localhost230405150001_sc_feature_selected.parquet").resolve(strict=True)
-cfret_cluster_labels_path = (cluster_labels_dir / "cfret_cluster_results.pkl").resolve(strict=True)
+cfret_profiles_path = (
+    data_dir / "cfret" / "localhost230405150001_sc_feature_selected.parquet"
+).resolve(strict=True)
+cfret_cluster_labels_path = (cluster_labels_dir / "cfret_cluster_results.pkl").resolve(
+    strict=True
+)
 
 # setting mitocheck profile paths, signatures, cluster labels
-mitocheck_negcon_profiles_path = (data_dir / "mitocheck" / "negcon_mitocheck_cp_profiles.parquet").resolve(strict=True)
-mitocheck_trt_profiles_path = (data_dir / "mitocheck" / "treated_mitocheck_cp_profiles.parquet").resolve(strict=True)
-mitocheck_cluster_labels_path = (cluster_labels_dir / "mitocheck_cluster_results.pkl").resolve(strict=True)
+mitocheck_negcon_profiles_path = (
+    data_dir / "mitocheck" / "negcon_mitocheck_cp_profiles.parquet"
+).resolve(strict=True)
+mitocheck_trt_profiles_path = (
+    data_dir / "mitocheck" / "treated_mitocheck_cp_profiles.parquet"
+).resolve(strict=True)
+mitocheck_cluster_labels_path = (
+    cluster_labels_dir / "mitocheck_cluster_results.pkl"
+).resolve(strict=True)
 
 # setting output directory
 refined_profiles_dir = (results_dir / "refined-profiles").resolve()
@@ -89,7 +101,8 @@ mitocheck_trt_profiles = mitocheck_trt_profiles.with_columns(
     pl.Series("Metadata_cluster", mitocheck_cluster_labels["cluster_labels"])
 )
 treated_cfret_profiles = treated_cfret_profiles.with_columns(
-    pl.Series("Metadata_cluster", cfret_cluster_labels["cluster_labels"]))
+    pl.Series("Metadata_cluster", cfret_cluster_labels["cluster_labels"])
+)
 
 
 # Visualizing the amount of cluster that will be dropped after refinement
@@ -101,7 +114,7 @@ treated_cfret_profiles = treated_cfret_profiles.with_columns(
 mitocheck_cell_counts_per_cluster = get_cell_counts_per_cluster(
     mitocheck_trt_profiles,
     treatment_col="Metadata_Gene",
-    cluster_col="Metadata_cluster"
+    cluster_col="Metadata_cluster",
 )
 
 
@@ -110,12 +123,22 @@ mitocheck_cell_counts_per_cluster = get_cell_counts_per_cluster(
 
 # create a histogram
 plt.hist(mitocheck_cell_counts_per_cluster, bins=30)
-plt.axvline(np.percentile(mitocheck_cell_counts_per_cluster, percentile_cutoff), color='r', linestyle='dashed', linewidth=1, label='cutoff')
+plt.axvline(
+    np.percentile(mitocheck_cell_counts_per_cluster, percentile_cutoff),
+    color="r",
+    linestyle="dashed",
+    linewidth=1,
+    label="cutoff",
+)
 plt.xlabel("Cell Count")
 plt.ylabel("Frequency")
 plt.title("Distribution of Cell Counts per cluster (Mitocheck)")
 plt.legend()
-plt.savefig(refined_profiles_dir / "mitocheck_cell_counts_distribution.png", dpi=300, bbox_inches='tight')
+plt.savefig(
+    refined_profiles_dir / "mitocheck_cell_counts_distribution.png",
+    dpi=300,
+    bbox_inches="tight",
+)
 plt.show()
 
 
@@ -125,7 +148,7 @@ plt.show()
 cfret_cell_counts_per_cluster = get_cell_counts_per_cluster(
     treated_cfret_profiles,
     treatment_col="Metadata_treatment",
-    cluster_col="Metadata_cluster"
+    cluster_col="Metadata_cluster",
 )
 
 
@@ -134,12 +157,22 @@ cfret_cell_counts_per_cluster = get_cell_counts_per_cluster(
 
 # create a histogram
 plt.hist(cfret_cell_counts_per_cluster, bins=30)
-plt.axvline(np.percentile(cfret_cell_counts_per_cluster, percentile_cutoff), color='r', linestyle='dashed', linewidth=1, label='cutoff')
+plt.axvline(
+    np.percentile(cfret_cell_counts_per_cluster, percentile_cutoff),
+    color="r",
+    linestyle="dashed",
+    linewidth=1,
+    label="cutoff",
+)
 plt.xlabel("Cell Count")
 plt.ylabel("Frequency")
 plt.title("Distribution of Cell Counts per cluster (CFRET)")
 plt.legend()
-plt.savefig(refined_profiles_dir / "cfret_cell_counts_distribution.png", dpi=300, bbox_inches='tight')
+plt.savefig(
+    refined_profiles_dir / "cfret_cell_counts_distribution.png",
+    dpi=300,
+    bbox_inches="tight",
+)
 
 
 # ## Refine profiles
@@ -154,7 +187,7 @@ refined_mitocheck_trt_profiles = refine_profiles(
     treatment_col=mitocheck_treatment_col,
     cluster_col=cluster_col,
     percentile_cutoff=percentile_cutoff,
-    method="cluster_cellcounts"
+    method="cluster_cellcounts",
 )
 
 refined_cfret_trt_profiles = refine_profiles(
@@ -162,7 +195,7 @@ refined_cfret_trt_profiles = refine_profiles(
     treatment_col=cfret_treatment_col,
     cluster_col=cluster_col,
     percentile_cutoff=percentile_cutoff,
-    method="cluster_cellcounts"
+    method="cluster_cellcounts",
 )
 
 
@@ -170,5 +203,9 @@ refined_cfret_trt_profiles = refine_profiles(
 
 
 # save profiles to results/refined directory
-refined_cfret_trt_profiles.write_parquet(refined_profiles_dir / "refined_cfret_trt_profiles.parquet")
-refined_mitocheck_trt_profiles.write_parquet(refined_profiles_dir / "refined_mitocheck_trt_profiles.parquet")
+refined_cfret_trt_profiles.write_parquet(
+    refined_profiles_dir / "refined_cfret_trt_profiles.parquet"
+)
+refined_mitocheck_trt_profiles.write_parquet(
+    refined_profiles_dir / "refined_mitocheck_trt_profiles.parquet"
+)

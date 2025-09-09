@@ -90,7 +90,9 @@ exp_metadata_batches = exp_metadata["Batch"].unique().to_list()
 
 for batch in exp_metadata_batches:
     # getting the plates in the batch
-    plates_in_batch = exp_metadata.filter(exp_metadata["Batch"] == batch)["Assay_Plate_Barcode"].to_list()
+    plates_in_batch = exp_metadata.filter(exp_metadata["Batch"] == batch)[
+        "Assay_Plate_Barcode"
+    ].to_list()
 
     # adding the plates to the dictionary
     batch_plates_dict[batch] = plates_in_batch

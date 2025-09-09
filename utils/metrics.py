@@ -119,6 +119,7 @@ def compute_earth_movers_distance(
 
     return on_emd, off_emd
 
+
 @beartype
 def measure_phenotypic_activity(
     ref_profile: pl.DataFrame,
@@ -266,7 +267,6 @@ def measure_phenotypic_activity(
 
         except Exception:
             continue
-
 
     # if no valid scores were computed,
     # return an empty DataFrame with the correct schema
