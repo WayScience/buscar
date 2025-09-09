@@ -1,4 +1,6 @@
+import json
 import pathlib
+import pickle
 
 import polars as pl
 import yaml
@@ -69,11 +71,11 @@ def load_configs(fpath: str | pathlib.Path) -> dict:
     Parameters
     ----------
     fpath : str or pathlib.Path
-        Path to the YAML configuration file.
+        Path to the YAML, JSON, or pickle configuration file.
     Returns
     -------
     dict
-        Dictionary containing the configuration loaded from the YAML file.
+        Dictionary containing the configuration loaded from the file.
     Raises
     ------
     TypeError
@@ -91,14 +93,27 @@ def load_configs(fpath: str | pathlib.Path) -> dict:
     if not fpath.is_file():
         raise FileNotFoundError(f"File not found: {fpath}")
 
-    # Load in YAML file and return as a dictionary
-    # raise an error if the file is not valid YAML
+    # Load file based on extension
     if fpath.suffix.lower() == ".yaml":
         yaml_content = fpath.read_text(encoding="utf-8")
         try:
             config = yaml.safe_load(yaml_content)
         except yaml.YAMLError as e:
             raise ValueError(f"Error parsing YAML file {fpath}: {e}")
+    elif fpath.suffix.lower() == ".json":
+        json_content = fpath.read_text(encoding="utf-8")
+        try:
+            config = json.loads(json_content)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Error parsing JSON file {fpath}: {e}")
+    elif fpath.suffix.lower() in [".pkl", ".pickle"]:
+        try:
+            with open(fpath, "rb") as f:
+                config = pickle.load(f)
+        except (pickle.PickleError, EOFError) as e:
+            raise ValueError(f"Error parsing pickle file {fpath}: {e}")
     else:
-        raise ValueError(f"Unsupported file format: {fpath.suffix}. Expected .yaml")
+        raise ValueError(
+            f"Unsupported file format: {fpath.suffix}. Expected .yaml, .json, .pkl, or .pickle"
+        )
     return config

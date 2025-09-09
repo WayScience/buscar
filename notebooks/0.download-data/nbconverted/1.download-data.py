@@ -1,10 +1,9 @@
 #!/usr/bin/env python
-# coding: utf-8
 
 # # Downloading Single-Cell Profiles
-# 
+#
 # This notebook focuses on downloading metadata and single-cell profiles from three key datasets:
-# 
+#
 # 1. **CPJUMP1 Pilot Dataset** ([link](https://github.com/jump-cellpainting/2024_Chandrasekaran_NatureMethods_CPJUMP1)): Metadata is downloaded and processed to identify and organize plates containing wells treated with CRISPR perturbations for downstream analysis.
 # 2. **MitoCheck Dataset**: Normalized and feature-selected single-cell profiles are downloaded for further analysis.
 # 3. **CFReT Dataset**: Normalized and feature-selected single-cell profiles from the CFReT plate are downloaded for downstream analysis.
@@ -12,31 +11,33 @@
 # In[ ]:
 
 
-import sys
-import pprint
 import pathlib
+import pprint
+import sys
 
-import requests
 import polars as pl
+import requests
 from tqdm import tqdm
 
 sys.path.append("../../")
-from utils import io_utils
+import gzip
+import tarfile
+import zipfile
 
+from utils import io_utils
 
 # ## Helper functions
 
 # In[ ]:
 
 
-import gzip
-import zipfile
-import tarfile
-
 def download_compressed_file(
-    source_url: str, output_path: pathlib.Path | str, chunk_size: int = 8192, extract: bool = True
+    source_url: str,
+    output_path: pathlib.Path | str,
+    chunk_size: int = 8192,
+    extract: bool = True,
 ):
-    """ Downloads a compressed file from a URL with progress tracking.
+    """Downloads a compressed file from a URL with progress tracking.
 
     Downloads a file from the specified URL and saves it to the given output path.
     The download is performed in chunks to handle large files efficiently, and the progress is displayed using
@@ -103,36 +104,31 @@ def download_compressed_file(
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     if chunk:
                         file.write(chunk)
-                        
                         # this updates the progress bar
                         pbar.update(len(chunk))
 
         # extract the file if requested
         if extract:
-
             # ensring that the path is a directory if the output path is a file
             # this is necessary for extraction
             extract_dir = output_path
             if extract_dir.is_file():
                 extract_dir = output_path.parent
-            
-            if output_path.suffix == '.gz':
+            if output_path.suffix == ".gz":
                 # handle gzip files
-                extracted_path = output_path.with_suffix('')
-                with gzip.open(output_path, 'rb') as f_in:
-                    with open(extracted_path, 'wb') as f_out:
+                extracted_path = output_path.with_suffix("")
+                with gzip.open(output_path, "rb") as f_in:
+                    with open(extracted_path, "wb") as f_out:
                         f_out.write(f_in.read())
                 print(f"Extracted to: {extracted_path}")
-                
-            elif output_path.suffix == '.zip':
+            elif output_path.suffix == ".zip":
                 # handle zip files
-                with zipfile.ZipFile(output_path, 'r') as zip_ref:
+                with zipfile.ZipFile(output_path, "r") as zip_ref:
                     zip_ref.extractall(extract_dir)
                 print(f"Extracted to: {extract_dir}")
-                
-            elif output_path.suffix in ['.tar', '.tgz'] or '.tar.' in output_path.name:
+            elif output_path.suffix in [".tar", ".tgz"] or ".tar." in output_path.name:
                 # handle tar files
-                with tarfile.open(output_path, 'r:*') as tar_ref:
+                with tarfile.open(output_path, "r:*") as tar_ref:
                     tar_ref.extractall(extract_dir)
                 print(f"Extracted to: {extract_dir}")
 
@@ -151,6 +147,7 @@ def download_compressed_file(
 
 
 # setting perturbation type
+# other options are "compound", "orf",
 pert_type = "crispr"
 
 
@@ -183,7 +180,7 @@ cfret_dir.mkdir(exist_ok=True)
 
 
 # ## Downloading CPJUMP1 Metadata
-# 
+#
 # In this section, we download and process the CPJUMP1 experimental metadata. This metadata contains information about assay plates, batches, and perturbation types, which is essential for organizing and analyzing single-cell profiles. Only plates treated with CRISPR perturbations are selected for downstream analysis.
 
 # In[ ]:
@@ -210,7 +207,7 @@ exp_metadata
 
 
 # Creating a dictionary to group plates by their corresponding experimental batch
-# 
+#
 # This step organizes the plate barcodes from the experimental metadata into groups based on their batch. Grouping plates by batch is useful for batch-wise data processing and downstream analyses.
 
 # In[ ]:
@@ -221,20 +218,18 @@ batch_plates_dict = {}
 exp_metadata_batches = exp_metadata["Batch"].unique().to_list()
 
 for batch in exp_metadata_batches:
-    # getting the plates in the batch
-    plates_in_batch = exp_metadata.filter(exp_metadata["Batch"] == batch)["Assay_Plate_Barcode"].to_list()
+    batch_plates_dict[batch] = exp_metadata.filter(exp_metadata["Batch"] == batch)[
+        "Assay_Plate_Barcode"
+    ].to_list()
 
-    # adding the plates to the dictionary
-    batch_plates_dict[batch] = plates_in_batch 
-
-# display batch (Keys) and plates (values) within each batch 
+# display batch (Keys) and plates (values) within each batch
 pprint.pprint(batch_plates_dict)
 
 
 # ## Downloading MitoCheck Data
-# 
+#
 # In this section, we download the MitoCheck data generated in [this study](https://pmc.ncbi.nlm.nih.gov/articles/PMC3108885/).
-# 
+#
 # Specifically, we are downloading data that has already been normalized and feature-selected. The normalization and feature selection pipeline is available [here](https://github.com/WayScience/mitocheck_data/tree/main/3.normalize_data).
 
 # In[ ]:
@@ -258,9 +253,9 @@ else:
 
 
 # ## Downloading CFReT Data
-# 
+#
 # In this section, we download feature-selected single-cell profiles from the CFReT plate `localhost230405150001`. This plate contains three treatments: DMSO (control), drug_x, and TGFRi. The dataset consists of high-content imaging data that has already undergone feature selection, making it suitable for downstream analysis.
-# 
+#
 # **Key Points:**
 # - Only the processed single-cell profiles are downloaded [here](https://github.com/WayScience/cellpainting_predicts_cardiac_fibrosis/tree/main/3.process_cfret_features/data/single_cell_profiles)
 # - The CFReT dataset was used and published in [this study](https://doi.org/10.1161/CIRCULATIONAHA.124.071956).
@@ -272,15 +267,16 @@ else:
 cfret_source = nb_configs["links"]["CFReT-profiles-source"]
 
 # use the correct filename from the source URL
-output_path = (cfret_dir / "localhost230405150001_sc_feature_selected.parquet").resolve()
+output_path = (
+    cfret_dir / "localhost230405150001_sc_feature_selected.parquet"
+).resolve()
 
-# checking if the download already exists if it does not exist 
+# checking if the download already exists if it does not exist
 # download the file
 if output_path.exists():
     print(f"File {output_path} already exists. Skipping download.")
 else:
     download_compressed_file(
-        source_url=cfret_source, 
-        output_path=output_path, 
+        source_url=cfret_source,
+        output_path=output_path,
     )
-
