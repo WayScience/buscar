@@ -1,22 +1,50 @@
 # Pre-commit configuration file
 # Documentation: https://pre-commit.com/
 
-repos:
-  # Keep pre-commit itself up to date
--   repo: https://gitlab.com/vojko.pribudic.foss/pre-commit-update
-    rev: v0.8.0
-    hooks:
-    -   id: pre-commit-update
-        args: ["--verbose"]
+# Pre-commit configuration file
+# Documentation: https://pre-commit.com/
 
-  # Ruff for linting Python files
+repos:
+  # Basic file checks first (fast and foundational)
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+    -   id: check-yaml # Validate YAML files
+    -   id: check-json # Validate JSON files
+    -   id: check-merge-conflict # Prevent committing merge conflict markers
+    -   id: check-added-large-files # Warn about large files being added
+        args: ["--maxkb=102400"]
+
+  # Format TOML files early (before other tools might read config)
+-   repo: https://github.com/pappasam/toml-sort
+    rev: v0.24.2
+    hooks:
+    -   id: toml-sort
+        args: ["--in-place"]
+
+  # Python syntax upgrades (should run before linting/formatting)
+-   repo: https://github.com/asottile/pyupgrade
+    rev: v3.20.0
+    hooks:
+    -   id: pyupgrade
+        args: ["--py311-plus"]
+
+  # Import sorting (should run before Ruff to avoid conflicts)
+-   repo: https://github.com/pre-commit/mirrors-isort
+    rev: v5.10.1
+    hooks:
+    -   id: isort
+        args: ["--profile", "black"]
+
+  # Ruff for linting and formatting Python files
 -   repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.12.11
+    rev: v0.12.12
     hooks:
     -   id: ruff-check
         args: ["--fix"]
+    -   id: ruff-format  # Add Ruff formatter
 
-    # nbQA to run Ruff on Jupyter Notebooks
+  # nbQA to run Ruff on Jupyter Notebooks (after Python tools)
 -   repo: https://github.com/nbQA-dev/nbQA
     rev: 1.9.1
     hooks:
@@ -25,34 +53,22 @@ repos:
         args: ["--fix"]
         additional_dependencies: ["ruff"]
 
-    # Format and sort TOML files
--   repo: https://github.com/pappasam/toml-sort
-    rev: v0.24.2
+  # checks for shell scripts
+-   repo: https://github.com/koalaman/shellcheck-precommit
+    rev: v0.11.0
     hooks:
-    -   id: toml-sort
-        args: ["--in-place"]
+    -   id: shellcheck
 
-    # Sort imports in Python files (if separate from Ruff)
--   repo: https://github.com/pre-commit/mirrors-isort
-    rev: v5.10.1
-    hooks:
-    -   id: isort
-        args: ["--profile", "black"]
-
-    # Pyupgrade for updating Python syntax to newer versions
--   repo: https://github.com/asottile/pyupgrade
-    rev: v3.20.0
-    hooks:
-    -   id: pyupgrade
-        args: ["--py311-plus"]
-
+  # Final cleanup (whitespace and newlines)
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-    -   id: check-yaml # Validate YAML files
-    -   id: check-json # Validate JSON files
     -   id: end-of-file-fixer # Ensure files end with a newline
     -   id: trailing-whitespace # Remove trailing whitespace
-    -   id: check-merge-conflict # Prevent committing merge conflict markers
-    -   id: check-added-large-files # Warn about large files being added
-        args: ["--maxkb=102400"]
+
+  # Keep pre-commit itself up to date (run last)
+-   repo: https://gitlab.com/vojko.pribudic.foss/pre-commit-update
+    rev: v0.8.0
+    hooks:
+    -   id: pre-commit-update
+        args: ["--verbose"]
