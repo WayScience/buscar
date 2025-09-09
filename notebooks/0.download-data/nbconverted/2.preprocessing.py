@@ -145,7 +145,7 @@ def split_data(
 #
 # > **Note:** The shared profiles utilized here are sourced from the [JUMP-single-cell](https://github.com/WayScience/JUMP-single-cell) repository. All preprocessing and profile generation steps are performed in that repository, and this notebook focuses on downstream analysis using the generated profiles.
 
-# In[10]:
+# In[3]:
 
 
 # Setting data directory

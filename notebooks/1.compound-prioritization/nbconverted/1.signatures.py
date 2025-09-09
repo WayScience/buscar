@@ -155,7 +155,9 @@ with open(mitocheck_feature_space_config) as f:
     mitocheck_feature_space = json.load(f)
 
 # displaying the poscon genes
-print(f"These are the positive control gene: {mitocheck_poscon_df["Metadata_Gene"].unique().to_list()}")
+print(
+    f"These are the positive control gene: {mitocheck_poscon_df['Metadata_Gene'].unique().to_list()}"
+)
 print(f"Dataframe shape for poscon: {mitocheck_poscon_df.shape}")
 print(f"Dataframe shape for negcon: {mitocheck_negcon_df.shape}")
 
@@ -277,7 +279,10 @@ mitocheck_save_path = (
 
 if not mitocheck_save_path.exists():
     mitocheck_signature_results = defaultdict(lambda: None)
-    for poscon_gene in tqdm.tqdm(mitocheck_poscon_df["Metadata_Gene"].unique().to_list(), desc="Processing MitoCheck genes"):
+    for poscon_gene in tqdm.tqdm(
+        mitocheck_poscon_df["Metadata_Gene"].unique().to_list(),
+        desc="Processing MitoCheck genes",
+    ):
         # create poscon dataframe based on positive control gene
         selected_poscon_df = mitocheck_poscon_df.filter(
             pl.col("Metadata_Gene") == poscon_gene
@@ -320,7 +325,6 @@ else:
 cfret_save_path = (signature_results_dir / f"{method}_cfret_signatures.json").resolve()
 
 if not cfret_save_path.exists():
-
     # set up results dictionary
     cfret_signature_results = defaultdict(lambda: None)
 
