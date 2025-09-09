@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -50 240 100">
+  <!-- cell -->
+  <g transform="scale(0.9)">
+    <!-- wall -->
+    <path
+      fill="#bbdefb"
+      transform="rotate(15)"
+      d="M9.38 -45.5L9.38 -45.5C12.18 -41.44 17.22 -39.62 21.98 -40.88L21.98 -40.88C29.68 -43.12 37.24 -36.82 36.4 -28.7V-28.7C35.84 -23.8 38.64 -19.18 43.12 -17.08L43.12 -17.08C50.4 -13.86 52.22 -4.2 46.34 1.4L46.34 1.4C42.84 4.76 41.86 10.08 43.96 14.56L43.96 14.56C47.46 21.84 42.56 30.38 34.58 30.94H34.58C29.68 31.36 25.62 34.72 24.36 39.48L24.36 39.48C22.4 47.32 13.16 50.68 6.58 45.92L6.58 45.92C2.66 42.98 -2.8 42.98 -6.72 45.92L-6.72 45.92C-13.3 50.68 -22.54 47.32 -24.5 39.48L-24.5 39.48C-25.76 34.72 -29.82 31.22 -34.72 30.94H-34.72C-42.7 30.38 -47.6 21.84 -44.1 14.56L-44.1 14.56C-42 10.08 -42.84 4.9 -46.48 1.4L-46.48 1.4C-52.22 -4.2 -50.54 -13.86 -43.26 -17.22L-43.26 -17.22C-38.78 -19.18 -36.12 -23.94 -36.54 -28.84L-36.54 -28.84C-37.38 -36.82 -29.82 -43.12 -22.12 -41.02L-22.12 -41.02C-17.36 -39.62 -12.32 -41.58 -9.52 -45.64L-9.52 -45.64C-4.9 -52.08 4.9 -52.08 9.38 -45.5Z"
+    />
+    <!-- floaties -->
+    <circle
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="5"
+      stroke-linecap="round"
+      stroke-dasharray="15 60 10 15 30 40 20 99999"
+      transform="rotate(20)"
+      opacity="0.3"
+      cx="0"
+      cy="0"
+      r="36"
+    />
+  </g>
+
+  <!-- enclosure -->
+  <g
+    stroke="#505060"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <!-- glass -->
+    <path
+      fill="#ffffff"
+      fill-opacity="0.5"
+      d="
+        M -8 17
+        a 5 5 0 0 1 -5 -5
+        v -23
+        a 5 5 0 0 1 5 -5
+        h 16
+        a 5 5 0 0 1 5 5
+        v 23
+        a 5 5 0 0 1 -5 5
+        z
+      "
+    />
+    <!-- base -->
+    <path
+      fill="#505060"
+      fill-opacity="0.75"
+      d="
+        M -7 17
+        a 7 7 0 0 1 -7 7
+        h 28
+        a 7 7 0 0 1 -7 -7
+        z
+      "
+    />
+    <!-- top -->
+    <path
+      fill="none"
+      d="
+        M -2 -20
+        a 4 4 0 1 1 4 0
+        z
+        l -3 3
+        h 10
+        l -3 -3
+        z
+      "
+    />
+  </g>
+  <!-- flame -->
+  <g
+    fill="#2196F3"
+    stroke="#2196F3"
+    stroke-width="1"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <!-- inner -->
+    <path
+      opacity="0.5"
+      d="
+        M 0 10
+        a 8 8 0 0 1 0 -8
+        a 8 8 0 0 1 0 8
+      "
+    />
+    <!-- outer -->
+    <path
+      opacity="0.75"
+      d="
+        M -1 13
+        a 12 12 0 0 1 0 -22
+        a 20 20 0 0 0 0 22
+        M 1 13
+        a 8 8 0 0 0 0 -15
+        a 13 13 0 0 1 0 15
+      "
+    />
+  </g>
+
+  <!-- text -->
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Roboto");
+    text {
+      font-family: "Roboto";
+      font-size: 40px;
+      dominant-baseline: middle;
+    }
+  </style>
+  <g>
+    <text x="60" y="1">
+      <tspan fill="#ffffff">bu</tspan>
+      <tspan fill="#90caf9" dx="-10">sc</tspan>
+      <tspan fill="#ffffff" dx="-10">ar</tspan>
+    </text>
+  </g>
+</svg>

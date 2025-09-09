@@ -1,8 +1,10 @@
-# buscar
+# Buscar
+
+![Buscar Logo](./logo/with-text-for-light-bg.svg)
 
 ## About
 
-buscar (**B**ioactive **U**nbiased **S**ingle-cell **C**ompound **A**ssessment and **R**anking) is a framework designed to leverage single-cell profiles to identify effective compounds in high-content drug screening.
+Buscar (**B**ioactive **U**nbiased **S**ingle-cell **C**ompound **A**ssessment and **R**anking) is a framework designed to leverage single-cell profiles to identify effective compounds in high-content drug screening.
 The name "buscar" is also a play on the verb "buscar," which means "to search" or "to seek" in both Spanish and Portuguese, reflecting the framework's goal of searching for and prioritizing effective compounds.
 Traditional high-content screening approaches typically use population-based (aggregated) profiles to evaluate the morphological activity induced by compounds, but these aggregated profiles can obscure the biological heterogeneity present when cells are exposed to different compounds.
 buscar addresses this limitation by analyzing single-cell profiles, enabling a more nuanced assessment of compound activity.
