@@ -145,7 +145,7 @@ def split_data(
 #
 # > **Note:** The shared profiles utilized here are sourced from the [JUMP-single-cell](https://github.com/WayScience/JUMP-single-cell) repository. All preprocessing and profile generation steps are performed in that repository, and this notebook focuses on downstream analysis using the generated profiles.
 
-# In[10]:
+# In[3]:
 
 
 # Setting data directory
@@ -330,12 +330,60 @@ datasets = [
 
 # Splitting the metadata and feature columns for each dataset to enable targeted downstream analysis and ensure consistent data structure across all profiles.
 
-# In[ ]:
+# In[8]:
 
 
-cp_mitocheck_profile_meta = cp_mitocheck_profile.columns[:13]
-cp_mitocheck_neg_control_profiles_meta = cp_mitocheck_neg_control_profiles.columns[:13]
-cp_mitocheck_pos_control_profiles_meta = cp_mitocheck_pos_control_profiles.columns[:13]
+# naming the metadata of mitocheck profiles
+cp_mitocheck_profile_meta = [
+    "Mitocheck_Phenotypic_Class",
+    "Cell_UUID",
+    "Location_Center_X",
+    "Location_Center_Y",
+    "Metadata_Plate",
+    "Metadata_Well",
+    "Metadata_Frame",
+    "Metadata_Site",
+    "Metadata_Plate_Map_Name",
+    "Metadata_DNA",
+    "Metadata_Gene",
+    "Metadata_Gene_Replicate",
+    "Metadata_Object_Outline",
+]
+cp_mitocheck_neg_control_profiles_meta = [
+    "Mitocheck_Phenotypic_Class",
+    "Cell_UUID",
+    "Location_Center_X",
+    "Location_Center_Y",
+    "Metadata_Plate",
+    "Metadata_Well",
+    "Metadata_Frame",
+    "Metadata_Site",
+    "Metadata_Plate_Map_Name",
+    "Metadata_DNA",
+    "Metadata_Gene",
+    "Metadata_Gene_Replicate",
+    "AreaShape_Area",
+]
+
+cp_mitocheck_pos_control_profiles_meta = [
+    "Mitocheck_Phenotypic_Class",
+    "Cell_UUID",
+    "Location_Center_X",
+    "Location_Center_Y",
+    "Metadata_Plate",
+    "Metadata_Well",
+    "Metadata_Frame",
+    "Metadata_Site",
+    "Metadata_Plate_Map_Name",
+    "Metadata_DNA",
+    "Metadata_Gene",
+    "Metadata_Gene_Replicate",
+    "AreaShape_Area",
+]
+
+
+# In[9]:
+
 
 # select morphology features by droping the metadata features and getting only the column names
 cp_mitocheck_profile_features = cp_mitocheck_profile.drop(
@@ -368,7 +416,7 @@ with open(mitocheck_profiles_dir / "mitocheck_feature_space_configs.json", "w") 
     json.dump(mitocheck_feature_space_configs, f)
 
 
-# In[9]:
+# In[10]:
 
 
 # now convert preprocessed Mitocheck profiles to parquet files

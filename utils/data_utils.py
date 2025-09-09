@@ -491,49 +491,32 @@ def generate_consensus_signatures(
     full_features_set = set(features)
 
     for gene, feature_lists in on_signatures_by_gene.items():
+        # Calculate consensus on-features
         if not feature_lists:
             consensus_on_features = []
+        elif len(feature_lists) == 1:
+            consensus_on_features = sorted(feature_lists[0])
         else:
-            # Handle case with only one feature list
-            if len(feature_lists) == 1:
-                consensus_on_features = list(feature_lists[0])
-            else:
-                # Count feature occurrences across all lists
-                feature_counts = defaultdict(int)
-                total_lists = len(feature_lists)
+            # Count feature occurrences and apply threshold
+            feature_counts = defaultdict(int)
+            for feature_list in feature_lists:
+                for feature in set(feature_list):  # Remove duplicates within list
+                    feature_counts[feature] += 1
 
-                for feature_list in feature_lists:
-                    unique_features = set(
-                        feature_list
-                    )  # Remove duplicates within same list
-                    for feature in unique_features:
-                        feature_counts[feature] += 1
+            # Determine minimum count threshold
+            total_lists = len(feature_lists)
+            min_count = total_lists if min_consensus_threshold == 1.0 else max(1, int(total_lists * min_consensus_threshold))
 
-                # Determine consensus threshold
-                if min_consensus_threshold == 1.0:
-                    # Strict intersection - feature must appear in ALL lists
-                    min_count = total_lists
-                else:
-                    # Flexible threshold - feature must appear in at least X% of lists
-                    min_count = max(1, int(total_lists * min_consensus_threshold))
+            # Select features meeting threshold
+            consensus_on_features = sorted([
+                feature for feature, count in feature_counts.items()
+                if count >= min_count
+            ])
 
-                # Select features that meet the consensus threshold
-                consensus_on_features = [
-                    feature
-                    for feature, count in feature_counts.items()
-                    if count >= min_count
-                ]
+        # Generate off-features as complement of on-features
+        consensus_off_features = sorted(list(full_features_set - set(consensus_on_features)))
 
-        # Sort on-features for consistency
-        consensus_on_features = sorted(consensus_on_features)
-
-        # Off-morphology features are the complement of on-morphology features
-        on_consensus_features_set = set(consensus_on_features)
-        consensus_off_features = sorted(
-            list(full_features_set - on_consensus_features_set)
-        )
-
-        # Store in gene-centric structure
+        # Store results
         consensus_signatures[gene] = {
             "on": consensus_on_features,
             "off": consensus_off_features,
