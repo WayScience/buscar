@@ -46,7 +46,7 @@ percentile_cutoff = 20
 data_dir = pathlib.Path("../0.download-data/data/sc-profiles").resolve(strict=True)
 results_dir = pathlib.Path("./results").resolve(
     strict=True
-)  # change dirname from _results to results
+)
 cluster_labels_dir = (results_dir / "cluster-labels").resolve(strict=True)
 
 # setting cfret1 profile paths, signatures, cluster labels
