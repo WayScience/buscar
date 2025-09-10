@@ -429,7 +429,7 @@ def organelle_count_table_per_gene(
 
 def generate_consensus_signatures(
     signatures_dict, features: list[str], min_consensus_threshold=0.5
-):
+) -> dict:
     """
     Generate consensus morphological signatures from multiple comparisons.
 

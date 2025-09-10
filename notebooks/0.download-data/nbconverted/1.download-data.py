@@ -1,34 +1,35 @@
 #!/usr/bin/env python
+# coding: utf-8
 
 # # Downloading Single-Cell Profiles
-#
+# 
 # This notebook focuses on downloading metadata and single-cell profiles from three key datasets:
-#
+# 
 # 1. **CPJUMP1 Pilot Dataset** ([link](https://github.com/jump-cellpainting/2024_Chandrasekaran_NatureMethods_CPJUMP1)): Metadata is downloaded and processed to identify and organize plates containing wells treated with CRISPR perturbations for downstream analysis.
 # 2. **MitoCheck Dataset**: Normalized and feature-selected single-cell profiles are downloaded for further analysis.
 # 3. **CFReT Dataset**: Normalized and feature-selected single-cell profiles from the CFReT plate are downloaded for downstream analysis.
 
-# In[1]:
+# In[ ]:
 
 
-import pathlib
-import pprint
 import sys
+import pprint
+import pathlib
+import gzip
+import zipfile
+import tarfile
 
-import polars as pl
 import requests
+import polars as pl
 from tqdm import tqdm
 
 sys.path.append("../../")
-import gzip
-import tarfile
-import zipfile
-
 from utils import io_utils
+
 
 # ## Helper functions
 
-# In[2]:
+# In[ ]:
 
 
 def download_compressed_file(
@@ -36,7 +37,7 @@ def download_compressed_file(
     output_path: pathlib.Path | str,
     chunk_size: int = 8192,
     extract: bool = True,
-):
+) -> None:
     """Downloads a compressed file from a URL with progress tracking.
 
     Downloads a file from the specified URL and saves it to the given output path.
@@ -184,7 +185,7 @@ cfret_dir.mkdir(exist_ok=True)
 
 
 # ## Downloading CPJUMP1 Metadata
-#
+# 
 # In this section, we download and process the CPJUMP1 experimental metadata. This metadata contains information about assay plates, batches, and perturbation types, which is essential for organizing and analyzing single-cell profiles. Only plates treated with CRISPR perturbations are selected for downstream analysis.
 
 # In[5]:
@@ -211,7 +212,7 @@ exp_metadata
 
 
 # Creating a dictionary to group plates by their corresponding experimental batch
-#
+# 
 # This step organizes the plate barcodes from the experimental metadata into groups based on their batch. Grouping plates by batch is useful for batch-wise data processing and downstream analyses.
 
 # In[6]:
@@ -231,9 +232,9 @@ pprint.pprint(batch_plates_dict)
 
 
 # ## Downloading MitoCheck Data
-#
+# 
 # In this section, we download the MitoCheck data generated in [this study](https://pmc.ncbi.nlm.nih.gov/articles/PMC3108885/).
-#
+# 
 # Specifically, we are downloading data that has already been normalized and feature-selected. The normalization and feature selection pipeline is available [here](https://github.com/WayScience/mitocheck_data/tree/main/3.normalize_data).
 
 # In[7]:
@@ -257,9 +258,9 @@ else:
 
 
 # ## Downloading CFReT Data
-#
+# 
 # In this section, we download feature-selected single-cell profiles from the CFReT plate `localhost230405150001`. This plate contains three treatments: DMSO (control), drug_x, and TGFRi. The dataset consists of high-content imaging data that has already undergone feature selection, making it suitable for downstream analysis.
-#
+# 
 # **Key Points:**
 # - Only the processed single-cell profiles are downloaded [here](https://github.com/WayScience/cellpainting_predicts_cardiac_fibrosis/tree/main/3.process_cfret_features/data/single_cell_profiles)
 # - The CFReT dataset was used and published in [this study](https://doi.org/10.1161/CIRCULATIONAHA.124.071956).
@@ -284,3 +285,4 @@ else:
         source_url=cfret_source,
         output_path=output_path,
     )
+

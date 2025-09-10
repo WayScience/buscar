@@ -1,23 +1,25 @@
 #!/usr/bin/env python
+# coding: utf-8
 
-# # 2.assess-heterogeneity
-#
-# This section of the notebook uses buscar's clustering module to assess single-cell heterogeneity. We'll focus on three specific datasets: **CFReT**, **MitoCheck**, and **CPJUMP (crispir)**. The goal is to use our clustering algorithms to identify cellular heterogeneity at the single-cell level.
-#
+# # 2.assess-heterogeneity 
+# 
+# This section of the notebook uses buscar's clustering module to assess single-cell heterogeneity. We'll focus on three specific datasets: **CFReT**, **MitoCheck**, and **CPJUMP (crispir)**. The goal is to use our clustering algorithms to identify cellular heterogeneity at the single-cell level. 
+# 
 # A key advantage of using these datasets is that they include ground-truth labels. This allows us to evaluate whether our clustering algorithms are identifying biologically meaningful groups in a data-driven way, and to assess the accuracy of our approach.
 
 # In[1]:
 
 
-import json
-import pathlib
 import sys
+import pathlib
 
+import json
 import polars as pl
 
 sys.path.append("../../")
 from utils.heterogeneity import assess_heterogeneity
 from utils.io_utils import load_profiles
+
 
 # Setting paths
 
@@ -161,3 +163,4 @@ cpjump1_feats = cpjump1_trt_crispr_df.drop(cpjump1_meta).columns
 cpjump1_cluster_results = assess_heterogeneity(profiles=cpjump1_trt_crispr_df, meta=cpjump1_meta, features=cpjump1_feats, n_trials=10, n_jobs=1, study_name="cpjump1_heterogeneity", seed=0)
 with open(results_dir / "cpjump1_heterogenic_clusters_results.json", "w") as f:
     json.dump(cpjump1_cluster_results, f)
+

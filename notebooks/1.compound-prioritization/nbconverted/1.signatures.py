@@ -1,14 +1,15 @@
 #!/usr/bin/env python
+# coding: utf-8
 
 # # Extracting Morphological Signatures
-#
-# In this notebook, we extract morphological signatures associated with two distinct cell states:
-# - **On-morphology features**: Features that significantly change with the cell state
+# 
+# In this notebook, we extract morphological signatures associated with two distinct cell states:  
+# - **On-morphology features**: Features that significantly change with the cell state  
 # - **Off-morphology features**: Features that do not show significant changes with the cell state
-#
-# We identify and categorize features as either on- or off-morphology signatures using a systematic workflow.
+# 
+# We identify and categorize features as either on- or off-morphology signatures using a systematic workflow.  
 # This approach is applied to three datasets: Pilot-CFReT, MitoCheck, and CPJUMP1 (CRISPR only).
-#
+# 
 # The analysis workflow consists of:
 # 1. Loading morphological profiles from negative and positive controls
 # 2. Comparing profiles to identify differentially affected features
@@ -18,22 +19,22 @@
 # In[1]:
 
 
-import itertools
-import json
-import pathlib
-
 # Import required libraries
 import sys
+import json
+import pathlib
+import itertools
 from collections import defaultdict
 
-import polars as pl
 import tqdm
+import polars as pl
 
 # Import custom utility functions
 sys.path.append("../../")
-from utils.data_utils import generate_consensus_signatures, split_meta_and_features
-from utils.io_utils import load_profiles
 from utils.signatures import get_signatures
+from utils.io_utils import load_profiles
+from utils.data_utils import generate_consensus_signatures, split_meta_and_features
+
 
 # In[2]:
 
@@ -44,7 +45,7 @@ method = "ks_test"  # Statistical test method for signature identification
 
 
 # ## Setting Input and Output Paths
-#
+# 
 # Configure file paths for data loading and results storage.
 
 # In[3]:
@@ -64,7 +65,7 @@ mitocheck_profiles_dir_path = (data_sc_profiles_path / "mitocheck").resolve(stri
 
 # setting CPJUMP1 data paths and configs
 cpjump1_negcon_profile_path = list(
-    (cpjump1_profiles_dir_path / "negcon").resolve(strict=True).glob("*.parquet")
+    ((cpjump1_profiles_dir_path / "negcon").resolve(strict=True).glob("*.parquet"))
 )
 cpjump1_poscon_profile_path = (
     cpjump1_profiles_dir_path / "poscon" / "poscon_cp_df.parquet"
@@ -99,18 +100,18 @@ signature_results_dir.mkdir(exist_ok=True)
 
 
 # ## Loading Morphological Profiles
-#
+# 
 # Load the morphological profiles for negative and positive controls from the CPJUMP1 dataset.
 
 # ### Loading CPJUMP1 CRISPR Profiles
-#
+# 
 # Load the negative and positive control profiles from the CPJUMP1 dataset.
 
 # In[4]:
 
 
 # Loading shared features configuration
-with open(cpjump1_shared_features_config_path) as f:
+with open(cpjump1_shared_features_config_path, "r") as f:
     feature_space = json.load(f)
 shared_features = feature_space["shared-features"]
 
@@ -151,7 +152,7 @@ mitocheck_poscon_df = pl.read_parquet(poscon_mitocheck_profile_path)
 mitocheck_negcon_df = pl.read_parquet(negcon_mitocheck_profile_path)
 
 # loading in feature space
-with open(mitocheck_feature_space_config) as f:
+with open(mitocheck_feature_space_config, "r") as f:
     mitocheck_feature_space = json.load(f)
 
 # displaying the poscon genes
@@ -162,7 +163,7 @@ print(f"Dataframe shape for poscon: {mitocheck_poscon_df.shape}")
 print(f"Dataframe shape for negcon: {mitocheck_negcon_df.shape}")
 
 
-# ### Loading CFReT Dataset
+# ### Loading CFReT Dataset 
 
 # In[6]:
 
@@ -181,7 +182,7 @@ cfret_poscon_df = cfret_df.filter(pl.col("Metadata_treatment") == "TGFRi")
 # ## Generating On and Off Morphology Signatures
 
 # ### Signature Generation Process for CPJUMP CRISPR data
-#
+# 
 # Create on and off morphological signatures using different positive controls and randomly sampled negative control profiles. This process compares each negative control sample against each positive control to identify consistent morphological changes.
 
 # In[7]:
@@ -245,7 +246,7 @@ if not cpjump1_save_path.exists():
         json.dump(dict(cpjump1_signature_results), f, indent=4)
 
 else:
-    with open(cpjump1_save_path) as f:
+    with open(cpjump1_save_path, "r") as f:
         cpjump1_signature_results = json.load(f)
 
 
@@ -352,5 +353,6 @@ if not cfret_save_path.exists():
         json.dump(dict(cfret_signature_results), f, indent=4)
 
 else:
-    with open(cfret_save_path) as f:
+    with open(cfret_save_path, "r") as f:
         cfret_signature_results = json.load(f)
+
