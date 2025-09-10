@@ -33,7 +33,7 @@ def load_group_stratified_data(
     """Memory-efficiently sample a percentage of rows from each group in a dataset.
 
     This function performs stratified sampling by loading only the grouping columns first
-    to dtermine group memberships and sizes, then samples indices from each group, and
+    to determine group memberships and sizes, then samples indices from each group, and
     finally loads the full dataset filtered to only the sampled rows. This approach
     minimizes memory usage compared to loading the entire dataset upfront.
 
