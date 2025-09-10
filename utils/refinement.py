@@ -54,7 +54,7 @@ def refined_profiles_by_cluster_cell_counts(
     cluster_col: str = "Metadata_cluster",
     percentile_cutoff: float = 20.0,
 ) -> pl.DataFrame:
-    """ Filter profiles to retain only clusters with cell counts above a
+    """Filter profiles to retain only clusters with cell counts above a
     specified percentile threshold.
 
     This function removes clusters with low cell counts by calculating a

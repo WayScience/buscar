@@ -6,7 +6,11 @@ import polars as pl
 import yaml
 
 
-def load_profiles(fpath: str | pathlib.Path, convert_to_f32: bool = False, verbose: bool | None = False) -> pl.DataFrame:
+def load_profiles(
+    fpath: str | pathlib.Path,
+    convert_to_f32: bool = False,
+    verbose: bool | None = False,
+) -> pl.DataFrame:
     """Load single-cell profiles from given file path.
 
     Loads single-cell profiles and returns them into a Polars DataFrame. The supported
@@ -46,7 +50,9 @@ def load_profiles(fpath: str | pathlib.Path, convert_to_f32: bool = False, verbo
         raise FileNotFoundError(f"File not found: {fpath}")
     # check for supported file format
     if fpath.suffix.lower() not in [".parquet", ".pq", ".arrow"]:
-        raise ValueError(f"Unsupported file format: {fpath.suffix}. Supported formats are: .parquet, .pq, .arrow")
+        raise ValueError(
+            f"Unsupported file format: {fpath.suffix}. Supported formats are: .parquet, .pq, .arrow"
+        )
 
     # load profiles
     loaded_profiles = pl.read_parquet(fpath)
@@ -54,14 +60,22 @@ def load_profiles(fpath: str | pathlib.Path, convert_to_f32: bool = False, verbo
     # convert all Float64 columns to Float32 if convert_to_f32 is True
     if convert_to_f32:
         loaded_profiles = loaded_profiles.with_columns(
-            [pl.col(col).cast(pl.Float32) for col in loaded_profiles.columns if loaded_profiles.schema[col] == pl.Float64]
+            [
+                pl.col(col).cast(pl.Float32)
+                for col in loaded_profiles.columns
+                if loaded_profiles.schema[col] == pl.Float64
+            ]
         )
 
     # if verbose is True, print information about the loaded profiles
     if verbose:
         print(f"Loading profiles from {fpath}...")
-        print(f"Loaded profiles shape: rows: {loaded_profiles.shape[0]}, columns: {loaded_profiles.shape[1]}")
-        print(f"Estimated loaded dataframe size: {round(loaded_profiles.estimated_size("mb"), 2)} MB")
+        print(
+            f"Loaded profiles shape: rows: {loaded_profiles.shape[0]}, columns: {loaded_profiles.shape[1]}"
+        )
+        print(
+            f"Estimated loaded dataframe size: {round(loaded_profiles.estimated_size('mb'), 2)} MB"
+        )
 
     return loaded_profiles
 

@@ -1,6 +1,6 @@
 links:
   CPJUMP1-experimental-metadata-source: https://github.com/carpenter-singh-lab/2024_Chandrasekaran_NatureMethods/raw/refs/heads/main/benchmark/output/experiment-metadata.tsv
-  CPJUMP1-platemaps-source: https://cellpainting-gallery.s3.amazonaws.com/cpg0000-jump-pilot/source_4/workspace/metadata/platemaps/2020_11_04_CPJUMP1/platemap
+  CPJUMP-plate-maps-source: https://raw.githubusercontent.com/jump-cellpainting/2024_Chandrasekaran_NatureMethods_CPJUMP1/refs/heads/main/metadata/platemaps/2020_11_04_CPJUMP1/platemap/JUMP-Target-1_crispr_platemap.txt
   CPJUMP1-profiles-source: https://cellpainting-gallery.s3.amazonaws.com/cpg0000-jump-pilot/source_4/workspace/profiles
   MitoCheck-profiles-source: https://zenodo.org/records/7967386/files/3.normalize_data__normalized_data.zip?download=1
   CFReT-profiles-source: https://github.com/WayScience/cellpainting_predicts_cardiac_fibrosis/raw/refs/heads/main/3.process_cfret_features/data/single_cell_profiles/localhost230405150001_sc_feature_selected.parquet?download=
