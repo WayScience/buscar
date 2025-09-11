@@ -141,6 +141,25 @@ def split_data(
     return pycytominer_output.select(selected_cols)
 
 
+def remove_feature_prefixes(df: pl.DataFrame, prefix: str = "CP__") -> pl.DataFrame:
+    """
+    Remove feature prefixes from column names in a DataFrame.
+
+    Parameters
+    ----------
+    df : pl.DataFrame
+        Input DataFrame with prefixed column names
+    prefix : str, default "CP__"
+        Prefix to remove from column names
+
+    Returns
+    -------
+    pl.DataFrame
+        DataFrame with cleaned column names
+    """
+    return df.rename(lambda x: x.replace(prefix, "") if prefix in x else x)
+
+
 # Defining the input and output directories used throughout the notebook.
 #
 # > **Note:** The shared profiles utilized here are sourced from the [JUMP-single-cell](https://github.com/WayScience/JUMP-single-cell) repository. All preprocessing and profile generation steps are performed in that repository, and this notebook focuses on downstream analysis using the generated profiles.
@@ -219,7 +238,7 @@ shared_features = loaded_shared_features["shared-features"]
 # - Data integrity is maintained during the merge operation
 # - Adding a unique cell id has column `Metadata_cell_id`
 
-# In[5]:
+# In[ ]:
 
 
 # Loading crispr profiles with shared features and concat into a single DataFrame
@@ -227,40 +246,35 @@ concat_output_path = (
     cpjump1_output_dir / "cpjump1_crispr_trt_profiles.parquet"
 ).resolve()
 
-if concat_output_path.exists():
-    print("concat profiles already exists, loading from file")
-else:
-    loaded_profiles = load_and_concat_profiles(
-        profile_dir=profiles_dir,
-        specific_plates=crispr_plate_paths,
-        shared_features=shared_features,
-    )
+loaded_profiles = load_and_concat_profiles(
+    profile_dir=profiles_dir,
+    specific_plates=crispr_plate_paths,
+    shared_features=shared_features,
+)
 
-    # create an index columm and unique cell ID based on features of a single profiles
-    loaded_profiles = loaded_profiles.with_row_index(
-        "index"
-    ).with_columns(  # set index row
-        loaded_profiles.hash_rows().alias("Metadata_cell_id")
-    )
+# create an index columm and unique cell ID based on features of a single profiles
+loaded_profiles = loaded_profiles.with_row_index("index").with_columns(  # set index row
+    loaded_profiles.hash_rows().alias("Metadata_cell_id")
+)
 
-    # Split meta and features
-    meta_cols, features_cols = split_meta_and_features(loaded_profiles)
+# Split meta and features
+meta_cols, features_cols = split_meta_and_features(loaded_profiles)
 
-    # Saving metadata and features of the concat profile into a json file
-    meta_features_dict = {
-        "concat-profiles": {
-            "meta-features": meta_cols,
-            "shared-features": features_cols,
-        }
+# Saving metadata and features of the concat profile into a json file
+meta_features_dict = {
+    "concat-profiles": {
+        "meta-features": meta_cols,
+        "shared-features": features_cols,
     }
-    with open(cpjump1_output_dir / "concat_profiles_meta_features.json", "w") as f:
-        json.dump(meta_features_dict, f, indent=4)
+}
+with open(cpjump1_output_dir / "concat_profiles_meta_features.json", "w") as f:
+    json.dump(meta_features_dict, f, indent=4)
 
-    # filter profiles that contains treatment data
-    loaded_profiles = loaded_profiles.filter(pl.col("Metadata_pert_type") == "trt")
+# filter profiles that contains treatment data
+loaded_profiles = loaded_profiles.filter(pl.col("Metadata_pert_type") == "trt")
 
-    # save as parquet
-    loaded_profiles.write_parquet(concat_output_path)
+# save as parquet
+loaded_profiles.write_parquet(concat_output_path)
 
 
 # ## Preprocessing MitoCheck Dataset
@@ -300,17 +314,6 @@ mitocheck_neg_control_profiles = pl.read_csv(
     mitocheck_norm_profiles_dir / "negative_control_data.csv.gz",
 )
 
-# add a unique row hash using all columns
-mitocheck_profile = mitocheck_profile.with_columns(
-    mitocheck_profile.hash_rows(seed=0).alias("Metadata_cell_id")
-)
-mitocheck_pos_control_profiles = mitocheck_pos_control_profiles.with_columns(
-    mitocheck_pos_control_profiles.hash_rows(seed=0).alias("Metadata_cell_id")
-)
-mitocheck_neg_control_profiles = mitocheck_neg_control_profiles.with_columns(
-    mitocheck_neg_control_profiles.hash_rows(seed=0).alias("Metadata_cell_id")
-)
-
 # insert new column "Mitocheck_Phenotypic_Class" for both positive and negative controls
 mitocheck_neg_control_profiles = mitocheck_neg_control_profiles.with_columns(
     pl.lit("negcon").alias("Mitocheck_Phenotypic_Class")
@@ -321,12 +324,24 @@ mitocheck_pos_control_profiles = mitocheck_pos_control_profiles.with_columns(
 ).select(["Mitocheck_Phenotypic_Class"] + mitocheck_pos_control_profiles.columns)
 
 
+# insert new column "Metadata_treatment_type" for mitocheck profiles
+mitocheck_profile = mitocheck_profile.with_columns(
+    pl.lit("trt").alias("Metadata_treatment_type")
+).select(["Metadata_treatment_type"] + mitocheck_profile.columns)
+mitocheck_neg_control_profiles = mitocheck_neg_control_profiles.with_columns(
+    pl.lit("negcon").alias("Metadata_treatment_type")
+).select(["Metadata_treatment_type"] + mitocheck_neg_control_profiles.columns)
+mitocheck_pos_control_profiles = mitocheck_pos_control_profiles.with_columns(
+    pl.lit("poscon").alias("Metadata_treatment_type")
+).select(["Metadata_treatment_type"] + mitocheck_pos_control_profiles.columns)
+
+
 # Filter Cell Profiler (CP) features and preprocess columns by removing the "CP__" prefix to standardize feature names for downstream analysis.
 
 # In[7]:
 
 
-# split profiles to only retain cell profiler features
+# Split profiles to only retain cell profiler features
 cp_mitocheck_profile = split_data(mitocheck_profile, dataset="CP")
 cp_mitocheck_neg_control_profiles = split_data(
     mitocheck_neg_control_profiles, dataset="CP"
@@ -334,19 +349,13 @@ cp_mitocheck_neg_control_profiles = split_data(
 cp_mitocheck_pos_control_profiles = split_data(
     mitocheck_pos_control_profiles, dataset="CP"
 )
-
-# rename columns to remove "CP__" prefix for all datasets
-datasets = [
-    cp_mitocheck_profile,
-    cp_mitocheck_neg_control_profiles,
-    cp_mitocheck_pos_control_profiles,
-]
-(
-    cp_mitocheck_profile,
-    cp_mitocheck_neg_control_profiles,
-    cp_mitocheck_pos_control_profiles,
-) = (
-    df.rename(lambda x: x.replace("CP__", "") if "CP__" in x else x) for df in datasets
+# Remove "CP__" prefix from all datasets for standardized feature names
+cp_mitocheck_profile = remove_feature_prefixes(cp_mitocheck_profile)
+cp_mitocheck_neg_control_profiles = remove_feature_prefixes(
+    cp_mitocheck_neg_control_profiles
+)
+cp_mitocheck_pos_control_profiles = remove_feature_prefixes(
+    cp_mitocheck_pos_control_profiles
 )
 
 
@@ -355,8 +364,8 @@ datasets = [
 # In[8]:
 
 
-# naming the metadata of mitocheck profiles
-cp_mitocheck_profile_meta = [
+# select # naming the metadata of mitocheck profiles
+mitocheck_meta_data = [
     "Mitocheck_Phenotypic_Class",
     "Cell_UUID",
     "Location_Center_X",
@@ -369,55 +378,16 @@ cp_mitocheck_profile_meta = [
     "Metadata_DNA",
     "Metadata_Gene",
     "Metadata_Gene_Replicate",
-    "Metadata_Object_Outline",
-]
-cp_mitocheck_neg_control_profiles_meta = [
-    "Mitocheck_Phenotypic_Class",
-    "Cell_UUID",
-    "Location_Center_X",
-    "Location_Center_Y",
-    "Metadata_Plate",
-    "Metadata_Well",
-    "Metadata_Frame",
-    "Metadata_Site",
-    "Metadata_Plate_Map_Name",
-    "Metadata_DNA",
-    "Metadata_Gene",
-    "Metadata_Gene_Replicate",
-    "AreaShape_Area",
 ]
 
-cp_mitocheck_pos_control_profiles_meta = [
-    "Mitocheck_Phenotypic_Class",
-    "Cell_UUID",
-    "Location_Center_X",
-    "Location_Center_Y",
-    "Metadata_Plate",
-    "Metadata_Well",
-    "Metadata_Frame",
-    "Metadata_Site",
-    "Metadata_Plate_Map_Name",
-    "Metadata_DNA",
-    "Metadata_Gene",
-    "Metadata_Gene_Replicate",
-    "AreaShape_Area",
-]
-
-
-# In[9]:
-
-
-# select morphology features by droping the metadata features and getting only the column names
-cp_mitocheck_profile_features = cp_mitocheck_profile.drop(
-    cp_mitocheck_profile_meta
-).columns
+# select morphology features by dropping the metadata features and getting only the column names
+cp_mitocheck_profile_features = cp_mitocheck_profile.drop(mitocheck_meta_data).columns
 cp_mitocheck_neg_control_profiles_features = cp_mitocheck_neg_control_profiles.drop(
-    cp_mitocheck_neg_control_profiles_meta
+    mitocheck_meta_data
 ).columns
 cp_mitocheck_pos_control_profiles_features = cp_mitocheck_pos_control_profiles.drop(
-    cp_mitocheck_pos_control_profiles_meta
+    mitocheck_meta_data
 ).columns
-
 
 # now find shared profiles between all feature columns
 shared_features = list(
@@ -427,30 +397,48 @@ shared_features = list(
 )
 
 # now create a json file that contains the feature space configs
-mitocheck_feature_space_configs = {
-    "shared-features": shared_features,
-    "negcon-meta": cp_mitocheck_neg_control_profiles_meta,
-    "poscon-meta": cp_mitocheck_pos_control_profiles_meta,
-    "training-meta": cp_mitocheck_profile_meta,
-}
-
 with open(mitocheck_profiles_dir / "mitocheck_feature_space_configs.json", "w") as f:
-    json.dump(mitocheck_feature_space_configs, f)
+    json.dump(
+        {
+            "metadata-features": mitocheck_meta_data,
+            "morphology-features": shared_features,
+        },
+        f,
+        indent=4,
+    )
 
 
-# In[10]:
+# In[9]:
 
 
-# now convert preprocessed Mitocheck profiles to parquet files
-cp_mitocheck_profile[cp_mitocheck_profile_meta + shared_features].write_parquet(
-    mitocheck_profiles_dir / "treated_mitocheck_cp_profiles.parquet"
+# create concatenated mitocheck profiles
+concat_mitocheck_profiles = (
+    # concat all mitocheck profiles with only shared features and metadata
+    pl.concat(
+        [
+            cp_mitocheck_profile.select(mitocheck_meta_data + shared_features),
+            cp_mitocheck_neg_control_profiles.select(
+                mitocheck_meta_data + shared_features
+            ),
+            cp_mitocheck_pos_control_profiles.select(
+                mitocheck_meta_data + shared_features
+            ),
+        ],
+        rechunk=True,
+    )
+    # add index and unique cell ID
+    .with_row_index("index")
 )
-cp_mitocheck_pos_control_profiles[
-    cp_mitocheck_pos_control_profiles_meta + shared_features
-].write_parquet(mitocheck_profiles_dir / "poscon_mitocheck_cp_profiles.parquet")
-cp_mitocheck_neg_control_profiles[
-    cp_mitocheck_neg_control_profiles_meta + shared_features
-].write_parquet(mitocheck_profiles_dir / "negcon_mitocheck_cp_profiles.parquet")
+
+# add unique cell ID based on features of a single profiles
+concat_mitocheck_profiles = concat_mitocheck_profiles.with_columns(
+    concat_mitocheck_profiles.hash_rows().alias("Metadata_cell_id")
+)
+
+# save concatenated mitocheck profiles
+concat_mitocheck_profiles.write_parquet(
+    mitocheck_profiles_dir / "mitocheck_concat_profiles.parquet"
+)
 
 
 # ## Preprocessing CFReT Dataset
@@ -460,7 +448,7 @@ cp_mitocheck_neg_control_profiles[
 # - **Unique cell identification**: Adding `Metadata_cell_id` column with unique hash values based on all profile features to enable precise cell tracking and deduplication
 #
 
-# In[13]:
+# In[10]:
 
 
 # load in cfret profiles and add a unique cell ID
@@ -474,14 +462,16 @@ cfret_profiles = cfret_profiles.with_columns(
 # split features
 meta_cols, features_cols = split_meta_and_features(cfret_profiles)
 
+# save feature space config to json file
+with open(cfret_profiles_dir / "cfret_feature_space_configs.json", "w") as f:
+    json.dump(
+        {
+            "metadata-features": meta_cols,
+            "morphology-features": features_cols,
+        },
+        f,
+        indent=4,
+    )
+
 # overwrite dataset with cell
 cfret_profiles.select(meta_cols + features_cols).write_parquet(cfret_profiles_path)
-
-
-# In[14]:
-
-
-cfret_profiles.select(meta_cols + features_cols)
-
-
-# In[ ]:

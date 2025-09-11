@@ -1,25 +1,23 @@
 #!/usr/bin/env python
-# coding: utf-8
 
-# # 2.assess-heterogeneity 
-# 
-# This section of the notebook uses buscar's clustering module to assess single-cell heterogeneity. We'll focus on three specific datasets: **CFReT**, **MitoCheck**, and **CPJUMP (crispir)**. The goal is to use our clustering algorithms to identify cellular heterogeneity at the single-cell level. 
-# 
+# # 2.assess-heterogeneity
+#
+# This section of the notebook uses buscar's clustering module to assess single-cell heterogeneity. We'll focus on three specific datasets: **CFReT**, **MitoCheck**, and **CPJUMP (crispir)**. The goal is to use our clustering algorithms to identify cellular heterogeneity at the single-cell level.
+#
 # A key advantage of using these datasets is that they include ground-truth labels. This allows us to evaluate whether our clustering algorithms are identifying biologically meaningful groups in a data-driven way, and to assess the accuracy of our approach.
 
 # In[1]:
 
 
-import sys
-import pathlib
-
 import json
+import pathlib
+import sys
+
 import polars as pl
 
 sys.path.append("../../")
 from utils.heterogeneity import assess_heterogeneity
 from utils.io_utils import load_profiles
-
 
 # Setting paths
 
@@ -42,7 +40,7 @@ cpjump1_trt_crispr_profiles_path = (
     / "cpjump1_crispr_trt_profiles.parquet"
 ).resolve(strict=True)
 mitocheck_trt_profiles_path = (
-    sc_profiles_path / "mitocheck" / "treated_mitocheck_cp_profiles.parquet"
+    sc_profiles_path / "mitocheck" / "mitocheck_concat_profiles.parquet"
 ).resolve(strict=True)
 
 # create signature output paths
@@ -56,7 +54,9 @@ results_dir.mkdir(exist_ok=True, parents=True)
 
 
 # load all profiles
-mitocheck_trt_profile_df = load_profiles(mitocheck_trt_profiles_path)
+mitocheck_trt_profile_df = load_profiles(mitocheck_trt_profiles_path).filter(
+    pl.col("Metadata_treatment_type") == "trt"
+)
 cfret_profile_df = load_profiles(cfret_profiles_path)
 cpjump1_trt_crispr_df = load_profiles(cpjump1_trt_crispr_profiles_path)
 
@@ -200,4 +200,3 @@ cpjump1_cluster_results = assess_heterogeneity(
 )
 with open(results_dir / "cpjump1_heterogenic_clusters_results.json", "w") as f:
     json.dump(cpjump1_cluster_results, f)
-
