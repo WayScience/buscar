@@ -1,37 +1,34 @@
 #!/usr/bin/env python
-# coding: utf-8
 
 # # 2. Preprocessing Data
-# 
+#
 # This notebook demonstrates how to preprocess single-cell profile data for downstream analysis. It covers the following steps:
-# 
+#
 # **Overview**
-# 
+#
 # - **Data Exploration**: Examining the structure and contents of the downloaded datasets
 # - **Metadata Handling**: Loading experimental metadata to guide data selection and organization
 # - **Feature Selection**: Applying a shared feature space for consistency across datasets
 # - **Profile Concatenation**: Merging profiles from multiple experimental plates into a unified DataFrame
 # - **Format Conversion**: Converting raw CSV files to Parquet format for efficient storage and access
 # - **Metadata and Feature Documentation**: Saving metadata and feature information to ensure reproducibility
-# 
+#
 # These preprocessing steps ensure that all datasets are standardized, well-documented, and ready for comparative and integrative analyses.
 
 # In[1]:
 
 
-import sys
 import json
 import pathlib
-from typing import Optional
+import sys
 
 import polars as pl
 
 sys.path.append("../../")
 from utils.data_utils import split_meta_and_features
 
-
-# ## Helper functions 
-# 
+# ## Helper functions
+#
 # Contains helper function that pertains to this notebook.
 
 # In[2]:
@@ -39,8 +36,8 @@ from utils.data_utils import split_meta_and_features
 
 def load_and_concat_profiles(
     profile_dir: str | pathlib.Path,
-    shared_features: Optional[list[str]] = None,
-    specific_plates: Optional[list[pathlib.Path]] = None,
+    shared_features: list[str] | None = None,
+    specific_plates: list[pathlib.Path] | None = None,
 ) -> pl.DataFrame:
     """
     Load all profile files from a directory and concatenate them into a single Polars DataFrame.
@@ -145,7 +142,7 @@ def split_data(
 
 
 # Defining the input and output directories used throughout the notebook.
-# 
+#
 # > **Note:** The shared profiles utilized here are sourced from the [JUMP-single-cell](https://github.com/WayScience/JUMP-single-cell) repository. All preprocessing and profile generation steps are performed in that repository, and this notebook focuses on downstream analysis using the generated profiles.
 
 # In[3]:
@@ -164,6 +161,9 @@ exp_metadata_path = (
 
 # Setting CFReT profiles directory
 cfret_profiles_dir = (profiles_dir / "cfret").resolve(strict=True)
+cfret_profiles_path = (
+    cfret_profiles_dir / "localhost230405150001_sc_feature_selected.parquet"
+).resolve(strict=True)
 
 # Setting feature selection path
 shared_features_config_path = (
@@ -210,19 +210,22 @@ shared_features = loaded_shared_features["shared-features"]
 
 
 # ## Preprocessing CPJUMP1 CRISPR data
-# 
+#
 # Using the filtered CRISPR plate file paths and shared features configuration, we load all individual profile files and concatenate them into a single comprehensive DataFrame. This step combines data from multiple experimental plates while maintaining the consistent feature space defined by the shared features list.
-# 
+#
 # The concatenation process ensures:
 # - All profiles use the same feature set for downstream compatibility
 # - Metadata columns are preserved across all plates
 # - Data integrity is maintained during the merge operation
+# - Adding a unique cell id has column `Metadata_cell_id`
 
 # In[5]:
 
 
 # Loading crispr profiles with shared features and concat into a single DataFrame
-concat_output_path = cpjump1_output_dir / "cpjump1_crispr_trt_profiles.parquet"
+concat_output_path = (
+    cpjump1_output_dir / "cpjump1_crispr_trt_profiles.parquet"
+).resolve()
 
 if concat_output_path.exists():
     print("concat profiles already exists, loading from file")
@@ -233,8 +236,12 @@ else:
         shared_features=shared_features,
     )
 
-    # Add index column
-    loaded_profiles = loaded_profiles.with_row_index("index")
+    # create an index columm and unique cell ID based on features of a single profiles
+    loaded_profiles = loaded_profiles.with_row_index(
+        "index"
+    ).with_columns(  # set index row
+        loaded_profiles.hash_rows().alias("Metadata_cell_id")
+    )
 
     # Split meta and features
     meta_cols, features_cols = split_meta_and_features(loaded_profiles)
@@ -257,19 +264,20 @@ else:
 
 
 # ## Preprocessing MitoCheck Dataset
-# 
+#
 # This section processes the MitoCheck dataset by loading training data, positive controls, and negative controls from compressed CSV files. The data is standardized and converted to Parquet format for consistency with other datasets and improved performance.
-# 
+#
 # **Key preprocessing steps:**
-# 
+#
 # - **Loading datasets**: Reading training data, positive controls, and negative controls from compressed CSV files
 # - **Control labeling**: Adding phenotypic class labels ("poscon" and "negcon") to distinguish control types
-# - **Feature filtering**: Extracting only Cell Profiler (CP) features to match the CPJUMP1 dataset structure  
+# - **Feature filtering**: Extracting only Cell Profiler (CP) features to match the CPJUMP1 dataset structure
 # - **Column standardization**: Removing "CP__" prefixes and ensuring consistent naming conventions
 # - **Feature alignment**: Identifying shared features across all three datasets (training, positive controls, negative controls)
 # - **Metadata preservation**: Maintaining consistent metadata structure across all profile types
 # - **Format conversion**: Saving processed data in optimized Parquet format for efficient downstream analysis
-# 
+# - **adding cell id**: adding a cell id column `Metadata_cell_id`
+#
 # The preprocessing ensures that all MitoCheck datasets share a common feature space and are ready for comparative analysis with CPJUMP1 profiles.
 
 # In[6]:
@@ -290,6 +298,17 @@ mitocheck_pos_control_profiles = pl.read_csv(
 # loading in negative control profiles
 mitocheck_neg_control_profiles = pl.read_csv(
     mitocheck_norm_profiles_dir / "negative_control_data.csv.gz",
+)
+
+# add a unique row hash using all columns
+mitocheck_profile = mitocheck_profile.with_columns(
+    mitocheck_profile.hash_rows(seed=0).alias("Metadata_cell_id")
+)
+mitocheck_pos_control_profiles = mitocheck_pos_control_profiles.with_columns(
+    mitocheck_pos_control_profiles.hash_rows(seed=0).alias("Metadata_cell_id")
+)
+mitocheck_neg_control_profiles = mitocheck_neg_control_profiles.with_columns(
+    mitocheck_neg_control_profiles.hash_rows(seed=0).alias("Metadata_cell_id")
 )
 
 # insert new column "Mitocheck_Phenotypic_Class" for both positive and negative controls
@@ -326,9 +345,9 @@ datasets = [
     cp_mitocheck_profile,
     cp_mitocheck_neg_control_profiles,
     cp_mitocheck_pos_control_profiles,
-) = [
+) = (
     df.rename(lambda x: x.replace("CP__", "") if "CP__" in x else x) for df in datasets
-]
+)
 
 
 # Splitting the metadata and feature columns for each dataset to enable targeted downstream analysis and ensure consistent data structure across all profiles.
@@ -433,3 +452,36 @@ cp_mitocheck_neg_control_profiles[
     cp_mitocheck_neg_control_profiles_meta + shared_features
 ].write_parquet(mitocheck_profiles_dir / "negcon_mitocheck_cp_profiles.parquet")
 
+
+# ## Preprocessing CFReT Dataset
+#
+# This section preprocesses the CFReT (CRISPR Fluorescent Reporter of Transcription) dataset to ensure compatibility with downstream analysis workflows.
+#
+# - **Unique cell identification**: Adding `Metadata_cell_id` column with unique hash values based on all profile features to enable precise cell tracking and deduplication
+#
+
+# In[13]:
+
+
+# load in cfret profiles and add a unique cell ID
+cfret_profiles = pl.read_parquet(cfret_profiles_path)
+
+# adding a unique cell ID based on all features
+cfret_profiles = cfret_profiles.with_columns(
+    cfret_profiles.hash_rows(seed=0).alias("Metadata_cell_id")
+)
+
+# split features
+meta_cols, features_cols = split_meta_and_features(cfret_profiles)
+
+# overwrite dataset with cell
+cfret_profiles.select(meta_cols + features_cols).write_parquet(cfret_profiles_path)
+
+
+# In[14]:
+
+
+cfret_profiles.select(meta_cols + features_cols)
+
+
+# In[ ]:

@@ -21,6 +21,8 @@ ipykernel = "^6.29.5"
 tqdm = "^4.67.1"
 pot = "^0.9.5"
 beartype = "^0.21.0"
+umap-learn = "^0.5.9.post2"
+narwhals = "^2.4.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
