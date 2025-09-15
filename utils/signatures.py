@@ -258,13 +258,17 @@ def get_signatures(
     permutation_statistic: Literal["mean", "median"] = "mean",
     seed: int | None = 0,
 ) -> tuple[list[str], list[str], list[str]]:
-    """Identifies significant, non-significant, and variant features between two profiles.
+    """Identifies significant, non-significant, and ambiguous features between two
+    profiles.
 
-    This function performs statistical tests to compare two profiles (reference and experimental)
-    based on specified morphology features. It identifies significant features using the
-    Kolmogorov-Smirnov (KS) test or other specified methods. The function applies p-value
-    correction and labels features as significant, non-significant, or variant based on a given
-    significance threshold with padding.
+    This function compares cellular morphology profiles using one of the statistical
+    methods, applies multiple testing correction, and categorizes features based on
+    their statistical significance. Features are classified into three groups: those
+    clearly associated with the cell state (significant), those are not
+    associated (non-significant), and those with uncertain significance (ambiguous).
+    Ambiguous features have corrected p-values within a buffer zone around the
+    significance threshold, defined by p_threshold ± p_value_padding, indicating
+    uncertain statistical evidence for their association with the cell state.
 
     Parameters
     ----------
@@ -288,18 +292,20 @@ def get_signatures(
         Statistic to use for permutation test. Default is "mean".
     seed : int | None, optional
         Random seed for reproducibility. Default is 0.
+
     Returns
     -------
-    tuple
+    tuple[list[str], list[str], list[str]]
         A tuple containing three lists:
         - Significant features (on-morphology).
         - Non-significant features (off-morphology).
-        - Variant features (in the buffer zone).
+        - Ambiguous features (features with p-values in the buffer zone around the
+        threshold).
 
-        Raises
-        ------
-        TypeError
-            If input types are not as expected (handled by @beartype decorator).
+    Raises
+    ------
+    TypeError
+        If input types are not as expected (handled by @beartype decorator).
     """
     if seed is not None:
         np.random.seed(seed)
@@ -340,7 +346,7 @@ def get_signatures(
         .then(pl.lit("significant"))
         .when(pl.col("corrected_p_value") > (p_threshold + p_value_padding))
         .then(pl.lit("non_significant"))
-        .otherwise(pl.lit("variant"))
+        .otherwise(pl.lit("ambiguous"))
         .alias("significance_category")
     ).with_columns(
         (pl.col("significance_category") == "significant").alias("is_significant")
@@ -354,7 +360,7 @@ def get_signatures(
         pvals_df.filter(pl.col("significance_category") == "non_significant")[
             "features"
         ].to_list(),
-        pvals_df.filter(pl.col("significance_category") == "variant")[
+        pvals_df.filter(pl.col("significance_category") == "ambiguous")[
             "features"
         ].to_list(),
     )
