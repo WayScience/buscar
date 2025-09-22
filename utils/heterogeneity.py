@@ -16,53 +16,6 @@ from .params.clustering import (
 )
 
 
-def _validate_inputs(
-    profiles: pl.DataFrame,
-    meta: list[str] | pl.Series,
-    features: list[str] | pl.Series,
-) -> None:
-    """Validate inputs for clustering.
-
-    Parameters
-    ----------
-    profiles : pl.DataFrame
-        Single-cell profiles.
-    meta : Union[list[str], pl.Series]
-        Metadata columns.
-    features : Union[list[str], pl.Series]
-        Features to use for clustering.
-
-    Raises
-    ------
-    TypeError
-        If any input is of the wrong type.
-    ValueError
-        If any input is invalid.
-    """
-    if not isinstance(profiles, pl.DataFrame):
-        raise TypeError("profiles must be a polars DataFrame")
-    if not isinstance(meta, (list, pl.Series)):
-        raise TypeError("meta must be a list of strings or a polars Series")
-    if isinstance(meta, list):
-        if not all(isinstance(m, str) for m in meta):
-            raise TypeError("All meta columns must be strings")
-    elif isinstance(meta, pl.Series):
-        if not meta.dtype == pl.Utf8:
-            raise TypeError("meta Series must contain strings")
-    if not isinstance(features, (list, pl.Series)):
-        raise TypeError("features must be a list of strings or a polars Series")
-    if isinstance(features, list):
-        if not all(isinstance(f, str) for f in features):
-            raise TypeError("All features must be strings")
-    elif isinstance(features, pl.Series):
-        if not features.dtype == pl.Utf8:
-            raise TypeError("features Series must contain strings")
-    if profiles.is_empty():
-        raise ValueError("profiles DataFrame cannot be empty")
-    if len(features) == 0:
-        raise ValueError("features list cannot be empty")
-
-
 def _prepare_anndata(
     profiles: pl.DataFrame,
     features: list[str] | pl.Series,

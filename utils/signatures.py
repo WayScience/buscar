@@ -339,7 +339,7 @@ def get_signatures(
 
     # Determine significance using p_threshold
     # Create a buffer zone around the p-value threshold
-    # Label features as significant, non-significant, or variant based on the buffer
+    # Label features as significant, non-significant, or ambiguous based on the buffer
     # zone
     pvals_df = pvals_df.with_columns(
         pl.when(pl.col("corrected_p_value") < (p_threshold - p_value_padding))
