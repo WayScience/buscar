@@ -1,33 +1,30 @@
 #!/usr/bin/env python
-# coding: utf-8
 
-# # 3. refinement 
-# 
+# # 3. refinement
+#
 # In this notebook, we are refining cell profiles by removing treatment-cluster combinations with insufficient cell counts. This preprocessing step ensures robust statistical analysis by filtering out sparse clusters that may not provide reliable morphological signatures.
-# 
+#
 # The refinement process involves:
 # 1. **Loading clustered profiles**: Import pre-clustered single-cell morphological profiles from CFRET and Mitocheck datasets
 # 2. **Analyzing cell count distributions**: Visualize the distribution of cells per treatment-cluster combination to identify outliers
 # 3. **Setting filtering thresholds**: Use percentile-based cutoffs to determine minimum viable cluster sizes
 # 4. **Applying refinement filters**: Remove treatment-cluster combinations below the threshold to create refined datasets suitable for phenotypic activity analysis
-# 
+#
 # This refinement ensures that downstream Earth Mover's Distance [(EMD)](https://ieeexplore.ieee.org/document/710701) calculations are performed on sufficiently populated cell clusters, improving the reliability of morphological similarity measurements.
 
 # In[1]:
 
 
-import sys
 import pathlib
+import sys
 
+import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
-import matplotlib.pyplot as plt
 
 sys.path.append("../../")
 from utils import io_utils
-from utils.refinement import(
-    get_cell_counts_per_cluster, refine_profiles)
-
+from utils.refinement import get_cell_counts_per_cluster, refine_profiles
 
 #  Setting parameters for the notebook
 
@@ -47,9 +44,7 @@ percentile_cutoff = 20
 
 # setting directories
 data_dir = pathlib.Path("../0.download-data/data/sc-profiles").resolve(strict=True)
-results_dir = pathlib.Path("./results").resolve(
-    strict=True
-)
+results_dir = pathlib.Path("./results").resolve(strict=True)
 cluster_labels_dir = (results_dir / "cluster-labels").resolve(strict=True)
 
 # setting cfret1 profile paths, signatures, cluster labels
@@ -179,8 +174,8 @@ plt.savefig(
 
 
 # ## Refine profiles
-# 
-# 
+#
+#
 
 # In[10]:
 

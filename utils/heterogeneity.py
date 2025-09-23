@@ -1,480 +1,234 @@
-from typing import Any
+from typing import Literal
 
 import numpy as np
-import optuna
 import polars as pl
 import scanpy as sc
-from sklearn.metrics import silhouette_score
-
-from .params.clustering import (
-    ClusteringImplementation,
-    ClusteringMethod,
-    ClusteringParams,
-    DimensionalityReduction,
-    DistanceMetric,
-    PcaSolver,
-)
+from beartype import beartype
 
 
-def _validate_inputs(
+@beartype
+def cluster_profiles(
     profiles: pl.DataFrame,
-    meta: list[str] | pl.Series,
-    features: list[str] | pl.Series,
-) -> None:
-    """Validate inputs for clustering.
-
-    Parameters
-    ----------
-    profiles : pl.DataFrame
-        Single-cell profiles.
-    meta : Union[list[str], pl.Series]
-        Metadata columns.
-    features : Union[list[str], pl.Series]
-        Features to use for clustering.
-
-    Raises
-    ------
-    TypeError
-        If any input is of the wrong type.
-    ValueError
-        If any input is invalid.
-    """
-    if not isinstance(profiles, pl.DataFrame):
-        raise TypeError("profiles must be a polars DataFrame")
-    if not isinstance(meta, (list, pl.Series)):
-        raise TypeError("meta must be a list of strings or a polars Series")
-    if isinstance(meta, list):
-        if not all(isinstance(m, str) for m in meta):
-            raise TypeError("All meta columns must be strings")
-    elif isinstance(meta, pl.Series):
-        if not meta.dtype == pl.Utf8:
-            raise TypeError("meta Series must contain strings")
-    if not isinstance(features, (list, pl.Series)):
-        raise TypeError("features must be a list of strings or a polars Series")
-    if isinstance(features, list):
-        if not all(isinstance(f, str) for f in features):
-            raise TypeError("All features must be strings")
-    elif isinstance(features, pl.Series):
-        if not features.dtype == pl.Utf8:
-            raise TypeError("features Series must contain strings")
-    if profiles.is_empty():
-        raise ValueError("profiles DataFrame cannot be empty")
-    if len(features) == 0:
-        raise ValueError("features list cannot be empty")
-
-
-def _prepare_anndata(
-    profiles: pl.DataFrame,
-    features: list[str] | pl.Series,
-    params: ClusteringParams,
-) -> tuple[sc.AnnData, str]:
-    """Prepare AnnData object with optional PCA transformation.
-
-    Parameters
-    ----------
-    profiles : pl.DataFrame
-        Single-cell profiles.
-    features : Union[list[str], pl.Series]
-        Features to use for clustering.
-    params : ClusteringParams
-        Clustering parameters.
-
-    Returns
-    -------
-    Tuple[sc.AnnData, str]
-        AnnData object and the representation used for clustering.
-    features : Union[list[str], pl.Series]
-        Features to use for clustering.
-    params : ClusteringParams
-        Clustering parameters.
-
-    Returns
-    -------
-    Tuple[sc.AnnData, str]
-        AnnData object and the representation used for clustering (X or X_pca). if PCA
-        is used, the representation will be "X_pca", otherwise it will be "X"
-        representing the raw data.
-    """
-
-    # type check
-    if not isinstance(profiles, pl.DataFrame):
-        raise TypeError("profiles must be a polars DataFrame")
-    if not isinstance(features, (list, pl.Series)):
-        raise TypeError("features must be a list of strings or a polars Series")
-    if not isinstance(params, ClusteringParams):
-        raise TypeError("params must be an instance of ClusteringParams")
-
-    # Extract feature data and create AnnData object
-    feature_data = profiles.select(features)
-    adata = sc.AnnData(X=feature_data.to_numpy())
-
-    # if PCA is specified, compute PCA
-    # 'use_rep' is how scanpy will refer the representation of the data
-    # X = raw data, X_pca = PCA transformed data
-    if params.dim_reduction == DimensionalityReduction.PCA:
-        sc.pp.pca(
-            adata,
-            n_comps=params.pca_components,
-            svd_solver=params.pca_solver.value,
-            zero_center=params.pca_zero_center,
-            random_state=params.seed,
-        )
-        use_rep = "X_pca"
-    else:  # RAW
-        use_rep = "X"
-
-    return adata, use_rep
-
-
-def _compute_neighbors(
-    adata: sc.AnnData,
-    params: ClusteringParams,
-    use_rep: str,
-) -> None:
-    """Compute nearest neighbors for clustering.
-
-    This function computes the nearest neighbors for the given AnnData object
-    using the specified parameters. It updates the AnnData object in-place with
-    the neighbors information, which will be used for clustering.
-
-    Parameters
-    ----------
-    adata : sc.AnnData
-        AnnData object with single-cell profiles.
-    params : ClusteringParams
-        Clustering parameters.
-    use_rep : str
-        Representation to use for neighbors computation. if X uses all features,
-        if X_pca uses PCA components.
-
-    Returns
-    -------
-    None
-        Updates adata object in-place with neighbors information.
-        The neighbors information will be stored in `adata.obsp['distances']`
-        and `adata.obsp['connectivities']`.
-    """
-    # setting number of pcs to None if PCA is not used
-    # else set it to the number of PCA components
-    n_pcs = (
-        params.pca_components
-        if params.dim_reduction == DimensionalityReduction.PCA
-        else None
-    )
-
-    # compute neighbors using scanpy
-    # this will create a kNN graph based on the specified parameters
-    sc.pp.neighbors(
-        adata=adata,
-        n_neighbors=params.n_neighbors,
-        n_pcs=n_pcs,
-        use_rep=use_rep,
-        metric=params.dist_metric.value,
-        random_state=params.seed,
-    )
-
-
-def _perform_clustering(adata: sc.AnnData, params: ClusteringParams) -> str:
-    """Perform clustering on the AnnData object containing single-cell profiles.
-
-    Parameters
-    ----------
-    adata : sc.AnnData
-        AnnData object with single-cell profiles and computed neighbors.
-    params : ClusteringParams
-        Clustering parameters including method, resolution, and implementation.
-
-    Returns
-    -------
-    str
-        The key used for the clustering labels in `adata.obs`.
-        Returns either "louvain" or "leiden" based on the clustering method used.
-        The AnnData object is updated in-place with clustering results.
-
-    Raises
-    ------
-    ValueError
-        If the clustering method is not supported.
-    """
-
-    # type check
-    if not isinstance(adata, sc.AnnData):
-        raise TypeError("adata must be an instance of sc.AnnData")
-    if not isinstance(params, ClusteringParams):
-        raise TypeError("params must be an instance of ClusteringParams")
-
-    # perform louvain or leiden clustering based on the method specified
-    if params.method == ClusteringMethod.LOUVAIN:
-        sc.tl.louvain(
-            adata=adata,
-            resolution=params.cluster_resolution,
-            flavor=params.louv_clustering_imp.value,
-            random_state=params.seed,
-        )
-        return "louvain"
-    elif params.method == ClusteringMethod.LEIDEN:
-        sc.tl.leiden(
-            adata=adata,
-            resolution=params.cluster_resolution,
-            flavor=params.leid_clustering_imp.value,
-            random_state=params.seed,
-        )
-        return "leiden"
-    else:
-        # raise error if method is not supported
-        supported_methods = [m.value for m in ClusteringMethod]
-        raise ValueError(
-            f"Unsupported clustering method: {params.method}."
-            f"Supported methods are: {supported_methods}"
-        )
-
-
-def cluster_single_cells(
-    profiles: pl.DataFrame,
-    meta: list[str] | pl.Series,
-    features: list[str] | pl.Series,
-    params: ClusteringParams | None = None,
+    meta_features: list[str] | pl.Series,
+    morph_features: list[str] | pl.Series,
+    treatment_col: str = "Metadata_treatment",
+    method: Literal["louvain", "leiden"] = "louvain",
+    dim_reduction: Literal["PCA", "raw"] = "PCA",
+    umap_n_components: int = 15,
+    n_neighbors: int = 15,
+    neighbor_distance_metric: Literal["cosine", "euclidean", "manhattan"] = "euclidean",
+    pca_variance_explained: float = 0.95,
+    pca_n_components_to_capture_variance: int = 200,
+    pca_solver: Literal["arpack", "randomized"] = "arpack",
+    pca_zero_center: bool = True,
+    cluster_resolution: float = 1.0,
+    cluster_implementation: Literal["vtraag", "igraph"] = "vtraag",
+    seed: int = 0,
 ) -> pl.DataFrame:
-    """Cluster single cells using graph-based clustering methods.
+    """Cluster single-cell profiles using a dimensionality reduction and clustering pipeline.
 
-    This function performs clustering on single-cell profiles using either Louvain or Leiden
-    algorithms with optional PCA dimensionality reduction and customizable nearest neighbor
-    computation parameters.
+    This function performs clustering on single-cell morphological profiles by first applying
+    dimensionality reduction (PCA followed by UMAP, or raw data) and then clustering using
+    Louvain or Leiden algorithms. Clustering is performed per treatment group defined by
+    meta_features, with dynamic adjustment of neighbors based on the number of cells in each group.
 
-    Parameters
-    ----------
-    profiles : pl.DataFrame
-        DataFrame containing single-cell profiles.
-    meta : Union[list[str], pl.Series]
-        Metadata columns (currently unused but kept for API consistency).
-    features : Union[list[str], pl.Series]
-        Feature columns to use for clustering.
-    params : Optional[ClusteringParams], optional
-        Clustering parameters. If None, uses defaults.
-
-    Returns
-    -------
-    pl.DataFrame
-        DataFrame with added 'Metadata_cluster' column containing cluster labels.
-
-    Raises
-    ------
-    TypeError
-        If input types are invalid.
-    ValueError
-        If input values are invalid.
-    """
-    # validate inputs
-    _validate_inputs(profiles, meta, features)
-
-    # use default parameters if none provided
-    if params is None:
-        params = ClusteringParams()
-
-    # prepare AnnData object
-    adata, use_rep = _prepare_anndata(profiles, features, params)
-
-    # compute neighbors
-    _compute_neighbors(adata, params, use_rep)
-
-    # perform clustering
-    cluster_key = _perform_clustering(adata, params)
-
-    # extract cluster labels and add to profiles
-    labels = adata.obs[cluster_key].to_numpy(dtype=str)
-    profiles_with_clusters = profiles.with_columns(
-        pl.Series("Metadata_cluster", labels)
-    )
-
-    return profiles_with_clusters
+    Keep in mind that this function assums that you have normalized your data prior to
+    using this approach.
 
 
-def _create_optimization_objective(
-    profiles: pl.DataFrame,
-    meta: list[str] | pl.Series,
-    features: list[str] | pl.Series,
-    seed: int,
-) -> callable:
-    """Create an objective function for Optuna hyperparameter optimization.
+    Pipeline for dim_reduction="PCA":
+    1. Run PCA with up to 100 components (or fewer based on data constraints).
+    2. Determine the number of PCs that explain at least pca_variance_explained of the variance.
+    3. Run UMAP on the selected PCs to reduce to umap_n_components dimensions.
+    4. Compute neighbors in UMAP space.
+    5. Apply clustering (Louvain or Leiden) in UMAP space per treatment group.
 
-    This function creates and returns a callable objective function that Optuna uses to
-    evaluate clustering hyperparameters. The objective function samples hyperparameters,
-    performs clustering using `cluster_single_cells`, and computes the silhouette score
-    as the optimization metric. Returns a poor score (-1.0) if clustering fails or
-    results in fewer than two clusters.
+    For dim_reduction="raw", neighbors are computed directly on raw data, and clustering is applied
+    per treatment group.
 
     Parameters
     ----------
     profiles : pl.DataFrame
-        DataFrame containing single-cell profiles.
-    meta : Union[list[str], pl.Series]
-        Metadata columns (currently unused but kept for API consistency).
-    features : Union[list[str], pl.Series]
-        Feature columns to use for clustering.
-    seed : int
+        DataFrame containing single-cell profiles with morphological features and metadata.
+    meta_features : list[str] | pl.Series
+        List or Series of column names used to group profiles into treatment groups for per-group clustering.
+    morph_features : list[str] | pl.Series
+        List or Series of column names representing morphological features to use for clustering.
+    treatment_col : str, default "Metadata_treatment"
+        Column name in profiles indicating treatment (used for labeling clusters).
+    method : Literal["louvain", "leiden"], default "louvain"
+        Clustering algorithm to use: "louvain" or "leiden".
+    dim_reduction : Literal["PCA", "raw"], default "PCA"
+        Dimensionality reduction method: "PCA" for PCA->UMAP pipeline, "raw" for direct use of raw data.
+    umap_n_components : int, default 15
+        Number of components for UMAP embedding (only used if dim_reduction="PCA").
+    n_neighbors : int, default 15
+        Maximum number of neighbors for neighbor graph construction.
+    neighbor_distance_metric : Literal["cosine", "euclidean", "manhattan"], default "euclidean"
+        Distance metric to use when constructing the neighbor graph.
+        - For PCA or UMAP-reduced spaces, "euclidean" or "manhattan" are recommended.
+        - For clustering directly on raw feature space, "cosine" is often preferred.
+    pca_variance_explained : float, default 0.95
+        Fraction of variance to be explained by selected PCs (must be between 0 and 1).
+    pca_n_components_to_capture_variance : int, default 200
+        Maximum number of PCA components to compute when capturing variance.
+    pca_solver : Literal["arpack", "randomized"], default "arpack"
+        SVD solver for PCA.
+    pca_zero_center : bool, default True
+        Whether to zero-center data for PCA.
+    cluster_resolution : float, default 1.0
+        Resolution parameter for clustering (higher values lead to more clusters).
+    cluster_implementation : Literal["vtraag", "igraph"], default "vtraag"
+        Implementation flavor for Louvain/Leiden clustering.
+    seed : int, default 0
         Random seed for reproducibility.
 
     Returns
     -------
-    callable
-        Objective function that takes an optuna.trial.Trial and returns a float score.
+    pd.DataFrame
+        Original profiles DataFrame with an additional column "Metadata_cluster_id" containing
+        cluster labels as categorical values, prefixed by treatment (e.g., "treatment_0").
+
+    Raises
+    ------
+    ValueError
+        If pca_variance_explained is not between 0 and 1.
     """
 
-    # creating the objective function for Optuna
-    # this function will be called by Optuna to evaluate the hyperparameters
-    def objective(trial: optuna.trial.Trial) -> float:
-        # sample hyperparameters using Optuna trial
-        # create ClusteringParams object with trial-suggested values
-        # these parameters will be evaluated by the clustering pipeline
-        params = ClusteringParams(
-            n_neighbors=trial.suggest_int("n_neighbors", 5, 200),
-            dim_reduction=DimensionalityReduction(
-                trial.suggest_categorical("dim_reduction", ["pca", "raw"])
-            ),
-            pca_solver=PcaSolver(
-                trial.suggest_categorical(
-                    "pca_solver", ["arpack", "randomized", "auto"]
-                )
-            ),
-            pca_components=trial.suggest_int("pca_components", 10, 100),
-            cluster_resolution=trial.suggest_float("resolution", 0.1, 2.0),
-            method=ClusteringMethod(
-                trial.suggest_categorical("method", ["louvain", "leiden"])
-            ),
-            dist_metric=DistanceMetric(
-                trial.suggest_categorical("dist_metric", ["euclidean", "cosine"])
-            ),
-            louv_clustering_imp=ClusteringImplementation(
-                trial.suggest_categorical("louv_clustering_imp", ["vtraag", "igraph"])
-            ),
-            leid_clustering_imp=ClusteringImplementation(
-                trial.suggest_categorical(
-                    "leid_clustering_imp", ["leidenalg", "igraph"]
-                )
-            ),
-            seed=seed,
+    # Validation
+    if not (0 < pca_variance_explained <= 1):
+        raise ValueError("pca_variance_explained must be between 0 and 1")
+
+    # 1. Convert to AnnData and add treatment info to .obs
+    adata = sc.AnnData(
+        X=profiles.select(morph_features).to_numpy(),
+        obs=profiles.select(meta_features).to_pandas(),
+    )
+
+    # Ensure the treatment column is categorical
+    if adata.obs[treatment_col].dtype != "category":
+        adata.obs[treatment_col] = adata.obs[treatment_col].astype("category")
+
+    if dim_reduction == "PCA":
+        # 2. Run PCA with enough components to capture variance
+        sc.pp.pca(
+            adata,
+            n_comps=pca_n_components_to_capture_variance,
+            svd_solver=pca_solver,
+            zero_center=pca_zero_center,
+            random_state=seed,
         )
 
-        try:
-            # perform clustering
-            clustered = cluster_single_cells(
-                profiles=profiles,
-                meta=meta,
-                features=features,
-                params=params,
+        # 3. Find the number of PCs that explains specified variance
+        variance_ratio = np.cumsum(adata.uns["pca"]["variance_ratio"])
+        n_pcs_95 = np.min(np.where(variance_ratio >= pca_variance_explained)[0]) + 1
+
+        # 4. Run UMAP on the PCs that explain 95% variance
+        # - calculate neighbors in PCA space
+        # - apply UMAP 95% PCA space
+        # - calculate neighbors in UMAP space
+        sc.pp.neighbors(
+            adata,
+            n_neighbors=n_neighbors,
+            n_pcs=n_pcs_95,
+            random_state=seed,
+            metric=neighbor_distance_metric,
+        )
+        sc.tl.umap(
+            adata,
+            n_components=umap_n_components,
+            random_state=seed,
+        )
+
+        # 5. Calculate neighbors in UMAP space for clustering
+        sc.pp.neighbors(
+            adata,
+            n_neighbors=n_neighbors,
+            use_rep="X_umap",
+            random_state=seed,
+            metric=neighbor_distance_metric,
+        )
+    elif dim_reduction == "raw":
+        # Use raw data directly
+        sc.pp.neighbors(adata, n_neighbors=n_neighbors, use_rep="X", random_state=seed)
+
+    # Prepare a list to hold cluster labels for all cells
+    all_cluster_labels = [""] * len(profiles)
+
+    # Iterate over unique treatments
+    for treatment in profiles.get_column(treatment_col).unique().to_list():
+        # Get indices for the current treatment
+        treatment_mask = profiles.get_column(treatment_col) == treatment
+        treatment_indices = np.where(treatment_mask.to_numpy())[0]
+
+        # For treatments with too few cells, assign "no_cluster"
+        if len(treatment_indices) < 2:
+            for idx in treatment_indices:
+                all_cluster_labels[idx] = "no_cluster"
+            continue
+
+        # Apply clustering with restrict_to for this treatment
+        if method == "louvain":
+            sc.tl.louvain(
+                adata,
+                restrict_to=(treatment_col, [treatment]),  # Only cluster these cells
+                resolution=cluster_resolution,
+                flavor=cluster_implementation,
+                random_state=seed,
+                key_added=f"louvain_{treatment}",
             )
+            cluster_key = f"louvain_{treatment}"
+        elif method == "leiden":
+            sc.tl.leiden(
+                adata,
+                restrict_to=(treatment_col, [treatment]),  # Only cluster these cells
+                resolution=cluster_resolution,
+                flavor=cluster_implementation,
+                random_state=seed,
+                key_added=f"leiden_{treatment}",
+            )
+            cluster_key = f"leiden_{treatment}"
 
-            # extract labels and feature matrix
-            labels = clustered["Metadata_cluster"].to_numpy().astype(int)
-            X = profiles.select(features).to_numpy()
+        for _, idx in enumerate(treatment_indices):
+            # Get the cluster label for this cell
+            cluster_label = adata.obs[cluster_key][idx]
 
-            # compute silhouette score (only if >1 cluster)
-            n_clusters = len(set(labels))
-            if n_clusters < 2:
-                return -1.0
+            # Extract cluster id if label is a tuple or string with comma
+            if isinstance(cluster_label, (tuple, list)):
+                cluster_id = cluster_label[-1]
+            elif isinstance(cluster_label, str) and "," in cluster_label:
+                cluster_id = cluster_label.split(",")[-1].strip()
+            else:
+                cluster_id = cluster_label
+            all_cluster_labels[idx] = f"{treatment}_{method}_{cluster_id}"
 
-            # calculate silhouette score
-            score = silhouette_score(X, labels)
-            return score
-
-        except Exception:
-            # Return poor score for failed trials
-            return -1.0
-
-    return objective
-
-
-def optimized_clustering(
-    profiles: pl.DataFrame,
-    meta: list[str] | pl.Series,
-    features: list[str] | pl.Series,
-    n_trials: int = 20,
-    n_jobs: int = 1,
-    seed: int = 0,
-    study_name: str | None = None,
-) -> tuple[optuna.Study, np.ndarray]:
-    """Perform hyperparameter optimization for clustering.
-
-    This function wraps the `cluster_single_cells` function with an Optuna study
-    to find the best clustering parameters based on silhouette score.
-
-    The `_create_optimization_objective` function is used to create the objective, which
-    contains the `cluster_single_cells` call and computes the silhouette score for the
-    clustering results. The study is then optimized over a specified number of trials.
-
-    Parameters
-    ----------
-    profiles : pl.DataFrame
-        DataFrame containing single-cell profiles
-    meta : Union[list[str], pl.Series]
-        Metadata columns
-    features : Union[list[str], pl.Series]
-        Feature columns to use for clustering
-    n_trials : int, optional
-        Number of optimization trials, by default 20
-    n_jobs : int, optional
-        Number of parallel jobs, by default 1
-    seed : int, optional
-        Random seed, by default 0
-    study_name : Optional[str], optional
-        Name for the Optuna study, by default None
-
-    Returns
-    -------
-    Tuple[optuna.Study, np.ndarray]
-        Tuple of (Optuna study object, best cluster labels)
-    """
-    # Validate inputs
-    _validate_inputs(profiles, meta, features)
-
-    # Create objective function
-    objective = _create_optimization_objective(profiles, meta, features, seed)
-
-    # Create and run study
-    study = optuna.create_study(
-        direction="maximize",
-        study_name=study_name,
+    # Add the cluster labels to the original Polars DataFrame
+    result_df = profiles.with_columns(
+        pl.Series(name="Metadata_cluster_id", values=all_cluster_labels).cast(
+            pl.Categorical
+        )
     )
 
-    study.optimize(
-        objective,
-        n_trials=n_trials,
-        n_jobs=n_jobs,
-        show_progress_bar=True,
+    # Add cluster cell counts
+    result_df = result_df.with_columns(
+        pl.count().over("Metadata_cluster_id").alias("Metadata_cluster_n_cells")
     )
 
-    # Get best parameters and perform final clustering
-    best_params = study.best_trial.params
-
-    final_params = ClusteringParams(
-        method=ClusteringMethod(best_params["method"]),
-        n_neighbors=best_params["n_neighbors"],
-        dist_metric=DistanceMetric(best_params["dist_metric"]),
-        dim_reduction=DimensionalityReduction(best_params["dim_reduction"]),
-        pca_components=best_params["pca_components"],
-        pca_solver=PcaSolver(best_params["pca_solver"]),
-        louv_clustering_imp=ClusteringImplementation(
-            best_params["louv_clustering_imp"]
-        ),
-        leid_clustering_imp=ClusteringImplementation(
-            best_params["leid_clustering_imp"]
-        ),
-        cluster_resolution=best_params["resolution"],
-        seed=seed,
+    # Add total cells per treatment
+    result_df = result_df.with_columns(
+        pl.count().over("Metadata_treatment").alias("Metadata_treatment_n_cells")
     )
 
-    # perform final clustering with best parameters
-    # this will use the best parameters found during optimization
-    clustered = cluster_single_cells(
-        profiles=profiles,
-        meta=meta,
-        features=features,
-        params=final_params,
+    # Calculate the ratio as a percentage
+    result_df = result_df.with_columns(
+        (
+            pl.col("Metadata_cluster_n_cells")
+            / pl.col("Metadata_treatment_n_cells")
+            * 100
+        ).alias("Metadata_cluster_ratio")
     )
 
-    cluster_labels = clustered["Metadata_cluster"].to_numpy()
-
-    return study, cluster_labels
+    return result_df
 
 
 def assess_heterogeneity(
