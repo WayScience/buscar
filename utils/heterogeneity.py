@@ -12,7 +12,7 @@ def cluster_profiles(
     meta_features: list[str] | pl.Series,
     morph_features: list[str] | pl.Series,
     treatment_col: str = "Metadata_treatment",
-    method: Literal["louvain", "leiden"] = "louvain",
+    method: Literal["louvain", "leiden"] = "leiden",
     dim_reduction: Literal["PCA", "raw"] = "PCA",
     umap_n_components: int = 15,
     n_neighbors: int = 15,
