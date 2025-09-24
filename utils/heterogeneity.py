@@ -11,18 +11,16 @@ def cluster_profiles(
     profiles: pl.DataFrame,
     meta_features: list[str] | pl.Series,
     morph_features: list[str] | pl.Series,
-    treatment_col: str = "Metadata_treatment",
-    method: Literal["louvain", "leiden"] = "leiden",
-    dim_reduction: Literal["PCA", "raw"] = "PCA",
+    treatment_col: str, 
+    cluster_method: Literal["louvain", "leiden"] = "leiden",
+    cluster_resolution: float = 1.0,
+    dim_reduction: Literal["PCA_UMAP", "raw"] = "PCA_UMAP",
     umap_n_components: int = 15,
     n_neighbors: int = 15,
     neighbor_distance_metric: Literal["cosine", "euclidean", "manhattan"] = "euclidean",
     pca_variance_explained: float = 0.95,
     pca_n_components_to_capture_variance: int = 200,
-    pca_solver: Literal["arpack", "randomized"] = "arpack",
-    pca_zero_center: bool = True,
-    cluster_resolution: float = 1.0,
-    cluster_implementation: Literal["vtraag", "igraph"] = "vtraag",
+    pca_svd_solver: Literal["arpack", "randomized"] = "randomized",
     seed: int = 0,
 ) -> pl.DataFrame:
     """Cluster single-cell profiles using a dimensionality reduction and clustering pipeline.
@@ -54,10 +52,12 @@ def cluster_profiles(
         List or Series of column names used to group profiles into treatment groups for per-group clustering.
     morph_features : list[str] | pl.Series
         List or Series of column names representing morphological features to use for clustering.
-    treatment_col : str, default "Metadata_treatment"
+    treatment_col : str, default 
         Column name in profiles indicating treatment (used for labeling clusters).
-    method : Literal["louvain", "leiden"], default "louvain"
+    cluster_method : Literal["louvain", "leiden"], default "louvain"
         Clustering algorithm to use: "louvain" or "leiden".
+    cluster_resolution : float, default 1.0
+        Resolution parameter for clustering (higher values lead to more clusters).
     dim_reduction : Literal["PCA", "raw"], default "PCA"
         Dimensionality reduction method: "PCA" for PCA->UMAP pipeline, "raw" for direct use of raw data.
     umap_n_components : int, default 15
@@ -72,14 +72,8 @@ def cluster_profiles(
         Fraction of variance to be explained by selected PCs (must be between 0 and 1).
     pca_n_components_to_capture_variance : int, default 200
         Maximum number of PCA components to compute when capturing variance.
-    pca_solver : Literal["arpack", "randomized"], default "arpack"
-        SVD solver for PCA.
-    pca_zero_center : bool, default True
-        Whether to zero-center data for PCA.
-    cluster_resolution : float, default 1.0
-        Resolution parameter for clustering (higher values lead to more clusters).
-    cluster_implementation : Literal["vtraag", "igraph"], default "vtraag"
-        Implementation flavor for Louvain/Leiden clustering.
+    pca_svd_solver : Literal["arpack", "randomized"], default "randomized"
+        SVD solver is the underlying algorithm used to compute the principal components
     seed : int, default 0
         Random seed for reproducibility.
 
@@ -109,13 +103,12 @@ def cluster_profiles(
     if adata.obs[treatment_col].dtype != "category":
         adata.obs[treatment_col] = adata.obs[treatment_col].astype("category")
 
-    if dim_reduction == "PCA":
+    if dim_reduction == "PCA_UMAP":
         # 2. Run PCA with enough components to capture variance
         sc.pp.pca(
             adata,
             n_comps=pca_n_components_to_capture_variance,
-            svd_solver=pca_solver,
-            zero_center=pca_zero_center,
+            svd_solver=pca_svd_solver,
             random_state=seed,
         )
 
@@ -131,8 +124,8 @@ def cluster_profiles(
             adata,
             n_neighbors=n_neighbors,
             n_pcs=n_pcs_95,
-            random_state=seed,
             metric=neighbor_distance_metric,
+            random_state=seed,
         )
         sc.tl.umap(
             adata,
@@ -144,9 +137,9 @@ def cluster_profiles(
         sc.pp.neighbors(
             adata,
             n_neighbors=n_neighbors,
+            metric=neighbor_distance_metric,
             use_rep="X_umap",
             random_state=seed,
-            metric=neighbor_distance_metric,
         )
     elif dim_reduction == "raw":
         # Use raw data directly
@@ -168,22 +161,20 @@ def cluster_profiles(
             continue
 
         # Apply clustering with restrict_to for this treatment
-        if method == "louvain":
+        if cluster_method == "louvain":
             sc.tl.louvain(
                 adata,
                 restrict_to=(treatment_col, [treatment]),  # Only cluster these cells
                 resolution=cluster_resolution,
-                flavor=cluster_implementation,
                 random_state=seed,
                 key_added=f"louvain_{treatment}",
             )
             cluster_key = f"louvain_{treatment}"
-        elif method == "leiden":
+        elif cluster_method == "leiden":
             sc.tl.leiden(
                 adata,
                 restrict_to=(treatment_col, [treatment]),  # Only cluster these cells
                 resolution=cluster_resolution,
-                flavor=cluster_implementation,
                 random_state=seed,
                 key_added=f"leiden_{treatment}",
             )
@@ -200,7 +191,7 @@ def cluster_profiles(
                 cluster_id = cluster_label.split(",")[-1].strip()
             else:
                 cluster_id = cluster_label
-            all_cluster_labels[idx] = f"{treatment}_{method}_{cluster_id}"
+            all_cluster_labels[idx] = f"{treatment}_{cluster_method}_{cluster_id}"
 
     # Add the cluster labels to the original Polars DataFrame
     result_df = profiles.with_columns(
