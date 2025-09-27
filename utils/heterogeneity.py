@@ -1,3 +1,8 @@
+"""
+Functions for assessing cellular heterogeneity via clustering, including Optuna-based
+parameter optimization to maximize silhouette score. Uses scanpy for dimensionality
+reduction and clustering (Louvain/Leiden), performed per treatment group.
+"""
 from typing import Literal
 
 import numpy as np
@@ -14,8 +19,7 @@ def cluster_profiles(
     treatment_col: str, 
     cluster_method: Literal["louvain", "leiden"] = "leiden",
     cluster_resolution: float = 1.0,
-    dim_reduction: Literal["PCA_UMAP", "raw"] = "PCA_UMAP",
-    umap_n_components: int = 15,
+    dim_reduction: Literal["PCA", "raw"] = "PCA",
     n_neighbors: int = 15,
     neighbor_distance_metric: Literal["cosine", "euclidean", "manhattan"] = "euclidean",
     pca_variance_explained: float = 0.95,
@@ -26,19 +30,18 @@ def cluster_profiles(
     """Cluster single-cell profiles using a dimensionality reduction and clustering pipeline.
 
     This function performs clustering on single-cell morphological profiles by first applying
-    dimensionality reduction (PCA followed by UMAP, or raw data) and then clustering using
+    dimensionality reduction (PCA or raw data) and then clustering using
     Louvain or Leiden algorithms. Clustering is performed per treatment group defined by
     meta_features, with dynamic adjustment of neighbors based on the number of cells in each group.
 
-    Keep in mind that this function assums that you have normalized your data prior to
+    Keep in mind that this function assumes that you have normalized your data prior to
     using this approach.
 
 
     Pipeline for dim_reduction="PCA":
     1. Run PCA with up to 100 components (or fewer based on data constraints).
     2. Determine the number of PCs that explain at least pca_variance_explained of the variance.
-    3. Run UMAP on the selected PCs to reduce to umap_n_components dimensions.
-    4. Compute neighbors in UMAP space.
+    4. Compute neighbors in PCA space.
     5. Apply clustering (Louvain or Leiden) in UMAP space per treatment group.
 
     For dim_reduction="raw", neighbors are computed directly on raw data, and clustering is applied
@@ -103,8 +106,8 @@ def cluster_profiles(
     if adata.obs[treatment_col].dtype != "category":
         adata.obs[treatment_col] = adata.obs[treatment_col].astype("category")
 
-    if dim_reduction == "PCA_UMAP":
-        # 2. Run PCA with enough components to capture variance
+    if dim_reduction == "PCA":
+        # 1. Run PCA with enough components to capture variance
         sc.pp.pca(
             adata,
             n_comps=pca_n_components_to_capture_variance,
@@ -112,14 +115,11 @@ def cluster_profiles(
             random_state=seed,
         )
 
-        # 3. Find the number of PCs that explains specified variance
+        # 2. Find the number of PCs that explains specified variance
         variance_ratio = np.cumsum(adata.uns["pca"]["variance_ratio"])
         n_pcs_95 = np.min(np.where(variance_ratio >= pca_variance_explained)[0]) + 1
 
-        # 4. Run UMAP on the PCs that explain 95% variance
-        # - calculate neighbors in PCA space
-        # - apply UMAP 95% PCA space
-        # - calculate neighbors in UMAP space
+        # 3. Use the PCA space to compute neighbors
         sc.pp.neighbors(
             adata,
             n_neighbors=n_neighbors,
@@ -127,22 +127,9 @@ def cluster_profiles(
             metric=neighbor_distance_metric,
             random_state=seed,
         )
-        sc.tl.umap(
-            adata,
-            n_components=umap_n_components,
-            random_state=seed,
-        )
 
-        # 5. Calculate neighbors in UMAP space for clustering
-        sc.pp.neighbors(
-            adata,
-            n_neighbors=n_neighbors,
-            metric=neighbor_distance_metric,
-            use_rep="X_umap",
-            random_state=seed,
-        )
     elif dim_reduction == "raw":
-        # Use raw data directly
+        # Compute neighbors directly on raw data
         sc.pp.neighbors(adata, n_neighbors=n_neighbors, use_rep="X", random_state=seed)
 
     # Prepare a list to hold cluster labels for all cells
