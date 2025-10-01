@@ -1,3 +1,11 @@
+"""
+This module provides functions to identify and rank compound (drug) performance
+by analyzing cluster-level scores from treatment and control samples. The main
+goal is to determine which compounds exhibit the most desirable effects, as
+measured by various scoring methods that aggregate cluster-level metrics into a
+single compound score.
+"""
+
 from typing import Literal
 
 import polars as pl
@@ -9,11 +17,23 @@ def calculate_weighted_sum(scores_df: pl.DataFrame) -> pl.DataFrame:
     Computes compound scores for each treatment based on the weighted sum of
     both on_score and off_score, weighted by the ratio of the cluster (cluster
     single-cells / total treatment single-cells).
+
+    Parameters
+    ----------
+    scores_df : pl.DataFrame
+        DataFrame containing distance scores between treatment and control
+
+    Returns
+    -------
+    pl.DataFrame
+        DataFrame with one row per treatment, containing the computed
+
     """
 
     # calculated weighted sum
     compound_scores = (
-        scores_df.group_by("treatment")
+        scores_df.lazy()
+        .group_by("treatment")
         .agg(
             (
                 (pl.col("on_score") * pl.col("ratio")).sum()
@@ -21,6 +41,7 @@ def calculate_weighted_sum(scores_df: pl.DataFrame) -> pl.DataFrame:
             ).alias("compound_score")
         )
         .sort("compound_score")
+        .collect()
     )
 
     return compound_scores
@@ -63,9 +84,11 @@ def identify_compound_hit(
     # Select best control cluster for each treatment cluster
     # forming control treatment cluster pairs
     paired_scores_df = (
-        distance_df.sort(["treatment", "treatment_cluster_id", "on_score", "off_score"])
+        distance_df.lazy()
+        .sort(["treatment", "treatment_cluster_id", "on_score", "off_score"])
         .group_by(["treatment", "treatment_cluster_id"])
-        .first()
+        .agg([pl.all().first()])
+        .collect()
     )
 
     # Compute compound score for each treatment (drug)
