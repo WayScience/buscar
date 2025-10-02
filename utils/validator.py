@@ -4,36 +4,19 @@ Utility functions for validating parameter grids for clustering optimization.
 
 from typing import Any
 
+# Global static variables for valid parameter names and types
+VALID_CLUSTER_PARAMS: set[str] = {
+    "cluster_method",
+    "cluster_resolution",
+    "dim_reduction",
+    "n_neighbors",
+    "neighbor_distance_metric",
+    "pca_variance_explained",
+    "pca_n_components_to_capture_variance",
+    "pca_svd_solver",
+}
 
-def _get_valid_cluster_params() -> set[str]:
-    """Get the set of valid parameter names for cluster_profiles function.
-
-    Returns
-    -------
-    set[str]
-        Set of valid parameter names that can be used in param_grid.
-    """
-    return {
-        "cluster_method",
-        "cluster_resolution",
-        "dim_reduction",
-        "n_neighbors",
-        "neighbor_distance_metric",
-        "pca_variance_explained",
-        "pca_n_components_to_capture_variance",
-        "pca_svd_solver",
-    }
-
-
-def _get_valid_param_types() -> set[str]:
-    """Get the set of valid parameter types for param_grid configuration.
-
-    Returns
-    -------
-    set[str]
-        Set of valid parameter types ('float', 'int', 'categorical').
-    """
-    return {"float", "int", "categorical"}
+VALID_PARAM_TYPES: set[str] = {"float", "int", "categorical"}
 
 
 def _validate_param_grid(param_grid: dict[str, Any]) -> None:
@@ -57,15 +40,13 @@ def _validate_param_grid(param_grid: dict[str, Any]) -> None:
     TypeError
         If param_grid structure is invalid (missing required keys, wrong value types).
     """
-    valid_params = _get_valid_cluster_params()
-    valid_types = _get_valid_param_types()
 
     for param_name, param_config in param_grid.items():
         # 1. Check if parameter name is valid
-        if param_name not in valid_params:
+        if param_name not in VALID_CLUSTER_PARAMS:
             raise ValueError(
                 f"Invalid parameter name: '{param_name}'. "
-                f"Valid parameters are: {sorted(valid_params)}"
+                f"Valid parameters are: {sorted(VALID_CLUSTER_PARAMS)}"
             )
 
         # 2. Check if param_config is a dictionary
@@ -84,10 +65,10 @@ def _validate_param_grid(param_grid: dict[str, Any]) -> None:
         param_type = param_config["type"]
 
         # 4. Check if type is valid
-        if param_type not in valid_types:
+        if param_type not in VALID_PARAM_TYPES:
             raise ValueError(
                 f"Invalid parameter type '{param_type}' for '{param_name}'. "
-                f"Valid types are: {sorted(valid_types)}"
+                f"Valid types are: {sorted(VALID_PARAM_TYPES)}"
             )
 
         # 5. Validate type-specific requirements

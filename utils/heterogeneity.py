@@ -27,6 +27,9 @@ def calculate_mean_silhouette_score(
     and returns the mean score across all treatments. Treatments with too few cells
     or only one cluster are skipped. If no valid scores can be computed, returns -1.0.
 
+    These calculations are done within the optimized_clustering function to evaluate
+    clustering quality during hyperparameter optimization using Optuna.
+
     Parameters
     ----------
     clustered_profiles : pl.DataFrame
@@ -52,13 +55,6 @@ def calculate_mean_silhouette_score(
     - Near +1: Cell is well-matched to its cluster
     - Near 0: Cell is on the border between clusters
     - Near -1: Cell may be assigned to the wrong cluster
-
-    Examples
-    --------
-    >>> clustered_df = cluster_profiles(profiles, meta_features, morph_features, "treatment")
-    >>> score = calculate_mean_silhouette_score(clustered_df, morph_features, "treatment")
-    >>> print(f"Mean silhouette score: {score:.3f}")
-    Mean silhouette score: 0.342
     """
     silhouette_scores = []
 
