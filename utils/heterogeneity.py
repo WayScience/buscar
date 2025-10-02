@@ -13,44 +13,83 @@ import scanpy as sc
 from beartype import beartype
 from sklearn.metrics import silhouette_score
 
+from .validator import _validate_param_grid
 
-def _validate_param_grid(param_grid: dict[str, Any]) -> None:
-    """Validate the parameter grid for optimized_clustering function.
 
-    This function checks that the provided param_grid contains valid parameter names
-    and types for the cluster_profiles function. It raises a ValueError if any invalid
-    parameters are found.
+def calculate_mean_silhouette_score(
+    clustered_profiles: pl.DataFrame,
+    morph_features: list[str] | pl.Series,
+    treatment_col: str,
+) -> float:
+    """Calculate mean silhouette score across all treatments in clustered profiles.
+
+    This function computes the silhouette score for each treatment group separately
+    and returns the mean score across all treatments. Treatments with too few cells
+    or only one cluster are skipped. If no valid scores can be computed, returns -1.0.
 
     Parameters
     ----------
-    param_grid : Dict[str, Any]
-        Dictionary defining the parameter search space. Each key should be a parameter
-        name from cluster_profiles, and each value should be a dictionary with 'type'
-        and range info.
+    clustered_profiles : pl.DataFrame
+        DataFrame containing clustered single-cell profiles with a "Metadata_cluster_id"
+        column indicating cluster assignments.
+    morph_features : list[str] | pl.Series
+        List or Series of column names representing morphological features to use for
+        silhouette score calculation.
+    treatment_col : str
+        Column name indicating treatment groups.
 
-    Raises
-    ------
-    ValueError
-        If param_grid contains unsupported parameter types or invalid parameter names.
+    Returns
+    -------
+    float
+        Mean silhouette score across all valid treatments. Returns -1.0 if no valid
+        scores can be computed (e.g., all treatments have only one cluster or too
+        few cells).
+
+    Notes
+    -----
+    The silhouette score measures how similar a cell is to its own cluster compared
+    to other clusters. Scores range from -1 to 1:
+    - Near +1: Cell is well-matched to its cluster
+    - Near 0: Cell is on the border between clusters
+    - Near -1: Cell may be assigned to the wrong cluster
+
+    Examples
+    --------
+    >>> clustered_df = cluster_profiles(profiles, meta_features, morph_features, "treatment")
+    >>> score = calculate_mean_silhouette_score(clustered_df, morph_features, "treatment")
+    >>> print(f"Mean silhouette score: {score:.3f}")
+    Mean silhouette score: 0.342
     """
+    silhouette_scores = []
 
-    valid_params = {
-        "cluster_method",
-        "cluster_resolution",
-        "dim_reduction",
-        "n_neighbors",
-        "neighbor_distance_metric",
-        "pca_variance_explained",
-        "pca_n_components_to_capture_variance",
-        "pca_svd_solver",
-    }
+    for treatment in clustered_profiles.get_column(treatment_col).unique().to_list():
+        treatment_mask = clustered_profiles.get_column(treatment_col) == treatment
+        treatment_data = clustered_profiles.filter(treatment_mask)
 
-    for param_name in param_grid.keys():
-        if param_name not in valid_params:
-            raise ValueError(
-                f"Invalid parameter name: {param_name}. "
-                f"Valid parameters are: {valid_params}"
-            )
+        # Skip treatments with too few cells or only one cluster
+        if len(treatment_data) < 2:
+            continue
+
+        cluster_labels = treatment_data.get_column("Metadata_cluster_id").to_numpy()
+        unique_clusters = np.unique(cluster_labels)
+
+        # Skip if only one cluster (silhouette score undefined)
+        if len(unique_clusters) < 2:
+            continue
+
+        # Get the feature matrix for this treatment
+        features_matrix = treatment_data.select(morph_features).to_numpy()
+
+        # Calculate silhouette score
+        score = silhouette_score(features_matrix, cluster_labels)
+        silhouette_scores.append(score)
+
+    # Return mean silhouette score across all treatments
+    if silhouette_scores:
+        return np.mean(silhouette_scores)
+    else:
+        # If no valid scores, return a very low score to penalize this configuration
+        return -1.0
 
 
 @beartype
@@ -268,7 +307,7 @@ def optimized_clustering(
     seed: int = 0,
     n_jobs: int = 1,
     study_name: str | None = None,
-) -> pl.DataFrame:
+) -> tuple[pl.DataFrame, dict[str, Any]]:
     """Optimize clustering parameters using Optuna to maximize silhouette score.
 
     This function uses Optuna to find the best parameters for the cluster_profiles function
@@ -303,9 +342,9 @@ def optimized_clustering(
 
     Returns
     -------
-    pl.DataFrame
+    tuple(pl.DataFrame, dict[str, Any])
         Original profiles DataFrame with optimized clustering results, same format as
-        cluster_profiles output.
+        cluster_profiles output. And a dictionary of the best parameters found.
 
     Raises
     ------
@@ -356,41 +395,12 @@ def optimized_clustering(
                 **params,
             )
 
-            # Calculate silhouette score for each treatment separately
-            silhouette_scores = []
-
-            for treatment in profiles.get_column(treatment_col).unique().to_list():
-                treatment_mask = (
-                    clustered_profiles.get_column(treatment_col) == treatment
-                )
-                treatment_data = clustered_profiles.filter(treatment_mask)
-
-                # Skip treatments with too few cells or only one cluster
-                if len(treatment_data) < 2:
-                    continue
-
-                cluster_labels = treatment_data.get_column(
-                    "Metadata_cluster_id"
-                ).to_numpy()
-                unique_clusters = np.unique(cluster_labels)
-
-                # Skip if only one cluster (silhouette score undefined)
-                if len(unique_clusters) < 2:
-                    continue
-
-                # Get the feature matrix for this treatment
-                features_matrix = treatment_data.select(morph_features).to_numpy()
-
-                # Calculate silhouette score
-                score = silhouette_score(features_matrix, cluster_labels)
-                silhouette_scores.append(score)
-
-            # Return mean silhouette score across all treatments
-            if silhouette_scores:
-                return np.mean(silhouette_scores)
-            else:
-                # If no valid scores, return a very low score to penalize this configuration
-                return -1.0
+            # Calculate and return mean silhouette score
+            return calculate_mean_silhouette_score(
+                clustered_profiles=clustered_profiles,
+                morph_features=morph_features,
+                treatment_col=treatment_col,
+            )
 
         except Exception as e:
             print(f"Exception in Optuna objective: {e}")
@@ -423,4 +433,4 @@ def optimized_clustering(
         seed=seed,
     )
 
-    return optimized_result
+    return optimized_result, study.best_params
