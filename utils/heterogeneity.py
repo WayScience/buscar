@@ -11,20 +11,21 @@ import optuna
 import polars as pl
 import scanpy as sc
 from beartype import beartype
+from scipy.stats import hmean
 from sklearn.metrics import silhouette_score
 
 from .validator import _validate_param_grid
 
 
-def calculate_mean_silhouette_score(
+def calculate_hmean_silhouette_score(
     clustered_profiles: pl.DataFrame,
     morph_features: list[str] | pl.Series,
     treatment_col: str,
 ) -> float:
-    """Calculate mean silhouette score across all treatments in clustered profiles.
+    """Calculate harmonic mean silhouette score across all treatments in clustered profiles.
 
     This function computes the silhouette score for each treatment group separately
-    and returns the mean score across all treatments. Treatments with too few cells
+    and returns the harmonic mean score across all treatments. Treatments with too few cells
     or only one cluster are skipped. If no valid scores can be computed, returns -1.0.
 
     These calculations are done within the optimized_clustering function to evaluate
@@ -44,7 +45,7 @@ def calculate_mean_silhouette_score(
     Returns
     -------
     float
-        Mean silhouette score across all valid treatments. Returns -1.0 if no valid
+        Harmonic mean silhouette score across all valid treatments. Returns -1.0 if no valid
         scores can be computed (e.g., all treatments have only one cluster or too
         few cells).
 
@@ -80,9 +81,9 @@ def calculate_mean_silhouette_score(
         score = silhouette_score(features_matrix, cluster_labels)
         silhouette_scores.append(score)
 
-    # Return mean silhouette score across all treatments
+    # Return harmonic mean silhouette score across all treatments
     if silhouette_scores:
-        return np.mean(silhouette_scores)
+        return hmean(silhouette_scores)
     else:
         # If no valid scores, return a very low score to penalize this configuration
         return -1.0
@@ -391,8 +392,8 @@ def optimized_clustering(
                 **params,
             )
 
-            # Calculate and return mean silhouette score
-            return calculate_mean_silhouette_score(
+            # Calculate and return harmonic mean silhouette score
+            return calculate_hmean_silhouette_score(
                 clustered_profiles=clustered_profiles,
                 morph_features=morph_features,
                 treatment_col=treatment_col,
