@@ -122,88 +122,84 @@ def compute_earth_movers_distance(
 
 @beartype
 def measure_phenotypic_activity(
-    ref_profile: pl.DataFrame,
-    exp_profiles: pl.DataFrame,
+    profiles: pl.DataFrame,
     on_signature: list[str],
     off_signature: list[str],
-    method: Literal["emd"] = "emd",
+    ref_treatment: str = "DMSO",
     cluster_col: str = "Metadata_cluster",
     treatment_col: str = "Metadata_treatment",
+    method: Literal["emd"] = "emd",
     emd_dist_matrix_method: Literal["euclidean", "cosine", "sqeuclidean"] = "euclidean",
 ) -> pl.DataFrame:
-    """Measure phenotypic activity between reference and experimental profiles using
-    on- and off- morphology signatures.
+    """Measure how different treatment clusters are from reference (control) clusters.
 
-    This function computes distance metrics between reference and experimental cell
-    populations across different clusters and treatments. It generates pairwise
-    comparisons for all combinations of reference clusters, experimental clusters,
-    and treatments, returning both on-morphology and off-morphology distance scores.
+    This function compares cell populations between a reference treatment (e.g., DMSO control)
+    and experimental treatments by calculating distance scores. For each treatment cluster,
+    it computes distances to all reference clusters using two sets of morphological features:
+
+    - **On-signature**: Features that should change with treatment (biologically relevant)
+    - **Off-signature**: Features that should remain stable (used as baseline)
+
+    The function returns pairwise comparisons with distance scores and cluster ratios,
+    which can be used to identify which treatment clusters show meaningful phenotypic changes.
 
     Parameters
     ----------
-    ref_profile : pl.DataFrame
-        Reference profile DataFrame containing morphological features and cluster metadata.
-        Must include the column specified by `cluster_col`.
-    exp_profiles : pl.DataFrame
-        Experimental profiles DataFrame containing morphological features, cluster, and
-        treatment metadata. Must include columns specified by `cluster_col` and `treatment_col`.
+    profiles : pl.DataFrame
+        Combined DataFrame containing both reference and experimental profiles with
+        morphological features, cluster assignments, and treatment labels.
     on_signature : list[str]
-        List of morphological feature column names that constitute the on-morphology
-        signature (features significantly different between cellular states).
+        Morphological feature columns expected to change with treatment (target features).
     off_signature : list[str]
-        List of morphological feature column names that constitute the off-morphology
-        signature (features not significantly different between cellular states).
-    method : Literal["emd"], optional
-        Distance calculation method. Currently only supports "emd" (Earth Mover's Distance),
-        by default "emd".
+        Morphological feature columns expected to remain stable (baseline features).
+    ref_treatment : str, optional
+        Name of the reference/control treatment to compare against, by default "DMSO".
     cluster_col : str, optional
-        Column name containing cluster identifiers in both reference and experimental
-        DataFrames, by default "Metadata_cluster".
+        Column name containing cluster identifiers, by default "Metadata_cluster".
     treatment_col : str, optional
-        Column name containing treatment identifiers in the experimental DataFrame,
-        by default "Metadata_treatment".
+        Column name containing treatment labels, by default "Metadata_treatment".
+    method : Literal["emd"], optional
+        Distance calculation method. Currently only "emd" (Earth Mover's Distance)
+        is supported, by default "emd".
     emd_dist_matrix_method : Literal["euclidean", "cosine", "sqeuclidean"], optional
-        Distance metric used for computing the cost matrix in EMD calculations,
-        by default "euclidean".
+        Distance metric for computing pairwise distances in EMD, by default "euclidean".
 
     Returns
     -------
     pl.DataFrame
-        DataFrame with columns: 'ref_cluster', 'treatment', 'exp_cluster', 'on_dist', 'off_dist'.
-        Each row represents the phenotypic activity measurement between a specific reference
-        cluster and experimental cluster-treatment combination.
-        The returned DataFrame will be empty if no valid combinations are found.
+        DataFrame with one row per reference-treatment cluster pair, containing:
+        - ref_cluster: Reference cluster ID
+        - treatment: Treatment name
+        - exp_cluster: Experimental treatment cluster ID
+        - on_dist: Distance score for on-signature features (lower = more similar)
+        - off_dist: Distance score for off-signature features (lower = more similar)
+        - exp_cluster_ratio: Proportion of treatment cells in this cluster
+
+        Returns empty DataFrame if no valid comparisons can be made.
 
     Raises
     ------
-    ValueError
-        If the specified method is not "emd".
     KeyError
-        If required columns (cluster_col, treatment_col) are missing from input DataFrames.
-    ValueError
-        If on_signature or off_signature contain column names not present in the DataFrames.
+        If cluster_col is not found in the profiles DataFrame.
     """
-
-    # Validate method
-    if method != "emd":
-        raise ValueError(
-            f"Unsupported method: {method}. Currently only 'emd' is supported."
-        )
-
     # Validate required columns exist
-    if cluster_col not in ref_profile.columns:
+    meta_feats = profiles.drop(on_signature + off_signature).columns
+
+    if cluster_col not in meta_feats:
         raise KeyError(f"Column '{cluster_col}' not found in ref_profile")
-    if (
-        cluster_col not in exp_profiles.columns
-        or treatment_col not in exp_profiles.columns
-    ):
-        raise KeyError(
-            f"Required columns '{cluster_col}' or '{treatment_col}' not found in exp_profiles"
-        )
+
+    # create a cluster ratio dataframe
+    cluster_ratio_dict = dict(
+        profiles[["Metadata_cluster_id", "Metadata_cluster_ratio"]].unique().rows()
+    )
+
+    # separating ref and exp profiles
+    ref_profiles = profiles.filter(pl.col(treatment_col) == ref_treatment)
+    exp_profiles = profiles.filter(pl.col(treatment_col) != ref_treatment)
 
     # get all unique combinations by using group by
     ref_clusters = (
-        ref_profile.group_by(cluster_col)
+        ref_profiles.group_by(cluster_col)
         .len()
         .select(cluster_col)
         .to_series()
@@ -229,7 +225,7 @@ def measure_phenotypic_activity(
     for treatment, ref_cluster, exp_cluster in treatment_cluster_combinations:
         try:
             # Get pre-filtered data
-            ref_cluster_population_df = ref_profile.filter(
+            ref_cluster_population_df = ref_profiles.filter(
                 pl.col(cluster_col) == ref_cluster
             )
 
@@ -262,6 +258,7 @@ def measure_phenotypic_activity(
                     "exp_cluster": exp_cluster,
                     "on_dist": on_dist,
                     "off_dist": off_dist,
+                    "exp_cluster_ratio": cluster_ratio_dict[exp_cluster],
                 }
             )
 
