@@ -189,6 +189,16 @@ def measure_phenotypic_activity(
         raise KeyError(f"Column '{cluster_col}' not found in ref_profile")
 
     # create a cluster ratio dataframe
+    if (
+        "Metadata_cluster_ratio" not in meta_feats
+        and "Metadata_cluster_id" not in meta_feats
+    ):
+        raise KeyError(
+            "Cluster ratio columns 'Metadata_cluster_ratio' and"
+            "'Metadata_cluster_id' not found in profiles DataFrame. This"
+            "indicates that your profiles have not been clustered. Please run"
+            "clustering before measuring phenotypic activity."
+        )
     cluster_ratio_dict = dict(
         profiles[["Metadata_cluster_id", "Metadata_cluster_ratio"]].unique().rows()
     )
