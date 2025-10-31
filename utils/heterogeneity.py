@@ -104,35 +104,43 @@ def cluster_profiles(
 ) -> pl.DataFrame:
     """Cluster single-cell profiles using graph-based clustering algorithms.
 
-    Performs per-treatment clustering in a shared embedding space by:
-    1. Computing neighbors on the full dataset (shared space)
-    2. Subsetting to each treatment independently
-    3. Clustering each treatment subset
-    4. Combining results with unique cluster IDs per treatment
+    Performs per-treatment clustering where each treatment is analyzed independently:
+    1. Subset profiles to each treatment
+    2. Compute neighbors within that treatment only
+    3. Cluster the treatment subset
+    4. Combine results with unique cluster IDs per treatment
+
+    This ensures clustering reflects within-treatment heterogeneity without
+    cross-treatment influence.
 
     Parameters
     ----------
     profiles : pl.DataFrame
-        DataFrame containing single-cell profiles with morphological features and metadata.
+        DataFrame containing single-cell profiles with morphological features
+        and metadata.
     meta_features : list[str] | pl.Series
-        List or Series of column names representing metadata features to retain in output.
+        List or Series of column names representing metadata features to retain
+        in output.
     morph_features : list[str] | pl.Series
-        List or Series of column names representing morphological features to use for
+        List or Series of column names representing morphological features to
+        use for
         neighbor graph construction and clustering.
     treatment_col : str
-        Column name indicating treatment groups. Each treatment will be clustered
+        Column name indicating treatment groups. Each treatment will be
+        clustered
         independently.
     cluster_method : Literal["louvain", "leiden"], default "leiden"
         Clustering algorithm to use.
     cluster_resolution : float, default 1.0
         Resolution parameter controlling cluster granularity.
     n_neighbors : int, default 15
-        Number of nearest neighbors for graph construction.
+        Number of nearest neighbors for graph construction. Must be less than the
+        number of cells in the smallest treatment.
     neighbor_distance_metric : Literal["cosine", "euclidean", "manhattan"], default "euclidean"
         Distance metric for neighbor graph.
     min_cells_per_treatment : int, default 10
-        Minimum cells required per treatment for clustering. Treatments with fewer cells
-        are labeled as "{treatment}_insufficient_cells".
+        Minimum cells required per treatment for clustering. Treatments with
+        fewer cells are labeled as "{treatment}_insufficient_cells".
     seed : int, default 0
         Random seed for reproducibility.
 
@@ -152,7 +160,7 @@ def cluster_profiles(
         If treatment_col not in profiles, or if morph_features contain NaN/Inf values.
 
     """
-    # 1. Convert to AnnData and add treatment info to .obs
+    # Convert to AnnData and add treatment info to .obs
     # this can either be PCA-reduced data or raw data
     obs_df = profiles.select(meta_features).to_pandas()
     obs_df.index = obs_df.index.astype(str)
@@ -166,16 +174,7 @@ def cluster_profiles(
     if adata.obs[treatment_col].dtype != "category":
         adata.obs[treatment_col] = adata.obs[treatment_col].astype("category")
 
-    # 2. Compute neighbors
-    sc.pp.neighbors(
-        adata,
-        n_neighbors=n_neighbors,
-        use_rep="X",
-        random_state=seed,
-        metric=neighbor_distance_metric,
-    )
-
-    # 3. Cluster each treatment independently
+    # Cluster each treatment independently
     all_cluster_labels = [""] * len(profiles)
     treatments = profiles.get_column(treatment_col).unique().to_list()
 
@@ -195,6 +194,15 @@ def cluster_profiles(
         # Subset AnnData to this treatment only
         treatment_adata = adata[treatment_indices].copy()
 
+        # compute neighbors within selected treatment
+        sc.pp.neighbors(
+            treatment_adata,
+            n_neighbors=n_neighbors,
+            use_rep="X",
+            random_state=seed,
+            metric=neighbor_distance_metric,
+        )
+
         try:
             # Apply clustering to the subset
             if cluster_method == "louvain":
@@ -212,7 +220,7 @@ def cluster_profiles(
                     key_added="cluster",
                 )
 
-            # Extract cluster labels (now they're simple strings like "0", "1", etc.)
+            # Extract cluster labels (they're simple strings like "0", "1", etc.)
             cluster_labels = treatment_adata.obs["cluster"].values
 
             # Assign back to full list with treatment prefix
