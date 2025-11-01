@@ -2,6 +2,8 @@
 Tests for utils.preprocess module
 """
 
+import contextlib
+
 import numpy as np
 import polars as pl
 import pytest
@@ -9,31 +11,44 @@ import pytest
 from utils.preprocess import apply_pca
 
 
+@contextlib.contextmanager
+def temporary_seed(seed: int):
+    """Context manager to temporarily set numpy random seed"""
+    state = np.random.get_state()
+    np.random.seed(seed)
+    try:
+        yield
+    finally:
+        np.random.set_state(state)
+
+
 # Fixtures at module level (shared across all test classes)
 @pytest.fixture
 def dummy_profiles():
     """Create dummy profiles DataFrame for testing"""
-    np.random.seed(0)
-    n_samples = 100
-    n_features = 50
+    with temporary_seed(0):
+        n_samples = 100
+        n_features = 50
 
-    # Create dummy data
-    morph_data = np.random.randn(n_samples, n_features)
-    feature_cols = [f"Feature_{i}" for i in range(n_features)]
+        # Create dummy data
+        morph_data = np.random.randn(n_samples, n_features)
+        feature_cols = [f"Feature_{i}" for i in range(n_features)]
 
-    # Create metadata
-    metadata = {
-        "Metadata_Well": [f"A{i:02d}" for i in range(n_samples)],
-        "Metadata_Plate": ["Plate1"] * 50 + ["Plate2"] * 50,
-        "Metadata_Treatment": np.random.choice(["DMSO", "Drug_A", "Drug_B"], n_samples),
-    }
+        # Create metadata
+        metadata = {
+            "Metadata_Well": [f"A{i:02d}" for i in range(n_samples)],
+            "Metadata_Plate": ["Plate1"] * 50 + ["Plate2"] * 50,
+            "Metadata_Treatment": np.random.choice(
+                ["DMSO", "Drug_A", "Drug_B"], n_samples
+            ),
+        }
 
-    # Combine into DataFrame
-    df_dict = {**metadata}
-    for i, col in enumerate(feature_cols):
-        df_dict[col] = morph_data[:, i]
+        # Combine into DataFrame
+        df_dict = {**metadata}
+        for i, col in enumerate(feature_cols):
+            df_dict[col] = morph_data[:, i]
 
-    return pl.DataFrame(df_dict)
+        return pl.DataFrame(df_dict)
 
 
 @pytest.fixture
@@ -242,16 +257,16 @@ class TestApplyPCA:
     def test_pca_with_small_dataset(self, meta_features, morph_features):
         """Test PCA with very small dataset"""
         # Create minimal dataset
-        np.random.seed(42)
-        small_data = {
-            "Metadata_Well": ["A01", "A02", "A03"],
-            "Metadata_Plate": ["P1", "P1", "P1"],
-            "Metadata_Treatment": ["DMSO", "Drug", "DMSO"],
-        }
-        for feat in morph_features[:10]:  # Use only 10 features
-            small_data[feat] = np.random.randn(3)
+        with temporary_seed(42):
+            small_data = {
+                "Metadata_Well": ["A01", "A02", "A03"],
+                "Metadata_Plate": ["P1", "P1", "P1"],
+                "Metadata_Treatment": ["DMSO", "Drug", "DMSO"],
+            }
+            for feat in morph_features[:10]:  # Use only 10 features
+                small_data[feat] = np.random.randn(3)
 
-        small_df = pl.DataFrame(small_data)
+            small_df = pl.DataFrame(small_data)
 
         result = apply_pca(
             profiles=small_df,

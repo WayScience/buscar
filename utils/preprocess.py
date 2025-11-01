@@ -13,7 +13,8 @@ def apply_pca(
     profiles: pl.DataFrame,
     meta_features: list[str],
     morph_features: list[str],
-    var_explained=0.95,
+    var_explained: float | int = 0.95,
+    svd_solver="full",
     standardize=False,
     random_state=0,
     **kwargs,
@@ -28,9 +29,20 @@ def apply_pca(
         List of column names corresponding to metadata features.
     morph_features : list[str]
         List of column names corresponding to morphological features.
-    var_explained : float, optional
-        The amount of variance to be explained by the selected components.
-        Default is 0.95.
+    var_explained : float or int, optional
+        If a float between 0 and 1 is provided, it specifies the fraction of variance
+        to be explained by the selected components (default is 0.95). If an integer is
+        provided, it specifies the exact number of principal components to keep.
+    svd_solver : str, optional
+        The SVD solver to use for PCA. Default is 'full'. Options include 'auto', 'full',
+        'arpack', and 'randomized'.  Note: The behavior of the 'n_components' parameter
+        depends on its type:
+        - If a float between 0 and 1 is provided (e.g., var_explained), it specifies
+        the fraction of variance to preserve, and the 'full' solver must be used.
+        - If an integer is provided, it specifies the exact number of principal
+        components to keep, and other solvers such as 'arpack' or 'randomized' may be
+        appropriate.
+        See scikit-learn's PCA documentation for details.
     standardize : bool, optional
         Whether to standardize the morphological features before applying PCA.
         Default is False.
@@ -53,6 +65,20 @@ def apply_pca(
             "Input data contains NaNs. Please handle them before applying PCA."
         )
 
+    # if the var explained is between 0 and 1 and is not "full" raise an error
+    if isinstance(var_explained, float) and not (0 < var_explained < 1):
+        raise ValueError(
+            "'var_explained' as a float must be between 0 and 1 (exclusive)."
+            "Provide an integer for number of components instead."
+        )
+    # check if the solver is compatible with var_explained
+    if isinstance(var_explained, float) and svd_solver != "full":
+        raise ValueError(
+            "When 'var_explained' is a float between 0 and 1, 'svd_solver' must be set "
+            "to 'full' because PCA needs to determine the number of components that "
+            "explain the specified variance."
+        )
+
     # standardize data if specified
     if standardize:
         scaler = StandardScaler()
@@ -64,6 +90,7 @@ def apply_pca(
     pca = PCA(
         n_components=var_explained,
         random_state=random_state,
+        svd_solver=svd_solver,
         **kwargs,
     )
     principal_components = pca.fit_transform(data_scaled)
