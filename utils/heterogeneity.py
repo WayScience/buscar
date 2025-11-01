@@ -14,6 +14,7 @@ from beartype import beartype
 from scipy.stats import hmean
 from sklearn.metrics import silhouette_score
 
+from .checks import check_for_nans
 from .validator import _validate_param_grid
 
 
@@ -160,6 +161,14 @@ def cluster_profiles(
         If treatment_col not in profiles, or if morph_features contain NaN/Inf values.
 
     """
+    # Check if treatment_col exists
+    if treatment_col not in profiles.columns:
+        raise ValueError(f"treatment_col '{treatment_col}' not found in profiles.")
+
+    # Check for NaN/Inf in morph_features
+    # this will raise ValueError if any are found
+    check_for_nans(profiles, morph_features)
+
     # Convert to AnnData and add treatment info to .obs
     # this can either be PCA-reduced data or raw data
     obs_df = profiles.select(meta_features).to_pandas()
