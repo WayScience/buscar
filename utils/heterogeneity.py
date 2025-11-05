@@ -1,10 +1,9 @@
 """
 Functions for assessing cellular heterogeneity via clustering, including Optuna-based
-parameter optimization to maximize silhouette score. Uses scanpy for dimensionality
-reduction and clustering (Louvain/Leiden), performed per treatment group.
+parameter optimization to maximize silhouette score. Uses scanpy for graph-based
+clustering (Louvain/Leiden), performed per treatment group.
 """
 
-import gc
 import pathlib
 import shutil
 import tempfile
@@ -39,7 +38,8 @@ def calculate_silhouette_score(
     Returns
     -------
     float
-        Silhouette score (-1 to 1, higher is better). Returns -1 if calculation fails.
+        Silhouette score (-1 to 1, higher is better). Returns -1 if calculation
+        fails.
     """
     try:
         # Ensure morph_features is a list
@@ -106,14 +106,14 @@ def cluster_profiles(
 
     Parameters
     ----------
-    profiles : pl.DataFrame
-        Single-cell profiles containing morphological measurements. Must contain
-        cells from exactly one treatment or experimental condition (raises error
-        if multiple treatments found).
-    meta_features : list[str]
+    profiles : pl.DataFrame | str | pathlib.Path
+        Single-cell profiles containing morphological measurements. Can be a DataFrame
+        or path to a parquet/csv file. Must contain cells from exactly one treatment
+        or experimental condition (raises error if multiple treatments found).
+    meta_features : list[str] | pl.Series
         Column names for metadata fields (e.g., 'Metadata_Well', 'Metadata_Plate')
         to preserve in the output.
-    morph_features : list[str]
+    morph_features : list[str] | pl.Series
         Column names for morphological features (e.g., cell area, intensity, texture)
         used to compute cellular similarity and perform clustering.
     treatment_col : str
@@ -170,6 +170,13 @@ def cluster_profiles(
     # If a path is provided, load the profiles
     if isinstance(profiles, (str, pathlib.Path)):
         profiles = load_profiles(profiles, convert_to_f32=convert_to_f32)
+
+    # Ensure features are lists for consistent handling
+    if isinstance(meta_features, pl.Series):
+        meta_features = meta_features.to_list()
+    if isinstance(morph_features, pl.Series):
+        morph_features = morph_features.to_list()
+
     if treatment_col not in profiles.columns:
         raise ValueError(f"treatment_col '{treatment_col}' not found in profiles.")
 
@@ -287,16 +294,74 @@ def _optimize_single_profile(
     seed: int,
     study_name: str,
 ) -> tuple[pl.DataFrame, dict[str, Any], float]:
-    """Optimize clustering for a single treatment profile.
+    """Optimize clustering parameters for a single treatment using Optuna.
+
+    This function creates and executes an Optuna study to find the optimal clustering
+    parameters for a single treatment profile. It defines an objective function that
+    Optuna uses to evaluate different parameter combinations by clustering the data
+    and calculating the silhouette score.
+
+    The optimization process:
+    1. Optuna samples parameter combinations from the search space (param_grid)
+    2. For each trial, the objective function clusters the profiles with those parameters
+    3. Silhouette score is calculated to measure cluster quality
+    4. Optuna uses the scores to guide sampling toward better parameters
+    5. After n_trials, the best parameters are used for final clustering
+
+    This is an internal helper function called by `optimized_clustering()` for each
+    treatment group in parallel.
+
+    Parameters
+    ----------
+    profile_path : str | pathlib.Path
+        Path to parquet file containing single-cell profiles for one treatment.
+    meta_features : list[str]
+        Column names for metadata fields to preserve in output.
+    morph_features : list[str]
+        Column names for morphological features used for clustering.
+    treatment_col : str
+        Column name identifying the treatment.
+    param_grid : dict[str, Any]
+        Parameter search space defining ranges for each clustering parameter.
+    n_trials : int
+        Number of parameter combinations to evaluate.
+    seed : int
+        Random seed for reproducibility.
+    study_name : str
+        Name for the Optuna study (used for logging/tracking).
 
     Returns
     -------
     tuple[pl.DataFrame, dict[str, Any], float]
-        Best clustered profile, best parameters, and best silhouette score.
+        - Best clustered profile (DataFrame with cluster assignments)
+        - Best parameters found (dictionary of parameter names to values)
+        - Best silhouette score achieved
+
+    Notes
+    -----
+    The objective function returns -1.0 for failed trials, which Optuna treats
+    as a poor result and avoids sampling similar parameter combinations.
     """
 
     def objective(trial: optuna.Trial) -> float:
-        """Optuna objective function to maximize silhouette score."""
+        """Optuna objective function to maximize silhouette score.
+
+        This function is called by Optuna for each trial. It receives a Trial
+        object that provides methods to sample parameters from the search space,
+        runs clustering with those parameters, and returns the silhouette score
+        for Optuna to evaluate.
+
+        Parameters
+        ----------
+        trial : optuna.Trial
+            Optuna trial object that provides parameter sampling methods.
+
+        Returns
+        -------
+        float
+            Silhouette score for the current parameter combination. Higher is
+            better (range -1 to 1). Returns -1.0 if clustering fails.
+        """
         params = {}
 
         for param_name, param_config in param_grid.items():
@@ -399,8 +464,10 @@ def optimized_clustering(
     profiles : pl.DataFrame | list[str | pathlib.Path]
         Either a DataFrame containing multiple treatments (will be split automatically),
         or a list of file paths where each file contains a single treatment's profiles.
+        If DataFrame is provided, meta_features must include 'Metadata_cell_id'.
     meta_features : list[str]
-        Column names for metadata fields to preserve in output.
+        Column names for metadata fields to preserve in output. Must include
+        'Metadata_cell_id' when profiles is a DataFrame.
     morph_features : list[str]
         Column names for morphological features used for clustering.
     treatment_col : str
@@ -426,7 +493,8 @@ def optimized_clustering(
     Raises
     ------
     ValueError
-        If param_grid contains invalid parameter specifications.
+        If param_grid contains invalid parameter specifications, or if
+        'Metadata_cell_id' is not in meta_features when profiles is a DataFrame.
 
     Notes
     -----
@@ -449,19 +517,24 @@ def optimized_clustering(
                 "DataFrame."
             )
         temp_dir_path = pathlib.Path(tempfile.mkdtemp())
-        treatment_groups = profiles.group_by(treatment_col)
         profile_paths = []
 
-        for treatment, group_df in treatment_groups:
-            temp_file = (temp_dir_path / f"{treatment}_profiles.parquet").resolve()
+        # Iterate directly over group_by iterator for better memory efficiency
+        for treatment, group_df in profiles.group_by(treatment_col):
+            # Sanitize treatment name for filesystem safety
+            # Convert tuple to string and remove problematic characters
+            safe_treatment = str(
+                treatment[0] if isinstance(treatment, tuple) else treatment
+            )
+            safe_treatment = (
+                safe_treatment.replace("/", "_").replace("\\", "_").replace(" ", "_")
+            )
+
+            temp_file = (temp_dir_path / f"{safe_treatment}_profiles.parquet").resolve()
             group_df.write_parquet(temp_file)
             profile_paths.append(temp_file)
 
         profiles = profile_paths
-
-        # free up memory generated by the grouping
-        del treatment_groups, group_df
-        gc.collect()
 
     try:
         # setting study name
