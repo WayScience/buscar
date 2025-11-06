@@ -433,7 +433,7 @@ def _optimize_single_profile(
 
 @beartype
 def optimized_clustering(
-    profiles: pl.DataFrame | list[str | pathlib.Path],
+    profiles: pl.DataFrame,
     meta_features: list[str],
     morph_features: list[str],
     treatment_col: str,
@@ -450,28 +450,27 @@ def optimized_clustering(
     optimized independently to find parameters that maximize the silhouette score
     for that specific treatment.
 
-    If a DataFrame is provided, it will be automatically split by treatment, with
-    each treatment processed in parallel. If a list of file paths is provided,
-    each file should contain profiles for a single treatment.
-
-    The silhouette score quantifies how well-separated the clusters are, with higher
-    values indicating better-defined clusters. By optimizing clustering parameters
-    for each treatment, we can better capture cellular heterogeneity specific to
+    The DataFrame is automatically split by treatment, with each treatment group
+    saved to a temporary parquet file and processed in parallel. The silhouette
+    score quantifies how well-separated the clusters are, with higher values
+    indicating better-defined clusters. By optimizing clustering parameters for
+    each treatment, we can better capture cellular heterogeneity specific to
     each condition.
 
     Parameters
     ----------
-    profiles : pl.DataFrame | list[str | pathlib.Path]
-        Either a DataFrame containing multiple treatments (will be split automatically),
-        or a list of file paths where each file contains a single treatment's profiles.
-        If DataFrame is provided, meta_features must include 'Metadata_cell_id'.
+    profiles : pl.DataFrame
+        DataFrame containing multiple treatments (will be split automatically by
+        treatment_col). Each treatment will be clustered independently. Must
+        include 'Metadata_cell_id' column for tracking cells across clustering.
     meta_features : list[str]
-        Column names for metadata fields to preserve in output. Must include
-        'Metadata_cell_id' when profiles is a DataFrame.
+        List of column names for metadata fields to preserve during clustering.
+        Must include 'Metadata_cell_id'.
     morph_features : list[str]
-        Column names for morphological features used for clustering.
+        List of column names for morphological features used for clustering.
     treatment_col : str
-        Column name identifying treatments. Used to split DataFrame if provided.
+        Column name identifying treatments. Used to split DataFrame into separate
+        treatment groups for independent optimization.
     param_grid : dict[str, Any]
         Parameter search space. Each key is a parameter name, each value is a dict
         with 'type' and range info (e.g., {"type": "float", "low": 0.1, "high": 2.0}).
@@ -487,54 +486,77 @@ def optimized_clustering(
     Returns
     -------
     tuple[pl.DataFrame, dict[str, dict[str, Any]]]
-        - Concatenated DataFrame with optimized clustering for all treatments
-        - Dictionary mapping treatment names to their best parameters and scores
+        - DataFrame with cluster metadata columns only:
+          * Metadata_cell_id: Cell identifier for joining back to original profiles
+          * Metadata_cluster_id: Cluster assignment for each cell
+          * Metadata_cluster_n_cells: Number of cells in each cluster
+          * Metadata_treatment_n_cells: Total cells per treatment
+          * Metadata_cluster_ratio: Proportion of treatment cells in each cluster
+        - Dictionary mapping treatment names to their best parameters and scores:
+          * "params": Best parameter combination found
+          * "silhouette_score": Best silhouette score achieved
 
     Raises
     ------
     ValueError
         If param_grid contains invalid parameter specifications, or if
-        'Metadata_cell_id' is not in meta_features when profiles is a DataFrame.
+        'Metadata_cell_id' is not present in meta_features.
 
     Notes
     -----
-    - Temporary files are created when splitting a DataFrame, then cleaned up automatically
+    - Requires 'Metadata_cell_id' column in input profiles for tracking cells
+    - Temporary parquet files are created for parallel processing, then cleaned up
     - Each treatment is optimized independently with its own Optuna study
     - Progress is printed for each treatment showing best silhouette score and parameters
+    - Return DataFrame contains only cluster metadata; join with original profiles
+      using 'Metadata_cell_id' to add cluster assignments to full data
+
+    Examples
+    --------
+    >>> param_grid = {
+    ...     "cluster_resolution": {"type": "float", "low": 0.1, "high": 2.0},
+    ...     "n_neighbors": {"type": "int", "low": 5, "high": 50},
+    ...     "cluster_method": {"type": "categorical", "choices": ["leiden", "louvain"]},
+    ... }
+    >>> cluster_metadata, best_params = optimized_clustering(
+    ...     profiles=df,
+    ...     meta_features=["Metadata_cell_id", "Metadata_Well", "Metadata_Plate"],
+    ...     morph_features=feature_cols,
+    ...     treatment_col="Metadata_Treatment",
+    ...     param_grid=param_grid,
+    ...     n_trials=50,
+    ...     n_jobs=4
+    ... )
+    >>> # Join cluster assignments back to original profiles
+    >>> profiles_with_clusters = df.join(cluster_metadata, on="Metadata_cell_id")
     """
     # Validate parameter grid
     _validate_param_grid(param_grid)
 
-    # Track if we created a temporary directory that needs cleanup
-    temp_dir_path = None
+    # Validate that 'Metadata_cell_id' is in meta_features
+    if "Metadata_cell_id" not in meta_features:
+        raise ValueError(
+            "'Metadata_cell_id' must be included in meta_features for clustering."
+        )
 
-    # If DataFrame is passed, split by treatment and save to temp files
-    # replace profiles with list of file paths to those temp files
-    if isinstance(profiles, pl.DataFrame):
-        if "Metadata_cell_id" not in meta_features:
-            raise ValueError(
-                "meta_features must include 'Metadata_cell_id' when passing a "
-                "DataFrame."
-            )
-        temp_dir_path = pathlib.Path(tempfile.mkdtemp())
-        profile_paths = []
+    # Create temporary directory and split profiles by treatment
+    temp_dir_path = pathlib.Path(tempfile.mkdtemp())
+    profile_paths = []
 
-        # Iterate directly over group_by iterator for better memory efficiency
-        for treatment, group_df in profiles.group_by(treatment_col):
-            # Sanitize treatment name for filesystem safety
-            # Convert tuple to string and remove problematic characters
-            safe_treatment = str(
-                treatment[0] if isinstance(treatment, tuple) else treatment
-            )
-            safe_treatment = (
-                safe_treatment.replace("/", "_").replace("\\", "_").replace(" ", "_")
-            )
+    # Iterate directly over group_by iterator for better memory efficiency
+    for treatment, group_df in profiles.group_by(treatment_col):
+        # Sanitize treatment name for filesystem safety
+        # Convert tuple to string and remove problematic characters
+        safe_treatment = str(
+            treatment[0] if isinstance(treatment, tuple) else treatment
+        )
+        safe_treatment = (
+            safe_treatment.replace("/", "_").replace("\\", "_").replace(" ", "_")
+        )
 
-            temp_file = (temp_dir_path / f"{safe_treatment}_profiles.parquet").resolve()
-            group_df.write_parquet(temp_file)
-            profile_paths.append(temp_file)
-
-        profiles = profile_paths
+        temp_file = (temp_dir_path / f"{safe_treatment}_profiles.parquet").resolve()
+        group_df.write_parquet(temp_file)
+        profile_paths.append(temp_file)
 
     try:
         # setting study name
@@ -542,13 +564,11 @@ def optimized_clustering(
             study_name = f"cluster_optimization_{seed}"
 
         # Prepare parallel optimization tasks for each treatment profile
-        # Each task is a delayed call to optimize clustering for a single treatment
         tasks = []
-        for profile_path in profiles:
+        for profile_path in profile_paths:
             treatment_name = pathlib.Path(profile_path).stem.replace("_profiles", "")
             task_study_name = f"{study_name}_{treatment_name}"
 
-            # generate the delayed function call
             tasks.append(
                 delayed(_optimize_single_profile)(
                     profile_path=profile_path,
@@ -575,7 +595,7 @@ def optimized_clustering(
         best_params_per_treatment = {}
 
         for profile_path, (clustered_df, best_params, best_score) in zip(
-            profiles, results
+            profile_paths, results
         ):
             treatment_name = pathlib.Path(profile_path).stem.replace("_profiles", "")
 
@@ -585,14 +605,25 @@ def optimized_clustering(
                 "silhouette_score": best_score,
             }
 
+            # Print progress
             print(
                 f"  {treatment_name}: silhouette={best_score:.3f}, params={best_params}"
             )
 
-        # Concatenate all results
-        final_df = pl.concat(all_clustered, how="vertical")
+        # Concatenate all results and select relevant columns
+        cluster_df = pl.concat(all_clustered, how="vertical").select(
+            pl.col(
+                [
+                    "Metadata_cell_id",
+                    "Metadata_cluster_id",
+                    "Metadata_cluster_n_cells",
+                    "Metadata_treatment_n_cells",
+                    "Metadata_cluster_ratio",
+                ]
+            )
+        )
 
-        return final_df, best_params_per_treatment
+        return cluster_df, best_params_per_treatment
 
     finally:
         # once the clustering is finished, we clean the temp directory if it was
