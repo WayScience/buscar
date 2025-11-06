@@ -539,24 +539,38 @@ def add_cell_id_hash(
 ) -> pl.DataFrame:
     """Add a unique hash column to a DataFrame of image-based profiles.
 
-    This function generates a unique hash for each profile within the dataframe
-    based on the row values and an optional seed for reproducibility. The hash
-    is added as a new column named 'Metadata_cell_id'.
+    This function generates a unique hash identifier for each row in the DataFrame
+    based on all column values and an optional seed for reproducibility. The hash
+    is added as a new column named 'Metadata_cell_id' placed as the first column.
 
     Parameters
     ----------
     profiles : pl.DataFrame
-        Dataframe containing profiles
+        DataFrame containing single-cell profiles or image-based data.
     seed : int, optional
-        An integer seed to ensure reproducibility of the hash values, by default 0.
+        Seed value for reproducible hash generation, by default 0.
     force : bool, optional
-        If True, will overwrite existing 'Metadata_cell_id' column if it exists,
+        If True, overwrites existing 'Metadata_cell_id' column. If False and the
+        column exists, returns the DataFrame unchanged with a warning message,
         by default False.
 
     Returns
     -------
     pl.DataFrame
-        The original Polars DataFrame with an additional 'Metadata_cell_id' column.
+        DataFrame with 'Metadata_cell_id' column as the first column. If the column
+        already exists and force=False, returns the original DataFrame unmodified.
+
+    Raises
+    ------
+    TypeError
+        If profiles is not a Polars DataFrame.
+
+    Notes
+    -----
+    - The hash is deterministic: same data and seed always produce the same hash
+    - The 'Metadata_cell_id' column is positioned as the first column in the output
+    - If the column already exists without force=True, the function returns early
+      without modifications
     """
     if not isinstance(profiles, pl.DataFrame):
         raise TypeError("profiles must be a Polars DataFrame")
@@ -564,15 +578,18 @@ def add_cell_id_hash(
     # Handle existing column
     if "Metadata_cell_id" in profiles.columns:
         if not force:
-            raise ValueError(
+            # print warning message that the column already exists
+            print(
                 "'Metadata_cell_id' column already exists in the DataFrame. "
                 "Set force=True to overwrite the existing column."
             )
-        profiles = profiles.drop("Metadata_cell_id")
+            return profiles
+        else:
+            profiles = profiles.drop("Metadata_cell_id")
 
-    # hash rows to create unique cell IDs
+    # hash rows to create unique cell IDs and cast as string
     return profiles.with_columns(
-        pl.struct(pl.all()).hash_rows(seed=seed).alias("Metadata_cell_id")
+        profiles.hash_rows(seed=seed).alias("Metadata_cell_id")
     ).select(
         ["Metadata_cell_id"]
         + [col for col in profiles.columns if col != "Metadata_cell_id"]
