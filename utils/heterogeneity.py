@@ -544,7 +544,7 @@ def optimized_clustering(
     profile_paths = []
 
     # Iterate directly over group_by iterator for better memory efficiency
-    for treatment, group_df in profiles.group_by(treatment_col):
+    for treatment, group_df in profiles.group_by(treatment_col, maintain_order=True):
         # Sanitize treatment name for filesystem safety
         # Convert tuple to string and remove problematic characters
         safe_treatment = str(
