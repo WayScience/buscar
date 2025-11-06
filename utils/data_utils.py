@@ -532,3 +532,48 @@ def generate_consensus_signatures(
         }
 
     return consensus_signatures
+
+
+def add_cell_id_hash(
+    profiles: pl.DataFrame, seed: int = 0, force: bool = False
+) -> pl.DataFrame:
+    """Add a unique hash column to a DataFrame of image-based profiles.
+
+    This function generates a unique hash for each profile within the dataframe
+    based on the row values and an optional seed for reproducibility. The hash
+    is added as a new column named 'Metadata_cell_id'.
+
+    Parameters
+    ----------
+    profiles : pl.DataFrame
+        Dataframe containing profiles
+    seed : int, optional
+        An integer seed to ensure reproducibility of the hash values, by default 0.
+    force : bool, optional
+        If True, will overwrite existing 'Metadata_cell_id' column if it exists,
+        by default False.
+
+    Returns
+    -------
+    pl.DataFrame
+        The original Polars DataFrame with an additional 'Metadata_cell_id' column.
+    """
+    if not isinstance(profiles, pl.DataFrame):
+        raise TypeError("profiles must be a Polars DataFrame")
+
+    # Handle existing column
+    if "Metadata_cell_id" in profiles.columns:
+        if not force:
+            raise ValueError(
+                "'Metadata_cell_id' column already exists in the DataFrame. "
+                "Set force=True to overwrite the existing column."
+            )
+        profiles = profiles.drop("Metadata_cell_id")
+
+    # hash rows to create unique cell IDs
+    return profiles.with_columns(
+        pl.struct(pl.all()).hash_rows(seed=seed).alias("Metadata_cell_id")
+    ).select(
+        ["Metadata_cell_id"]
+        + [col for col in profiles.columns if col != "Metadata_cell_id"]
+    )
