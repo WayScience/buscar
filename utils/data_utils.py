@@ -5,6 +5,7 @@ A collection of common utility functions for data processing,
 as well as for saving, loading, and writing files.
 """
 
+import hashlib
 from collections import defaultdict
 
 import pandas as pd
@@ -534,6 +535,11 @@ def generate_consensus_signatures(
     return consensus_signatures
 
 
+def _hash_string(s: str) -> str:
+    """Apply MD5 hash to a string."""
+    return hashlib.md5(s.encode()).hexdigest()
+
+
 def add_cell_id_hash(
     profiles: pl.DataFrame, seed: int = 0, force: bool = False
 ) -> pl.DataFrame:
@@ -568,6 +574,7 @@ def add_cell_id_hash(
     Notes
     -----
     - The hash is deterministic: same data and seed always produce the same hash
+    - Uses MD5 hashing for stable, reproducible results across platforms and versions
     - The 'Metadata_cell_id' column is positioned as the first column in the output
     - If the column already exists without force=True, the function returns early
       without modifications
@@ -578,7 +585,6 @@ def add_cell_id_hash(
     # Handle existing column
     if "Metadata_cell_id" in profiles.columns:
         if not force:
-            # print warning message that the column already exists
             print(
                 "'Metadata_cell_id' column already exists in the DataFrame. "
                 "Set force=True to overwrite the existing column."
@@ -587,10 +593,18 @@ def add_cell_id_hash(
         else:
             profiles = profiles.drop("Metadata_cell_id")
 
-    # hash rows to create unique cell IDs and cast as string
-    return profiles.with_columns(
-        profiles.hash_rows(seed=seed).alias("Metadata_cell_id")
-    ).select(
-        ["Metadata_cell_id"]
-        + [col for col in profiles.columns if col != "Metadata_cell_id"]
+    # Create a concatenated string of all column values per row, then apply MD5 hash
+    # This is much faster than iterating through rows in Python
+
+    # Concatenate all columns into a single string per row, add seed, then hash
+    profiles_with_hash = profiles.with_columns(
+        pl.concat_str(
+            [pl.col(col).cast(pl.Utf8) for col in profiles.columns], separator="|"
+        )
+        .add(f"|{seed}")
+        .map_elements(_hash_string, return_dtype=pl.Utf8)
+        .alias("Metadata_cell_id")
     )
+
+    # Reorder columns to put Metadata_cell_id first
+    return profiles_with_hash.select(["Metadata_cell_id"] + profiles.columns)
