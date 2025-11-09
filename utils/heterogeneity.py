@@ -405,11 +405,15 @@ def _optimize_single_profile(
             print(f"Trial failed for {profile_path}: {e}")
             return -1.0
 
+    # Set a unique seed for the study to ensure different sampling per treatment
+    # using the hash of the study name to make it unique for each treatment
+    optuna_seed = seed + hash(study_name) % (2**32)
+
     # Create and run study
     study = optuna.create_study(
         direction="maximize",
         study_name=study_name,
-        sampler=optuna.samplers.TPESampler(seed=seed),
+        sampler=optuna.samplers.TPESampler(seed=optuna_seed),
     )
 
     study.optimize(
