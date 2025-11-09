@@ -27,6 +27,7 @@ from utils.heterogeneity import optimized_clustering
 from utils.identify_hits import identify_compound_hit
 from utils.io_utils import load_profiles
 from utils.metrics import measure_phenotypic_activity
+from utils.preprocess import apply_pca
 from utils.signatures import get_signatures
 
 # Setting paramters
@@ -38,22 +39,19 @@ from utils.signatures import get_signatures
 treatment_col = "Metadata_treatment"
 treatment_heart_col = "Metadata_treatment_and_heart"
 
-
 # parameters used for clustering optimization
-cfret_cluster_param_grid = {
+cfret_pilot_cluster_param_grid = {
     # Clustering resolution: how granular the clusters should be
     "cluster_resolution": {"type": "float", "low": 0.1, "high": 2.2},
     # Number of neighbors for graph construction
     "n_neighbors": {"type": "int", "low": 5, "high": 100},
     # Clustering algorithm
-    "cluster_method": {"type": "categorical", "choices": ["leiden", "louvain"]},
+    "cluster_method": {"type": "categorical", "choices": ["leiden"]},
     # Distance metric for neighbor computation
     "neighbor_distance_metric": {
         "type": "categorical",
         "choices": ["euclidean", "cosine", "manhattan"],
     },
-    # Dimensionality reduction approach
-    "dim_reduction": {"type": "categorical", "choices": ["PCA", "raw"]},
 }
 
 
@@ -126,11 +124,22 @@ cfret_meta, cfret_feats = split_meta_and_features(cfret_df)
 cfret_df.head()
 
 
+# In[5]:
+
+
+# show how many cells per treatment
+# shows the number of cells per treatment that will be clustered.
+cells_per_treatment_counts = (
+    cfret_df.group_by(treatment_heart_col).count().sort(treatment_heart_col)
+)
+cells_per_treatment_counts
+
+
 # ## BUSCAR pipeline
 
 # Creating on and off morphology signatures
 
-# In[5]:
+# In[6]:
 
 
 # setting output paths
@@ -160,136 +169,93 @@ else:
         json.dump({"on": on_sigs, "off": off_sigs}, f, indent=4)
 
 
-# assess heterogeneity
-
-# In[6]:
-
-
-# setting best params outputs
-treatment_best_params_outpath = (
-    results_dir / "cfret_treatment_clustering_params.json"
-).resolve()
-cfret_treatment_cluster_df_outpath = (
-    results_dir / "cfret_treatment_clustered.parquet"
-).resolve()
-cfret_treatment_heart_cluster_df_outpath = (
-    results_dir / "cfret_treatment_heart_clustered.parquet"
-).resolve()
-treatment_heart_best_params_outpath = (
-    results_dir / "cfret_treatment_heart_clustering_params.json"
-).resolve()
-
-# check if the files exist, if they do skip this step
-if all(
-    path.exists()
-    for path in [
-        treatment_best_params_outpath,
-        cfret_treatment_cluster_df_outpath,
-    ]
-):
-    # load the profiles
-    cfret_treatment_clustered_df = pl.read_parquet(cfret_treatment_cluster_df_outpath)
-else:
-    # here we are clustering each treatment regardless of heart
-    # this will allow us to see how each treatment affects the population as a whole
-    cfret_treatment_clustered_df, cfret_treatment_clustered_best_params = (
-        optimized_clustering(
-            profiles=cfret_df,
-            meta_features=cfret_meta,
-            morph_features=cfret_feats,
-            treatment_col=treatment_col,
-            param_grid=cfret_cluster_param_grid,
-            n_trials=200,
-            n_jobs=1,
-        )
-    )
-
-    # save best params as json and dataframe as parquet
-    cfret_treatment_clustered_df.write_parquet(cfret_treatment_cluster_df_outpath)
-    with open(treatment_best_params_outpath, "w") as f:
-        json.dump(
-            cfret_treatment_clustered_best_params,
-            f,
-            indent=4,
-        )
-
-
-# check if the files exist, if they do skip this step aswell
-if all(
-    path.exists()
-    for path in [
-        cfret_treatment_heart_cluster_df_outpath,
-        treatment_heart_best_params_outpath,
-    ]
-):
-    # load the profiles
-    cfret_treatment_heart_clustered_df = pl.read_parquet(
-        cfret_treatment_heart_cluster_df_outpath
-    )
-else:
-    # here we are clustering each treatment-heart combination
-    # this will allow us to see how each heart responds to each treatment
-    cfret_treatment_heart_clustered_df, cfret_treatment_heart_clustered_best_params = (
-        optimized_clustering(
-            profiles=cfret_df,
-            meta_features=cfret_meta,
-            morph_features=cfret_feats,
-            treatment_col=treatment_heart_col,
-            param_grid=cfret_cluster_param_grid,
-            n_trials=200,
-            n_jobs=1,
-        )
-    )
-
-    # save best params as json and dataframe as parquet
-    cfret_treatment_heart_clustered_df.write_parquet(
-        cfret_treatment_heart_cluster_df_outpath
-    )
-    with open(treatment_heart_best_params_outpath, "w") as f:
-        json.dump(
-            cfret_treatment_heart_clustered_best_params,
-            f,
-            indent=4,
-        )
-
-
-# Measure phenotypic activity between clusters
+# Search for heterogenous effects for each treatment
 
 # In[7]:
 
 
-# setting output paths
-treatment_dist_scores_outpath = (
-    results_dir / "treatment_phenotypic_dist_scores.csv"
-).resolve()
-treatment_heart_dist_scores_outpath = (
-    results_dir / "treatment_heart_dist_scores.csv"
-).resolve()
+# Apply PCA to cfret_data
+pca_cfret_df = apply_pca(
+    profiles=cfret_df,
+    meta_features=cfret_meta,
+    morph_features=cfret_feats,
+    var_explained=0.95,
+    seed=0,
+)
 
-if all(
-    path.exists()
-    for path in [
-        treatment_dist_scores_outpath,
-        treatment_heart_dist_scores_outpath,
-    ]
-):
-    print("Distance scores already exist, skipping this step.")
+# update cfret_feats because PCA was applied
+cfret_pca_feats = pca_cfret_df.drop(cfret_meta).columns
 
-    # load the distance scores
-    treatment_dist_scores = pl.read_csv(treatment_dist_scores_outpath)
-    treatment_heart_dist_scores = pl.read_csv(treatment_heart_dist_scores_outpath)
 
+# In[ ]:
+
+
+# number of cores required for optuna jobs
+# each optuna jobs is distrubred per treament
+cfret_n_jobs = cfret_df["Metadata_treatment_and_heart"].n_unique()
+print(f"Number of unique treatments (hearts + treatment): {cfret_n_jobs}")
+
+# check if the cluster labels already exist; if so just load the labels and skip optimization
+# if not run optimization
+cluster_labels_output = (results_dir / "cfret_pilot_cluster_labels.parquet").resolve()
+if cluster_labels_output.exists():
+    print("Cluster labels already exist, skipping clustering optimization.")
+    cfret_cluster_labels_df = pl.read_parquet(cluster_labels_output)
+    cfret_best_params = (
+        None  # You may want to load best params from a saved file if needed
+    )
 else:
-    # measuring phenotypic activity
-    treatment_dist_scores = measure_phenotypic_activity(
-        profiles=cfret_treatment_clustered_df,
-        on_signature=on_sigs,
-        off_signature=off_sigs,
-        ref_treatment="DMSO_heart_11",
+    # optimizing clustering
+    cfret_cluster_labels_df, cfret_best_params = optimized_clustering(
+        profiles=pca_cfret_df,
+        meta_features=cfret_meta,
+        morph_features=cfret_pca_feats,
+        treatment_col=treatment_heart_col,
+        param_grid=cfret_pilot_cluster_param_grid,
+        n_trials=500,
+        n_jobs=cfret_n_jobs,
+        seed=0,
+        study_name="cfret_pilot_pca",
     )
 
+    # write out cluster labels
+    cfret_cluster_labels_df.write_parquet(cluster_labels_output)
+
+    # write best params as a json file
+    with open(results_dir / "cfret_pilot_best_clustering_params.json", "w") as f:
+        json.dump(cfret_best_params, f, indent=4)
+
+
+# In[9]:
+
+
+# merge cfret_df with the cluster labels and make sure to drop duplicate Metadata_cell_id columns
+labeled_cfret_df = cfret_df.join(
+    cfret_cluster_labels_df,
+    on=["Metadata_cell_id"],
+    how="left",
+)
+
+# check if the no rows added
+assert cfret_df.height == labeled_cfret_df.height, (
+    "Merged DataFrame has different number of rows!"
+)
+
+
+# In[10]:
+
+
+# setting output paths
+treatment_dist_scores_outpath = (
+    results_dir / "treatment_phenotypic_scores.csv"
+).resolve()
+if treatment_dist_scores_outpath.exists():
+    print("Treatment phenotypic distance scores already exist, skipping this step.")
+    treatment_dist_scores = pl.read_csv(treatment_dist_scores_outpath)
+
+else:
     treatment_heart_dist_scores = measure_phenotypic_activity(
-        profiles=cfret_treatment_heart_clustered_df,
+        profiles=labeled_cfret_df,
         on_signature=on_sigs,
         off_signature=off_sigs,
         ref_treatment="DMSO_heart_11",
@@ -297,42 +263,35 @@ else:
     )
 
     # save those as csv files
-    treatment_dist_scores.write_csv(treatment_dist_scores_outpath)
-    treatment_heart_dist_scores.write_csv(treatment_heart_dist_scores_outpath)
+    treatment_heart_dist_scores.write_csv(treatment_dist_scores_outpath)
 
 
-# Rank treatments
+# In[11]:
 
-# In[8]:
+
+treatment_heart_dist_scores
+
+
+# In[12]:
 
 
 # setting outptut paths
-treatment_rankings_outpath = (results_dir / "treatment_rankings.csv").resolve()
 treatment_heart_rankings_outpath = (
     results_dir / "treatment_heart_rankings.csv"
 ).resolve()
-
-if all(
-    path.exists()
-    for path in [
-        treatment_rankings_outpath,
-        treatment_heart_rankings_outpath,
-    ]
-):
-    print("Rankings already exist, skipping this step.")
-
-    # load the rankings
-    treatment_rankings = pl.read_csv(treatment_rankings_outpath)
+if treatment_heart_rankings_outpath.exists():
+    print("Treatment heart rankings already exist, skipping this step.")
     treatment_heart_rankings = pl.read_csv(treatment_heart_rankings_outpath)
 else:
-    treatment_rankings = identify_compound_hit(
-        distance_df=treatment_dist_scores, method="weighted_sum"
-    )
-
     treatment_heart_rankings = identify_compound_hit(
         distance_df=treatment_heart_dist_scores, method="weighted_sum"
     )
 
     # save as csv files
-    treatment_rankings.write_csv(treatment_rankings_outpath)
     treatment_heart_rankings.write_csv(treatment_heart_rankings_outpath)
+
+
+# In[13]:
+
+
+treatment_heart_rankings
