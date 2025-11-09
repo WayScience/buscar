@@ -27,7 +27,7 @@ from utils import io_utils
 
 # ## Helper functions
 
-# In[ ]:
+# In[2]:
 
 
 def download_compressed_file(
@@ -156,7 +156,7 @@ pert_type = "crispr"
 
 # setting input and output paths
 
-# In[4]:
+# In[5]:
 
 
 # setting config path
@@ -186,7 +186,7 @@ cfret_dir.mkdir(exist_ok=True)
 #
 # In this section, we download and process the CPJUMP1 experimental metadata. This metadata contains information about assay plates, batches, and perturbation types, which is essential for organizing and analyzing single-cell profiles. Only plates treated with CRISPR perturbations are selected for downstream analysis.
 
-# In[5]:
+# In[6]:
 
 
 # loading config file and setting experimental metadata URL
@@ -213,7 +213,7 @@ exp_metadata
 #
 # This step organizes the plate barcodes from the experimental metadata into groups based on their batch. Grouping plates by batch is useful for batch-wise data processing and downstream analyses.
 
-# In[6]:
+# In[7]:
 
 
 # creating a dictionary for the batch and the associated plates with the a batch

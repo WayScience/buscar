@@ -10,14 +10,13 @@
 # In[1]:
 
 
-import json
 import pathlib
 import sys
 
 import polars as pl
 
 sys.path.append("../../")
-from utils.data_utils import split_meta_and_features
+from utils.io_utils import load_profiles
 
 # Load helper functions
 
@@ -33,7 +32,7 @@ def load_group_stratified_data(
     """Memory-efficiently sample a percentage of rows from each group in a dataset.
 
     This function performs stratified sampling by loading only the grouping columns first
-    to determine group memberships and sizes, then samples indices from each group, and
+    to dtermine group memberships and sizes, then samples indices from each group, and
     finally loads the full dataset filtered to only the sampled rows. This approach
     minimizes memory usage compared to loading the entire dataset upfront.
 
@@ -123,9 +122,10 @@ download_module_results_dir = pathlib.Path("../0.download-data/results").resolve
 # setting directory where all the single-cell profiles are stored
 profiles_dir = (data_dir / "sc-profiles").resolve(strict=True)
 
-exp_metadata_path = (
-    profiles_dir / "cpjump1" / "CPJUMP1-experimental-metadata.csv"
+cpjump1_data_path = (
+    profiles_dir / "cpjump1" / "cpjump1_crispr_concat_profiles.parquet"
 ).resolve(strict=True)
+
 
 # Setting feature selection path
 shared_features_config_path = (
@@ -149,58 +149,19 @@ poscon_data_dir.mkdir(exist_ok=True)
 # In[4]:
 
 
-# Load experimental metadata
-# selecting plates that pertains to the cpjump1 CRISPR dataset
-exp_metadata = pl.read_csv(exp_metadata_path)
-crispr_plate_names = (
-    exp_metadata.select("Assay_Plate_Barcode").unique().to_series().to_list()
+# load all profiles
+profiles_df = load_profiles(cpjump1_data_path)
+
+# create a negative control subset
+negcon_df = profiles_df.filter(
+    (pl.col("Metadata_pert_type") == "control")
+    & (pl.col("Metadata_control_type") == "negcon")
 )
-crispr_plate_paths = [
-    (profiles_dir / "cpjump1" / f"{plate}_feature_selected_sc_qc.parquet").resolve(
-        strict=True
-    )
-    for plate in crispr_plate_names
-]
-# Load shared features
-with open(shared_features_config_path) as f:
-    loaded_shared_features = json.load(f)
-
-shared_features = loaded_shared_features["shared-features"]
-
-
-# In[5]:
-
-
-control_df = []
-for plate_path in crispr_plate_paths:
-    # load plate data and filter to controls
-    plate_controls_df = pl.read_parquet(plate_path).filter(
-        pl.col("Metadata_pert_type") == "control"
-    )
-
-    # split features
-    controls_meta, _ = split_meta_and_features(plate_controls_df)
-
-    # select metadata and shared features together
-    controls_df = plate_controls_df.select(controls_meta + shared_features)
-
-    # then append to list
-    control_df.append(controls_df)
-
-# concatenate dataframes
-controls_df = pl.concat(control_df)
-
-
-# In[6]:
-
-
-negcon_df = controls_df.filter(pl.col("Metadata_control_type") == "negcon")
-negcon_df
 
 
 # generating 10 seeds of randomly sampled negative controls
 
-# In[7]:
+# In[5]:
 
 
 for seed_val in range(10):
@@ -220,9 +181,12 @@ for seed_val in range(10):
 
 # Selecting only positive controls and saving it
 
-# In[8]:
+# In[6]:
 
 
 # write as parquet file
-poscon_cp_df = controls_df.filter(pl.col("Metadata_control_type") == "poscon_cp")
+poscon_cp_df = profiles_df.filter(
+    (pl.col("Metadata_pert_type") == "control")
+    & (pl.col("Metadata_control_type") == "poscon_cp")
+)
 poscon_cp_df.write_parquet(poscon_data_dir / "poscon_cp_df.parquet")
