@@ -289,9 +289,3 @@ else:
 
     # save as csv files
     treatment_heart_rankings.write_csv(treatment_heart_rankings_outpath)
-
-
-# In[13]:
-
-
-treatment_heart_rankings
