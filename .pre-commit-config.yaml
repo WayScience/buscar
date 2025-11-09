@@ -24,7 +24,7 @@ repos:
 
   # Python syntax upgrades (should run before linting/formatting)
 -   repo: https://github.com/asottile/pyupgrade
-    rev: v3.21.0
+    rev: v3.21.1
     hooks:
     -   id: pyupgrade
         args: ["--py311-plus"]
@@ -38,7 +38,7 @@ repos:
 
   # Ruff for linting and formatting Python files
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.1
+    rev: v0.14.4
     hooks:
     -   id: ruff-check
         args: ["--fix"]
@@ -62,7 +62,7 @@ repos:
 
   # Keep pre-commit itself up to date (run last)
 -   repo: https://gitlab.com/vojko.pribudic.foss/pre-commit-update
-    rev: v0.8.0
+    rev: v0.9.0
     hooks:
     -   id: pre-commit-update
         args: ["--verbose"]
