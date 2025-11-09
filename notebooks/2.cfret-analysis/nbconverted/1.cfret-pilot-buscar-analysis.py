@@ -226,7 +226,7 @@ else:
         json.dump(cfret_best_params, f, indent=4)
 
 
-# In[9]:
+# In[10]:
 
 
 # merge cfret_df with the cluster labels and make sure to drop duplicate Metadata_cell_id columns
@@ -242,7 +242,7 @@ assert cfret_df.height == labeled_cfret_df.height, (
 )
 
 
-# In[10]:
+# In[11]:
 
 
 # setting output paths
@@ -266,13 +266,13 @@ else:
     treatment_heart_dist_scores.write_csv(treatment_dist_scores_outpath)
 
 
-# In[11]:
+# In[12]:
 
 
 treatment_heart_dist_scores
 
 
-# In[12]:
+# In[13]:
 
 
 # setting outptut paths
