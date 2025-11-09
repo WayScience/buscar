@@ -242,7 +242,7 @@ assert cfret_df.height == labeled_cfret_df.height, (
 )
 
 
-# In[11]:
+# In[ ]:
 
 
 # setting output paths
@@ -251,7 +251,7 @@ treatment_dist_scores_outpath = (
 ).resolve()
 if treatment_dist_scores_outpath.exists():
     print("Treatment phenotypic distance scores already exist, skipping this step.")
-    treatment_dist_scores = pl.read_csv(treatment_dist_scores_outpath)
+    treatment_heart_dist_scores = pl.read_csv(treatment_dist_scores_outpath)
 
 else:
     treatment_heart_dist_scores = measure_phenotypic_activity(
