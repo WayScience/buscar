@@ -126,7 +126,7 @@ def measure_phenotypic_activity(
     on_signature: list[str],
     off_signature: list[str],
     ref_treatment: str = "DMSO",
-    cluster_col: str = "Metadata_cluster",
+    cluster_col: str = "Metadata_cluster_id",
     treatment_col: str = "Metadata_treatment",
     method: Literal["emd"] = "emd",
     emd_dist_matrix_method: Literal["euclidean", "cosine", "sqeuclidean"] = "euclidean",
