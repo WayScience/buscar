@@ -265,7 +265,7 @@ def measure_phenotypic_activity(
                 {
                     "ref_cluster": ref_cluster,
                     "treatment": treatment,
-                    "exp_cluster": exp_cluster,
+                    "trt_cluster": exp_cluster,
                     "on_dist": on_dist,
                     "off_dist": off_dist,
                     "exp_cluster_ratio": cluster_ratio_dict[exp_cluster],
