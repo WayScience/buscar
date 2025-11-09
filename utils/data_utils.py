@@ -541,13 +541,18 @@ def _hash_string(s: str) -> str:
 
 
 def add_cell_id_hash(
-    profiles: pl.DataFrame, seed: int = 0, force: bool = False
+    profiles: pl.DataFrame,
+    seed: int = 0,
+    force: bool = False,
 ) -> pl.DataFrame:
     """Add a unique hash column to a DataFrame of image-based profiles.
 
     This function generates a unique hash identifier for each row in the DataFrame
     based on all column values and an optional seed for reproducibility. The hash
     is added as a new column named 'Metadata_cell_id' placed as the first column.
+
+    Null values are temporarily replaced with a string representation for hashing
+    purposes only - the original data remains unchanged.
 
     Parameters
     ----------
@@ -559,12 +564,15 @@ def add_cell_id_hash(
         If True, overwrites existing 'Metadata_cell_id' column. If False and the
         column exists, returns the DataFrame unchanged with a warning message,
         by default False.
+    null_replacement : str, optional
+        String to represent null values in the hash (does not modify original data),
+        by default "NULL".
 
     Returns
     -------
     pl.DataFrame
-        DataFrame with 'Metadata_cell_id' column as the first column. If the column
-        already exists and force=False, returns the original DataFrame unmodified.
+        Original DataFrame with 'Metadata_cell_id' column added as the first column.
+        Original data including nulls remains unchanged.
 
     Raises
     ------
@@ -576,8 +584,8 @@ def add_cell_id_hash(
     - The hash is deterministic: same data and seed always produce the same hash
     - Uses MD5 hashing for stable, reproducible results across platforms and versions
     - The 'Metadata_cell_id' column is positioned as the first column in the output
-    - If the column already exists without force=True, the function returns early
-      without modifications
+    - Null values are converted to strings ONLY for hash generation; original nulls
+      are preserved in the returned DataFrame
     """
     if not isinstance(profiles, pl.DataFrame):
         raise TypeError("profiles must be a Polars DataFrame")
@@ -593,18 +601,18 @@ def add_cell_id_hash(
         else:
             profiles = profiles.drop("Metadata_cell_id")
 
-    # Create a concatenated string of all column values per row, then apply MD5 hash
-    # This is much faster than iterating through rows in Python
-
-    # Concatenate all columns into a single string per row, add seed, then hash
-    profiles_with_hash = profiles.with_columns(
+    # Create hash column using temporary null-filled versionx
+    hash_column = (
         pl.concat_str(
-            [pl.col(col).cast(pl.Utf8) for col in profiles.columns], separator="|"
+            [pl.col(col).cast(pl.Utf8).fill_null("NULL") for col in profiles.columns]
+            + [pl.lit(f"|{seed}")],
+            separator="|",
         )
-        .add(f"|{seed}")
         .map_elements(_hash_string, return_dtype=pl.Utf8)
         .alias("Metadata_cell_id")
     )
 
-    # Reorder columns to put Metadata_cell_id first
-    return profiles_with_hash.select(["Metadata_cell_id"] + profiles.columns)
+    # Add the hash column to the ORIGINAL profiles (with nulls intact)
+    return profiles.with_columns(hash_column).select(
+        ["Metadata_cell_id"] + profiles.columns
+    )
