@@ -226,7 +226,7 @@ else:
         json.dump(cfret_best_params, f, indent=4)
 
 
-# In[10]:
+# In[ ]:
 
 
 # merge cfret_df with the cluster labels and make sure to drop duplicate Metadata_cell_id columns
@@ -237,9 +237,8 @@ labeled_cfret_df = cfret_df.join(
 )
 
 # check if the no rows added
-assert cfret_df.height == labeled_cfret_df.height, (
-    "Merged DataFrame has different number of rows!"
-)
+if cfret_df.height != labeled_cfret_df.height:
+    raise ValueError("Merged DataFrame has different number of rows!")
 
 
 # In[ ]:

@@ -15,7 +15,7 @@
 #
 # These preprocessing steps ensure that all datasets are standardized, well-documented, and ready for comparative and integrative analyses.
 
-# In[2]:
+# In[1]:
 
 
 import json
@@ -31,7 +31,7 @@ from utils.data_utils import add_cell_id_hash, split_meta_and_features
 #
 # Contains helper function that pertains to this notebook.
 
-# In[3]:
+# In[2]:
 
 
 def load_and_concat_profiles(
@@ -206,7 +206,7 @@ results_dir.mkdir(exist_ok=True)
 
 # Create a list of paths that only points crispr treated plates and load the shared features config file that can be found in this [repo](https://github.com/WayScience/JUMP-single-cell)
 
-# In[6]:
+# In[5]:
 
 
 # Load experimental metadata
@@ -238,7 +238,7 @@ shared_features = loaded_shared_features["shared-features"]
 # - Data integrity is maintained during the merge operation
 # - Adding a unique cell id has column `Metadata_cell_id`
 
-# In[7]:
+# In[6]:
 
 
 # Loading crispr profiles with shared features and concat into a single DataFrame
@@ -246,17 +246,18 @@ concat_output_path = (
     cpjump1_output_dir / "cpjump1_crispr_concat_profiles.parquet"
 ).resolve()
 
-cjump_profiles = load_and_concat_profiles(
+# loaded and concatenated profiles
+cpjump1_profiles = load_and_concat_profiles(
     profile_dir=profiles_dir,
     specific_plates=crispr_plate_paths,
     shared_features=shared_features,
 )
 
 # create an index columm and unique cell ID based on features of a single profiles
-jump_profiles = add_cell_id_hash(cjump_profiles)
+cpjump1_profiles = add_cell_id_hash(cpjump1_profiles)
 
 # Split meta and features
-meta_cols, features_cols = split_meta_and_features(jump_profiles)
+meta_cols, features_cols = split_meta_and_features(cpjump1_profiles)
 
 # Saving metadata and features of the concat profile into a json file
 meta_features_dict = {
@@ -268,8 +269,8 @@ meta_features_dict = {
 with open(cpjump1_output_dir / "concat_profiles_meta_features.json", "w") as f:
     json.dump(meta_features_dict, f, indent=4)
 
-# save as parquet
-cjump_profiles.write_parquet(concat_output_path)
+# save as parquet with defined order of columns
+cpjump1_profiles.select(meta_cols + features_cols).write_parquet(concat_output_path)
 
 
 # ## Preprocessing MitoCheck Dataset
