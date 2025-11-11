@@ -16,7 +16,7 @@ def apply_pca(
     var_explained: float | int = 0.95,
     svd_solver="full",
     standardize=False,
-    seed=0,
+    random_state=0,
     **kwargs,
 ) -> pl.DataFrame:
     """Apply PCA to the morphological features of the profiles DataFrame.
@@ -89,7 +89,7 @@ def apply_pca(
     # apply PCA
     pca = PCA(
         n_components=var_explained,
-        random_state=seed,
+        random_state=random_state,
         svd_solver=svd_solver,
         **kwargs,
     )
