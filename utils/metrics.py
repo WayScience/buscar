@@ -113,9 +113,9 @@ def compute_earth_movers_distance(
         metric=distance_metric,
     )
 
-    # compute on and off emd scores
-    on_emd = ot.emd2(weights_ref, weights_exp, on_M)
-    off_emd = ot.emd2(weights_ref, weights_exp, off_M)
+    # compute on and off emd scores with increased numItermax to avoid warnings
+    on_emd = ot.emd2(weights_ref, weights_exp, on_M, numItermax=100000)
+    off_emd = ot.emd2(weights_ref, weights_exp, off_M, numItermax=100000)
 
     return on_emd, off_emd
 
@@ -207,6 +207,14 @@ def measure_phenotypic_activity(
     ref_profiles = profiles.filter(pl.col(treatment_col) == ref_treatment)
     exp_profiles = profiles.filter(pl.col(treatment_col) != ref_treatment)
 
+    # check that there are profiles to compare
+    if ref_profiles.height == 0:
+        raise ValueError(
+            f"No reference profiles found for treatment '{ref_treatment}'."
+        )
+    if exp_profiles.height == 0:
+        raise ValueError("No experimental profiles found to compare against.")
+
     # get all unique combinations by using group by
     ref_clusters = (
         ref_profiles.group_by(cluster_col)
@@ -239,16 +247,27 @@ def measure_phenotypic_activity(
                 pl.col(cluster_col) == ref_cluster
             )
 
-            exp_cluster_population_df = exp_profiles.filter(
-                (pl.col(treatment_col) == treatment)
-                & (pl.col(cluster_col) == exp_cluster)
-            )
+            if exp_cluster is None:
+                exp_cluster_population_df = exp_profiles.filter(
+                    (pl.col(treatment_col) == treatment)
+                    & (pl.col(cluster_col).is_null())
+                )
+            else:
+                exp_cluster_population_df = exp_profiles.filter(
+                    (pl.col(treatment_col) == treatment)
+                    & (pl.col(cluster_col) == exp_cluster)
+                )
 
             # Skip if either population is empty
             if (
                 ref_cluster_population_df.height == 0
                 or exp_cluster_population_df.height == 0
             ):
+                print(
+                    f"Skipping comparison: ref_cluster={ref_cluster}, "
+                    f"treatment={treatment}, exp_cluster={exp_cluster} "
+                    "- one of the populations is empty."
+                )
                 continue
 
             # Calculate EMD distances

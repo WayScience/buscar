@@ -172,4 +172,7 @@ _*
 results/
 
 # remove background jobs
-*nohup.out
+nohup.out
+
+# remove log
+*.logs

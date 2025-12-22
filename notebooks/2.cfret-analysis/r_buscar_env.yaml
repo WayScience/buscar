@@ -1,0 +1,61 @@
+name: r_buscar
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  # R base and essentials
+  - r-base=4.3.*
+  - r-essentials
+
+  # Data manipulation
+  - r-tidyverse=2.0.*
+  - r-dplyr=1.1.*
+  - r-tidyr=1.3.*
+  - r-readr=2.1.*
+  - r-tibble=3.2.*
+  - r-stringr=1.5.*
+  - r-purrr=1.0.*
+
+  # Data I/O
+  - r-arrow=14.*  # For reading parquet files
+  - r-data.table=1.14.*
+  - r-jsonlite=1.8.*
+
+  # Plotting essentials
+  - r-ggplot2=3.4.*
+  - r-ggrepel=0.9.*  # For better label placement
+  - r-patchwork=1.1.*  # For combining plots
+  - r-cowplot=1.1.*  # Publication-ready plots
+  - r-ggpubr=0.6.*  # Publication-ready themes
+  - r-ggsci=3.0.*  # Scientific journal color palettes
+  - r-scales=1.3.*  # Scale functions for ggplot2
+  - r-gridextra=2.3  # Arrange multiple plots
+
+  # Advanced plotting
+  - r-pheatmap=1.0.*  # Heatmaps
+  - r-complexheatmap  # Advanced heatmaps (bioconda)
+  - r-viridis=0.6.*  # Color palettes
+  - r-rcolorbrewer=1.1.*  # Color palettes
+  - r-ggridges=0.5.*  # Ridge plots
+  - r-plotly=4.10.*  # Interactive plots
+
+  # Statistical analysis
+  - r-mass=7.3.*
+  - r-car=3.1.*
+  - r-lme4=1.1.*
+  - r-emmeans=1.8.*
+
+  # Bioinformatics (if needed)
+  - bioconductor-complexheatmap
+
+  # Utilities
+  - r-here=1.0.*  # Path management
+  - r-glue=1.6.*  # String interpolation
+  - r-magrittr=2.0.*  # Pipe operator
+  - r-devtools=2.4.*  # Development tools
+
+  # Jupyter support (optional, if using R notebooks)
+  - r-irkernel=1.3.*
+  - jupyter
+  - notebook
