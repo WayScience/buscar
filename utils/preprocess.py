@@ -2,7 +2,10 @@
 This module contains utility functions for data preprocessing
 """
 
+from typing import Literal
+
 import polars as pl
+import umap
 from beartype import beartype
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
@@ -103,6 +106,85 @@ def apply_pca(
             pl.DataFrame(
                 principal_components, schema=pca_colnames
             ),  # PCA components df
+        ],
+        how="horizontal",
+    )
+
+
+@beartype
+def apply_umap(
+    profiles: pl.DataFrame,
+    meta_features: list[str],
+    morph_features: list[str],
+    n_components: int = 2,
+    n_neighbors: int = 15,
+    min_dist: float = 0.1,
+    metric: Literal["euclidean", "cosine"] = "euclidean",
+    random_state: int = 0,
+    **kwargs,
+) -> pl.DataFrame:
+    """Apply UMAP to the morphological features of the profiles DataFrame.
+
+    Parameters
+    ----------
+    profiles : pl.DataFrame
+        Input DataFrame containing morphological and metadata features.
+    meta_features : list[str]
+        List of column names corresponding to metadata features.
+    morph_features : list[str]
+        List of column names corresponding to morphological features.
+    n_components : int, optional
+        Number of UMAP components to keep. Default is 2.
+    n_neighbors : int, optional
+        The size of local neighborhood (in terms of number of neighboring sample points)
+        used for manifold approximation. Larger values result in more global views of the
+        manifold, while smaller values result in more local data being preserved. Default is 15.
+    min_dist : float, optional
+        The effective minimum distance between embedded points. Smaller values will result
+        in a more clustered/clumped embedding where nearby points on the manifold are drawn
+        closer together, while larger values will result in a more even dispersal of points.
+        Default is 0.1.
+    metric : str, optional
+        The metric to use to compute distances in high dimensional space. Default is 'euclidean'.
+        See UMAP documentation for other options.
+    random_state : int, optional
+        Random state for reproducibility. Default is 0.
+    **kwargs
+        Additional keyword arguments for UMAP that can be found here:
+        https://umap-learn.readthedocs.io/en/latest/parameters.html
+
+    Returns
+    -------
+    pl.DataFrame
+        DataFrame containing the metadata features and the UMAP components.
+
+    """
+
+    # check if there are nans in the feature space
+    if profiles.select(morph_features).null_count().sum_horizontal().sum() > 0:
+        raise ValueError(
+            "Input data contains NaNs. Please handle them before applying UMAP."
+        )
+
+    # apply UMAP
+    umap_model = umap.UMAP(
+        n_components=n_components,
+        n_neighbors=n_neighbors,
+        min_dist=min_dist,
+        metric=metric,
+        random_state=random_state,
+        **kwargs,
+    )
+    umap_components = umap_model.fit_transform(
+        profiles.select(morph_features).to_numpy()
+    )
+
+    # concat metadata information with UMAP components
+    umap_colnames = [f"UMAP{i + 1}" for i in range(umap_components.shape[1])]
+    return pl.concat(
+        [
+            profiles.select(meta_features),  # metadata df
+            pl.DataFrame(umap_components, schema=umap_colnames),  # UMAP components df
         ],
         how="horizontal",
     )
