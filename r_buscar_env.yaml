@@ -29,6 +29,7 @@ dependencies:
   - r-rcolorbrewer
   - r-cowplot
   - r-pheatmap
+  - r-magick
   - bioconductor-complexheatmap
 
   # Dimensionality reduction
