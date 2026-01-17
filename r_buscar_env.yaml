@@ -28,6 +28,8 @@ dependencies:
   - r-viridis
   - r-rcolorbrewer
   - r-cowplot
+  - r-pheatmap
+  - bioconductor-complexheatmap
 
   # Dimensionality reduction
   - r-umap
