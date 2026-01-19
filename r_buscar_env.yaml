@@ -31,6 +31,11 @@ dependencies:
   - r-pheatmap
   - r-magick
   - bioconductor-complexheatmap
+  - r-circlize
+  - r-plotly
+  - r-networkd3
+  - r-htmlwidgets
+  - r-webshot
 
   # Dimensionality reduction
   - r-umap
