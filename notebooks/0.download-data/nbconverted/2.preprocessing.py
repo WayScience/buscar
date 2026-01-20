@@ -26,6 +26,7 @@ import polars as pl
 
 sys.path.append("../../")
 from utils.data_utils import add_cell_id_hash, split_meta_and_features
+from utils.io_utils import load_profiles
 
 # ## Helper functions
 #
@@ -71,15 +72,6 @@ def load_and_concat_profiles(
                 "All elements in specific_plates must be pathlib.Path objects"
             )
 
-    def load_profile(file: pathlib.Path) -> pl.DataFrame:
-        """internal function to load a single profile file."""
-        profile_df = pl.read_parquet(file)
-        meta_cols, _ = split_meta_and_features(profile_df)
-        if shared_features is not None:
-            # Only select metadata and shared features
-            return profile_df.select(meta_cols + shared_features)
-        return profile_df
-
     # Use specific_plates if provided, otherwise gather all .parquet files
     if specific_plates is not None:
         # Validate that all specific plate files exist
@@ -93,7 +85,9 @@ def load_and_concat_profiles(
             raise FileNotFoundError(f"No profile files found in {profile_dir}")
 
     # Load and concatenate profiles
-    loaded_profiles = [load_profile(f) for f in files_to_load]
+    loaded_profiles = [
+        load_profiles(f, shared_features=shared_features) for f in files_to_load
+    ]
 
     # Concatenate all loaded profiles
     return pl.concat(loaded_profiles, rechunk=True)
@@ -173,6 +167,11 @@ data_dir = pathlib.Path("./data").resolve(strict=True)
 # Setting profiles directory
 profiles_dir = (data_dir / "sc-profiles").resolve(strict=True)
 
+# setting connectivity map drug repurposing config
+drug_repurposing_config_path = (data_dir / "repurposing_drugs_20180907.txt").resolve(
+    strict=True
+)
+
 # Experimental metadata
 exp_metadata_path = (
     profiles_dir / "cpjump1" / "cpjump1_compound_experimental-metadata.csv"
@@ -238,6 +237,8 @@ shared_features = loaded_shared_features["shared-features"]
 # - Data integrity is maintained during the merge operation
 # - Adding a unique cell id has column `Metadata_cell_id`
 
+# We are loading per-plate parquet profiles for compound-treated plates, selecting the shared feature set, concatenating them into a single Polars DataFrame while preserving metadata, and adding a unique Metadata_cell_id for each cell. The resulting cpjump1_profiles table is ready for downstream analysis.
+
 # In[5]:
 
 
@@ -256,10 +257,27 @@ cpjump1_profiles = load_and_concat_profiles(
 # create an index columm and unique cell ID based on features of a single profiles
 cpjump1_profiles = add_cell_id_hash(cpjump1_profiles)
 
-# Split meta and features
+
+# Next, we annotate the compound treatments in the CPJUMP1 dataset. We annotate each cell with Mechanism of Action (MoA) information using the [Clue Drug Repurposing Hub](https://clue.io/data/REP#REP). This resource provides comprehensive drug and tool compound annotations, including target information and clinical development status.
+#
+
+# In[6]:
+
+
+# load drug repurposing moa file and add prefix to metadata columns
+rep_moa_df = pl.read_csv(
+    drug_repurposing_config_path, separator="\t", skip_rows=9, encoding="utf8-lossy"
+).rename(lambda x: f"Metadata_{x}" if not x.startswith("Metadata_") else x)
+
+# merge the original cpjump1_profiles with rep_moa_df on Metadata_pert_iname
+cpjump1_profiles = cpjump1_profiles.join(
+    rep_moa_df, on="Metadata_pert_iname", how="left"
+)
+
+# split meta and feature
 meta_cols, features_cols = split_meta_and_features(cpjump1_profiles)
 
-# Saving metadata and features of the concat profile into a json file
+# save the feature space information into a json file
 meta_features_dict = {
     "concat-profiles": {
         "meta-features": meta_cols,
@@ -269,7 +287,11 @@ meta_features_dict = {
 with open(cpjump1_output_dir / "concat_profiles_meta_features.json", "w") as f:
     json.dump(meta_features_dict, f, indent=4)
 
-# save as parquet with defined order of columns
+# save concatenated profiles
+# Loading compound profiles with shared features and concat into a single DataFrame
+concat_output_path = (
+    cpjump1_output_dir / "cpjump1_compound_concat_profiles.parquet"
+).resolve()
 cpjump1_profiles.select(meta_cols + features_cols).write_parquet(concat_output_path)
 
 
@@ -290,7 +312,7 @@ cpjump1_profiles.select(meta_cols + features_cols).write_parquet(concat_output_p
 #
 # The preprocessing ensures that all MitoCheck datasets share a common feature space and are ready for comparative analysis with CPJUMP1 profiles.
 
-# In[6]:
+# In[7]:
 
 
 # load in mitocheck profiles and save as parquet
@@ -334,7 +356,7 @@ mitocheck_pos_control_profiles = mitocheck_pos_control_profiles.with_columns(
 
 # Filter Cell Profiler (CP) features and preprocess columns by removing the "CP__" prefix to standardize feature names for downstream analysis.
 
-# In[7]:
+# In[8]:
 
 
 # Split profiles to only retain cell profiler features
@@ -357,7 +379,7 @@ cp_mitocheck_pos_control_profiles = remove_feature_prefixes(
 
 # Splitting the metadata and feature columns for each dataset to enable targeted downstream analysis and ensure consistent data structure across all profiles.
 
-# In[8]:
+# In[9]:
 
 
 # manually selecting metadata features that are present across all 3 profiles
@@ -406,7 +428,7 @@ with open(mitocheck_dir / "mitocheck_feature_space_configs.json", "w") as f:
     )
 
 
-# In[9]:
+# In[10]:
 
 
 # create concatenated mitocheck profiles
@@ -444,7 +466,7 @@ concat_mitocheck_profiles.write_parquet(
 # - **Unique cell identification**: Adding `Metadata_cell_id` column with unique hash values based on all profile features to enable precise cell tracking and deduplication
 #
 
-# In[10]:
+# In[11]:
 
 
 # load in cfret profiles and add a unique cell ID
@@ -452,6 +474,9 @@ cfret_profiles = pl.read_parquet(cfret_profiles_path)
 
 # adding a unique cell ID based on all features
 cfret_profiles = add_cell_id_hash(cfret_profiles, force=True)
+
+# drop rows cells that have been treated with drug_x
+cfret_profiles = cfret_profiles.filter(pl.col("Metadata_treatment") != "drug_x")
 
 # split features
 meta_cols, features_cols = split_meta_and_features(cfret_profiles)

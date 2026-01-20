@@ -9,11 +9,14 @@ import requests
 import yaml
 from tqdm import tqdm
 
+from .data_utils import split_meta_and_features
+
 
 def load_profiles(
     fpath: str | pathlib.Path,
     convert_to_f32: bool = False,
     verbose: bool | None = False,
+    shared_features: list[str] | None = None,
 ) -> pl.DataFrame:
     """Load single-cell profiles from given file path.
 
@@ -29,6 +32,9 @@ def load_profiles(
         If True, converts all Float64 columns to Float32 to save memory. Default is False
     verbose : bool, optional
         If True, prints information about the loaded profiles. Default is False.
+    shared_features : list[str] | None, optional
+        If provided, only loads metadata columns and these specific feature columns.
+        Default is None (loads all columns).
 
     Returns
     -------
@@ -60,6 +66,11 @@ def load_profiles(
 
     # load profiles
     loaded_profiles = pl.read_parquet(fpath)
+
+    # filter to shared features if provided
+    if shared_features is not None:
+        meta_cols, _ = split_meta_and_features(loaded_profiles)
+        loaded_profiles = loaded_profiles.select(meta_cols + shared_features)
 
     # convert all Float64 columns to Float32 if convert_to_f32 is True
     if convert_to_f32:
