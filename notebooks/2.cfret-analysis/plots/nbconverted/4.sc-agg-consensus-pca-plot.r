@@ -8,14 +8,14 @@ library(IRdisplay)})
 
 
 data_dir <- file.path("../../0.download-data/data/sc-profiles")
-results_path <- file.path("./results")
+figures_dir <- file.path("./figures")
 module_results_path <- file.path("../results")
 
 cfret_profiles <- file.path(data_dir, "cfret/localhost230405150001_sc_feature_selected.parquet")
 consensus_profiles_path <- file.path(module_results_path, "aggregate_profiles/cfret_consensus_profiles.parquet")
 rep_agg_profiles_path <- file.path(module_results_path, "aggregate_profiles/cfret_replicate_profiles.parquet")
 
-dir.create(results_path, showWarnings = FALSE, recursive = TRUE)
+dir.create(figures_dir, showWarnings = FALSE, recursive = TRUE)
 
 cfret_df <- read_parquet(cfret_profiles)
 consensus_df <- read_parquet(consensus_profiles_path)
@@ -81,42 +81,47 @@ condition_colors <- c(
   "healthy + drug_x" = "#8491B4"
 )
 
+shape_map <- c(
+  "consensus" = 23,
+  "replicate-aggregate" = 22
+)
+
 pca_plot <- ggplot() +
   geom_point(
     data = single_cell_data,
     aes(x = PC1, y = PC2, color = Condition),
-    size = 0.8,
-    alpha = 0.4,
+    size = 0.5,
+    alpha = 0.3,
     shape = 16
   ) +
   geom_point(
     data = consensus_data,
-    aes(x = PC1, y = PC2, fill = Condition),
-    size = 3.5,
-    shape = 23,
-    color = "black",
-    stroke = 1.2
+    aes(x = PC1, y = PC2, color = Condition, fill = Condition, shape = Metadata_data_type),
+    size = 4,
+    alpha = 0.9
   ) +
   geom_point(
     data = rep_agg_data,
-    aes(x = PC1, y = PC2, fill = Condition),
-    size = 2.8,
-    shape = 22,
-    color = "black",
-    stroke = 1
+    aes(x = PC1, y = PC2, color = Condition, fill = Condition, shape = Metadata_data_type),
+    size = 4,
+    alpha = 0.9
   ) +
   scale_color_manual(
     values = condition_colors,
-    name = "Single-cell condition"
+    name = "Condition"
   ) +
   scale_fill_manual(
     values = condition_colors,
+    name = "Condition"
+  ) +
+  scale_shape_manual(
+    values = shape_map,
     name = "Aggregate profiles"
   ) +
   labs(
     x = "Principal component 1",
     y = "Principal component 2",
-    title = "Single-cell and aggregate profiles in PCA space"
+    title = "PCA space: single-cell vs. aggregate profiles"
   ) +
   theme_classic(base_size = 12) +
   theme(
@@ -147,13 +152,16 @@ pca_plot <- ggplot() +
     )
   )
 
+# Save plots
+output_path_png <- file.path(figures_dir, "pca_single_cell_vs_aggregate.png")
 
-output_path <- file.path(results_path, "pca_single_cell_vs_aggregate.png")
-ggsave(output_path, plot = pca_plot, width = 12, height = 8, dpi = 300, bg = "white")
+ggsave(output_path_png, plot = pca_plot, width = 12, height = 8, dpi = 300, bg = "white")
+
+cat(sprintf("\nSaved PNG to: %s\n", output_path_png))
 
 pca_plot
 
-selected_conditions <- c("healthy + DMSO", "failing + TGFRi", "failing + drug_x")
+selected_conditions <- c("failing + DMSO", "failing + TGFRi", "healthy + DMSO", "healthy + TGFRi")
 
 single_cell_filtered <- single_cell_data %>%
   filter(Condition %in% selected_conditions)
@@ -164,42 +172,36 @@ consensus_filtered <- consensus_data %>%
 rep_agg_filtered <- rep_agg_data %>%
   filter(Condition %in% selected_conditions)
 
-condition_colors_filtered <- c(
-  "healthy + DMSO" = "#3C5488",
-  "failing + TGFRi" = "#4DBBD5",
-  "failing + drug_x" = "#00A087"
-)
-
 p_filtered <- ggplot() +
   geom_point(
     data = single_cell_filtered,
     aes(x = PC1, y = PC2, color = Condition),
-    size = 0.8,
-    alpha = 0.4,
+    size = 0.5,
+    alpha = 0.3,
     shape = 16
   ) +
   geom_point(
     data = consensus_filtered,
-    aes(x = PC1, y = PC2, fill = Condition),
-    size = 3.5,
-    shape = 23,
-    color = "black",
-    stroke = 1.2
+    aes(x = PC1, y = PC2, color = Condition, fill = Condition, shape = Metadata_data_type),
+    size = 4,
+    alpha = 0.9
   ) +
   geom_point(
     data = rep_agg_filtered,
-    aes(x = PC1, y = PC2, fill = Condition),
-    size = 2.8,
-    shape = 22,
-    color = "black",
-    stroke = 1
+    aes(x = PC1, y = PC2, color = Condition, fill = Condition, shape = Metadata_data_type),
+    size = 4,
+    alpha = 0.9
   ) +
   scale_color_manual(
-    values = condition_colors_filtered,
-    name = "Single-cell condition"
+    values = condition_colors,
+    name = "Condition"
   ) +
   scale_fill_manual(
-    values = condition_colors_filtered,
+    values = condition_colors,
+    name = "Condition"
+  ) +
+  scale_shape_manual(
+    values = shape_map,
     name = "Aggregate profiles"
   ) +
   labs(
@@ -236,7 +238,11 @@ p_filtered <- ggplot() +
     )
   )
 
-output_path_filtered <- file.path(results_path, "pca_selected_conditions.png")
-ggsave(output_path_filtered, plot = p_filtered, width = 12, height = 8, dpi = 300, bg = "white")
+# Save plots
+output_path_filtered_png <- file.path(figures_dir, "pca_selected_conditions.png")
+
+ggsave(output_path_filtered_png, plot = p_filtered, width = 12, height = 8, dpi = 300, bg = "white")
+
+cat(sprintf("\nSaved PNG to: %s\n", output_path_filtered_png))
 
 p_filtered

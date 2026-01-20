@@ -13,16 +13,16 @@ suppressPackageStartupMessages({
 
 set.seed(42)
 
-results_dir <- file.path(".", "results")
-plots_dir <- file.path(results_dir, "plots", "sankey")
-cluster_dir <- file.path(results_dir, "clusters")
-pca_dir <- file.path(results_dir, "pca")
+module_results_dir <- file.path("../", "results")
+figures_dir <- file.path(".", "figures")
+cluster_dir <- file.path(module_results_dir, "clusters")
+pca_dir <- file.path(module_results_dir, "pca")
 
-dir.create(plots_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figures_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(cluster_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(pca_dir, showWarnings = FALSE, recursive = TRUE)
 
-cluster_labels_path <- file.path(cluster_dir, "all_sc_cfret_optimized_cluster_labels.parquet")
+cluster_labels_path <- file.path(cluster_dir, "cfret_pilot_cluster_labels.parquet")
 sc_profile_path <- file.path("..", "..", "0.download-data", "data", "sc-profiles",
                               "cfret", "localhost230405150001_sc_feature_selected.parquet")
 
@@ -34,6 +34,7 @@ if (!file.exists(sc_profile_path)) {
 }
 
 cat("Setup complete\n")
+cat("Figures will be saved to:", normalizePath(figures_dir), "\n")
 
 cluster_labels_df <- read_parquet(cluster_labels_path, as_data_frame = TRUE)
 cluster_labels_df <- cluster_labels_df %>%
@@ -96,11 +97,6 @@ links <- celltype_cluster_counts %>%
     ) %>%
     select(source, target, value)
 
-node_colors <- c(
-    rep("#E8998D", length(sources)),
-    viridis(length(targets), option = "D", alpha = 0.8)
-)
-
 sankey1 <- sankeyNetwork(
     Links = links,
     Nodes = nodes,
@@ -120,10 +116,11 @@ sankey1 <- sankeyNetwork(
 
 sankey1
 
-html_path1 <- file.path(plots_dir, "celltype_treatment_cluster_sankey.html")
+# Save HTML
+html_path1 <- file.path(figures_dir, "celltype_treatment_cluster_sankey.html")
 saveWidget(sankey1, html_path1, selfcontained = TRUE)
 
-cat(sprintf("\nSaved to: %s\n", html_path1))
+cat(sprintf("\nSaved HTML to: %s\n", html_path1))
 cat(sprintf("Sources: %d, Targets: %d, Flows: %d, Total cells: %d\n",
             length(sources), length(targets), nrow(links), sum(links$value)))
 
@@ -172,10 +169,11 @@ sankey2 <- sankeyNetwork(
 
 sankey2
 
-html_path2 <- file.path(plots_dir, "phenotype_well_treatment_cluster_sankey.html")
+# Save HTML
+html_path2 <- file.path(figures_dir, "phenotype_well_treatment_cluster_sankey.html")
 saveWidget(sankey2, html_path2, selfcontained = TRUE)
 
-cat(sprintf("\nSaved to: %s\n", html_path2))
+cat(sprintf("\nSaved HTML to: %s\n", html_path2))
 cat(sprintf("Sources: %d, Targets: %d, Flows: %d\n",
             length(sources_well), length(targets_well), nrow(links_well)))
 
@@ -184,48 +182,49 @@ treatment_cluster_counts <- sankey_df %>%
     summarise(count = n(), .groups = "drop") %>%
     arrange(Metadata_treatment, Metadata_cluster_id)
 
-sources_treat <- unique(treatment_cluster_counts$Metadata_treatment)
-targets_treat <- unique(treatment_cluster_counts$Metadata_cluster_id)
+sources_trt <- unique(treatment_cluster_counts$Metadata_treatment)
+targets_trt <- unique(treatment_cluster_counts$Metadata_cluster_id)
 
-nodes_treat <- data.frame(
-    name = c(sources_treat, targets_treat),
-    group = c(rep("source", length(sources_treat)), rep("target", length(targets_treat))),
+nodes_trt <- data.frame(
+    name = c(sources_trt, targets_trt),
+    group = c(rep("treatment", length(sources_trt)), rep("cluster", length(targets_trt))),
     stringsAsFactors = FALSE
 )
 
-links_treat <- treatment_cluster_counts %>%
+links_trt <- treatment_cluster_counts %>%
     mutate(
-        source = match(Metadata_treatment, nodes_treat$name) - 1,
-        target = match(Metadata_cluster_id, nodes_treat$name) - 1,
+        source = match(Metadata_treatment, nodes_trt$name) - 1,
+        target = match(Metadata_cluster_id, nodes_trt$name) - 1,
         value = count
     ) %>%
     select(source, target, value)
 
 sankey3 <- sankeyNetwork(
-    Links = links_treat,
-    Nodes = nodes_treat,
+    Links = links_trt,
+    Nodes = nodes_trt,
     Source = "source",
     Target = "target",
     Value = "value",
     NodeID = "name",
     fontSize = label_font_size,
     fontFamily = font_family,
-    nodeWidth = 35,
+    nodeWidth = 30,
     nodePadding = 15,
     iterations = 32,
     sinksRight = TRUE,
-    height = 600,
-    width = 1000
+    height = 500,
+    width = 900
 )
 
 sankey3
 
-html_path3 <- file.path(plots_dir, "treatment_cluster_sankey.html")
+# Save HTML
+html_path3 <- file.path(figures_dir, "treatment_cluster_sankey.html")
 saveWidget(sankey3, html_path3, selfcontained = TRUE)
 
-cat(sprintf("\nSaved to: %s\n", html_path3))
+cat(sprintf("\nSaved HTML to: %s\n", html_path3))
 cat(sprintf("Sources: %d, Targets: %d, Flows: %d\n",
-            length(sources_treat), length(targets_treat), nrow(links_treat)))
+            length(sources_trt), length(targets_trt), nrow(links_trt)))
 
 well_cluster_contribution <- sankey_df %>%
     group_by(Metadata_Well, Metadata_cluster_id) %>%
@@ -382,7 +381,7 @@ draw(ht,
      annotation_legend_side = "right",
      merge_legend = TRUE)
 
-png_path <- file.path(plots_dir, "well_cluster_heatmap.png")
+png_path <- file.path(figures_dir, "well_cluster_heatmap.png")
 png(png_path, width = 12, height = 10, units = "in", res = 300)
 draw(ht,
      heatmap_legend_side = "right",

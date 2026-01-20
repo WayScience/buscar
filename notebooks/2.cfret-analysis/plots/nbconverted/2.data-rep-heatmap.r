@@ -47,11 +47,9 @@ if (!has_replicates) stop("Replicates profiles file not found")
 if (!has_centroids) stop("Single-cell centroids file not found")
 
 # Output directory structure
-results_dir <- file.path(".", "results")
-figures_dir <- file.path(results_dir, "plots")
+figures_dir <- file.path(".", "figures")
 
 # Create output directories
-dir.create(results_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(figures_dir, showWarnings = FALSE, recursive = TRUE)
 
 cat("Directory structure verified\n")
@@ -276,3 +274,33 @@ draw(ht,
      heatmap_legend_side = "right",
      annotation_legend_side = "right",
      merge_legend = TRUE)
+
+# Save heatmap as PNG
+png(
+    filename = file.path(figures_dir, "data_rep_heatmap.png"),
+    width = 12,
+    height = 10,
+    units = "in",
+    res = 300,
+    bg = "white"
+)
+draw(ht,
+     heatmap_legend_side = "right",
+     annotation_legend_side = "right",
+     merge_legend = TRUE)
+dev.off()
+
+# Save heatmap as PDF
+pdf(
+    file = file.path(figures_dir, "data_rep_heatmap.pdf"),
+    width = 12,
+    height = 10,
+    bg = "white"
+)
+draw(ht,
+     heatmap_legend_side = "right",
+     annotation_legend_side = "right",
+     merge_legend = TRUE)
+dev.off()
+
+cat("Saved heatmap to:", figures_dir, "\n")

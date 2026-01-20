@@ -54,11 +54,12 @@ color_palette <- c(
 )
 
 # Define directory paths
-results_dir <- file.path("..", "results")
+module_results_dir <- file.path("..", "results")
+figures_dir <- file.path(".", "figures")
 
 # Input paths for pre-computed PCA and UMAP results
-pca_dir <- file.path(results_dir, "pca")
-umap_dir <- file.path(results_dir, "umap")
+pca_dir <- file.path(module_results_dir, "pca")
+umap_dir <- file.path(module_results_dir, "umap")
 
 # PCA file paths
 pca_on_path <- file.path(pca_dir, "cfret_pilot_on_morph_pca.parquet")
@@ -73,6 +74,11 @@ if (!file.exists(pca_on_path)) stop("PCA on-target file not found")
 if (!file.exists(pca_off_path)) stop("PCA off-target file not found")
 if (!file.exists(umap_on_path)) stop("UMAP on-target file not found")
 if (!file.exists(umap_off_path)) stop("UMAP off-target file not found")
+
+# Create figures directory
+dir.create(figures_dir, showWarnings = FALSE, recursive = TRUE)
+
+cat("Figures directory created at:", figures_dir, "\n")
 
 # Load PCA results
 pca_on_df <- read_parquet(pca_on_path)
@@ -152,6 +158,18 @@ pca_combined <- plot_pca_on + plot_pca_off +
 options(repr.plot.width = plot_width_combined, repr.plot.height = plot_height_combined, repr.plot.res = render_dpi)
 print(pca_combined)
 
+# Save PCA overlay comparison
+ggsave(
+    filename = file.path(figures_dir, "pca_on_off_comparison.png"),
+    plot = pca_combined,
+    width = plot_width_combined,
+    height = plot_height_combined,
+    dpi = render_dpi,
+    bg = "white"
+)
+
+cat("Saved PCA overlay plots to:", figures_dir, "\n")
+
 # Prepare data for faceting
 pca_on_df_facet <- pca_on_df %>%
     mutate(signature_type = "On-Target")
@@ -183,6 +201,18 @@ pca_faceted <- bind_rows(pca_on_df_facet, pca_off_df_facet) %>%
 # Display plot
 options(repr.plot.width = plot_width_faceted, repr.plot.height = plot_height_faceted, repr.plot.res = render_dpi)
 print(pca_faceted)
+
+# Save PCA faceted plot
+ggsave(
+    filename = file.path(figures_dir, "pca_facet_grid.png"),
+    plot = pca_faceted,
+    width = plot_width_faceted,
+    height = plot_height_faceted,
+    dpi = render_dpi,
+    bg = "white"
+)
+
+cat("Saved PCA faceted plots to:", figures_dir, "\n")
 
 # Load pre-computed UMAP results
 umap_on_df <- read_parquet(umap_on_path)
@@ -242,6 +272,17 @@ umap_combined <- plot_umap_on + plot_umap_off +
 options(repr.plot.width = plot_width_combined, repr.plot.height = plot_height_combined, repr.plot.res = render_dpi)
 print(umap_combined)
 
+# Save UMAP overlay comparison
+ggsave(
+    filename = file.path(figures_dir, "umap_on_off_comparison.png"),
+    plot = umap_combined,
+    width = plot_width_combined,
+    height = plot_height_combined,
+    dpi = render_dpi,
+    bg = "white"
+)
+cat("Saved UMAP overlay plots to:", figures_dir, "\n")
+
 # Prepare data for faceting
 umap_on_df_facet <- umap_on_df %>%
     mutate(signature_type = "On-Target")
@@ -273,3 +314,15 @@ umap_faceted <- bind_rows(umap_on_df_facet, umap_off_df_facet) %>%
 # Display plot
 options(repr.plot.width = plot_width_faceted, repr.plot.height = plot_height_faceted, repr.plot.res = render_dpi)
 print(umap_faceted)
+
+# Save UMAP faceted plot
+ggsave(
+    filename = file.path(figures_dir, "umap_facet_grid.png"),
+    plot = umap_faceted,
+    width = plot_width_faceted,
+    height = plot_height_faceted,
+    dpi = render_dpi,
+    bg = "white"
+)
+
+cat("Saved UMAP faceted plots to:", figures_dir, "\n")

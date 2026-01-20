@@ -37,6 +37,10 @@ dependencies:
   - r-htmlwidgets
   - r-webshot
 
+  # Webshot dependencies
+  - openssl
+  - phantomjs
+
   # Dimensionality reduction
   - r-umap
 
