@@ -147,11 +147,28 @@ feature_data <- data_for_heatmap %>%
 
 data_matrix <- t(as.matrix(feature_data))
 
-# Phenotype colors (matching Set1 palette strategy)
+# Define awtools-inspired darker color palette
+# Based on awtools a_palette with richer, darker colors
+awtools_colors <- c(
+    "#c1593c",  # Terracotta
+    "#643d91",  # Purple
+    "#a19e3d",  # Olive
+    "#0e7175",  # Teal
+    "#e6842c",  # Orange
+    "#3e6d9c",  # Blue
+    "#4e3629",  # Brown
+    "#b40000",  # Red
+    "#2d7016",  # Green
+    "#8b6f47",  # Tan
+    "#5c415d",  # Plum
+    "#1e5a46"   # Forest
+)
+
+# Phenotype colors using darker palette
 color_prefs <- list(
-    Failing = set1_palette[1],  # Red
-    Healthy = set1_palette[3],  # Green
-    Rescue = set1_palette[2]    # Blue
+    Failing = awtools_colors[8],    # Red
+    Healthy = awtools_colors[9],    # Green
+    Rescue = awtools_colors[6]      # Blue
 )
 
 # Create phenotype color map
@@ -164,22 +181,22 @@ pheno_colors <- sapply(unique_phenos, function(label) {
     } else if (grepl("rescue", label_lower)) {
         return(color_prefs$Rescue)
     } else {
-        return("#7f7f7f")  # Grey for unknowns
+        return("#4e3629")  # Brown for unknowns
     }
 })
 names(pheno_colors) <- unique_phenos
 
-# Treatment colors
+# Treatment colors using darker tones
 unique_treatments <- unique(metadata$Metadata_treatment)
 treat_colors <- setNames(
-    paired_palette[1:length(unique_treatments)],
+    awtools_colors[1:length(unique_treatments)],
     unique_treatments
 )
 
-# Representation colors
+# Representation colors using dark2 palette
 unique_representations <- unique(metadata$Metadata_representation)
 repr_colors <- setNames(
-    pastel2_palette[1:length(unique_representations)],
+    dark2_palette[1:length(unique_representations)],
     unique_representations
 )
 
@@ -202,10 +219,10 @@ col_annotations <- HeatmapAnnotation(
     show_annotation_name = TRUE
 )
 
-# Row colors (features)
+# Row colors (features) - using darker colors
 row_colors_map <- list(
-    `ON signature` = dark2_palette[2],   # Orange-ish
-    `OFF signature` = dark2_palette[3]   # Purple-ish
+    `ON signature` = awtools_colors[5],   # Orange
+    `OFF signature` = awtools_colors[2]   # Purple
 )
 
 feature_types <- ifelse(
@@ -232,7 +249,6 @@ col_fun <- colorRamp2(
     c(min(data_matrix, na.rm = TRUE), 0, max(data_matrix, na.rm = TRUE)),
     c("#2166AC", "#F7F7F7", "#B2182B")  # Blue-White-Red (RdBu_r equivalent)
 )
-
 
 
 # Create the heatmap
