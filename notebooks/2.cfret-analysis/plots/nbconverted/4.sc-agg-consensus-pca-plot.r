@@ -148,7 +148,7 @@ pca_plot <- ggplot() +
     fill = guide_legend(
       override.aes = list(size = 4),
       order = 2,
-      title = "Aggregate profiles\n(Diamond=Consensus, Square=Replicate)"
+      title = "Aggregate profiles"
     )
   )
 
