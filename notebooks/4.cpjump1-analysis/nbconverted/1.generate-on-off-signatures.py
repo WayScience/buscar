@@ -2,9 +2,10 @@
 
 # # 1. generating on and off signatures
 #
-# In this notebook, we generate on and off signatures for the CPJUMP1 dataset. These signatures are generated separately for each positive control, meaning that every signature derived from the JUMP dataset is specific to an individual positive control.
+# In this notebook, we generate on and off signatures for the compound CPJUMP1 [dataset](https://github.com/carpenter-singh-lab/2024_Chandrasekaran_NatureMethods). These signatures are generated separately for each positive control, meaning that every signature derived from the JUMP dataset is specific to an individual positive control.
 #
 # The dataset is split by cell type, specifically U2OS and A549 cells, and signatures are generated independently for each cell type.
+#
 
 # In[1]:
 
@@ -159,7 +160,7 @@ print(f"Number of unique positive control treatments: {len(all_poscon_trts)}")
 print(all_poscon_trts)
 
 
-# For each positive control gene, we generate "on" and "off" morphological signatures by comparing profiles from all 10 randomly selected DMSO (negative control) seeds to the corresponding positive control profiles.
+# For each positive control compound, we generate "on" and "off" morphological signatures by comparing profiles from all 10 randomly selected DMSO (negative control) seeds to the corresponding positive control profiles.
 
 # On and off signatures for the u2os cells
 
