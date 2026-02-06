@@ -19,6 +19,16 @@ from utils.io_utils import load_configs, load_profiles
 from utils.metrics import measure_phenotypic_activity
 from utils.signatures import get_signatures
 
+# Notebook parameters
+
+# In[2]:
+
+
+# set to True for debugging purposes, to run the notebook faster with a subset of the data
+subet_data = False
+subet_fraction = 0.1
+
+
 # Setting input and output paths
 
 # In[2]:
@@ -169,24 +179,20 @@ cpjump1_df.head()
 
 # Generate a shuffled baseline dataset
 
-# In[6]:
+# In[ ]:
 
 
 # create a subsetted dataframe for faster testing (optional)
-# subset around 10%
-# ----------------------------------------------------------------
-# comment below lines to disable subsetting
-# subset = 0.10
-# print("Subsetting data for testing purposes...")
-# print("subsetting fraction:", subset)
-# print("original dataframe shape:", cpjump1_df.shape)
-# cpjump1_df = (
-#     cpjump1_df.group_by(["Metadata_Plate", "Metadata_Well"])
-#     .agg(pl.all().sample(fraction=subset, seed=0))
-#     .explode(pl.all().exclude(["Metadata_Plate", "Metadata_Well"]))
-# )
-# print(f"New dataframe shape: {cpjump1_df.shape}")
-# ----------------------------------------------------------------
+if subet_data:
+    print("Subsetting data for testing purposes...")
+    print("subsetting fraction:", subet_fraction)
+    print("original dataframe shape:", cpjump1_df.shape)
+    cpjump1_df = (
+        cpjump1_df.group_by(["Metadata_Plate", "Metadata_Well"])
+        .agg(pl.all().sample(fraction=subet_fraction, seed=0))
+        .explode(pl.all().exclude(["Metadata_Plate", "Metadata_Well"]))
+    )
+    print(f"New dataframe shape: {cpjump1_df.shape}")
 
 # Create the shuffled baseline dataset
 cpjump1_df_shuffled = shuffle_profiles(cpjump1_df, shared_features, seed=42)
