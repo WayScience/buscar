@@ -5,6 +5,8 @@
 # This notebook explores how Buscar ranks treatments according to their mechanisms of action (MoA). The main objective is to determine whether treatments sharing the same MoA are consistently ranked lower (i.e., better), reflecting similar phenotypic responses.
 #
 # We assess Buscar's performance by calculating precision and recall for each MoA, and visualizing the results with waterfall plots. Ideally, treatments with the same MoA should have relatively low Buscar scores, indicating strong similarity in their biological effects.
+#
+# Here we use both the original ranked dataset and also the shuffle baseline to compare buscar's perfromance.
 
 # In[1]:
 
@@ -159,7 +161,7 @@ moa_mean_buscar_scores
 #
 # In this section we are plotting the precision and recall scores of bucsar rranking of compounds.
 
-# In[5]:
+# In[ ]:
 
 
 # Prepare data for PR curves per MoA
@@ -172,18 +174,16 @@ for moa in unique_moas:
     # Filter data for this reference MoA
     moa_data = moa_mean_buscar_scores.filter(pl.col("reference_moa") == moa)
 
-    # Sort by original mean_score in descending order
-    moa_data_original = moa_data.sort("mean_score", descending=True)
-
-    # Sort by shuffled mean_score in descending order
-    moa_data_shuffled = moa_data.sort("mean_shuffled_score", descending=True)
-
     # Create binary labels: 1 if tested compound has same MoA, 0 otherwise
-    y_true = (moa_data_original["tested_compound_moa"] == moa).to_numpy().astype(int)
+    y_true = (moa_data["tested_compound_moa"] == moa).to_numpy().astype(int)
 
-    # Get scores
-    y_scores_original = moa_data_original["mean_score"].to_numpy()
-    y_scores_shuffled = moa_data_shuffled["mean_shuffled_score"].to_numpy()
+    # Negate scores: sklearn expects higher y_score = more likely positive class.
+    # Buscar uses lower score = better match (more similar), so we negate.
+    # need to negate the score because rankdata assigns highest rank to highest value,
+    # but we want the best match (lowest score) to have the highest rank
+    #
+    y_scores_original = -moa_data["mean_score"].to_numpy()
+    y_scores_shuffled = -moa_data["mean_shuffled_score"].to_numpy()
 
     # Calculate precision-recall curves only if there are positive samples
     if y_true.sum() > 0:
@@ -193,14 +193,11 @@ for moa in unique_moas:
         )
         ap_orig = average_precision_score(y_true, y_scores_original)
 
-        # Shuffled scores - need to recalculate y_true for shuffled ordering
-        y_true_shuffled = (
-            (moa_data_shuffled["tested_compound_moa"] == moa).to_numpy().astype(int)
-        )
+        # Shuffled scores - same y_true since labels don't change
         precision_shuf, recall_shuf, _ = precision_recall_curve(
-            y_true_shuffled, y_scores_shuffled
+            y_true, y_scores_shuffled
         )
-        ap_shuf = average_precision_score(y_true_shuffled, y_scores_shuffled)
+        ap_shuf = average_precision_score(y_true, y_scores_shuffled)
 
         pr_curves_data.append(
             {
