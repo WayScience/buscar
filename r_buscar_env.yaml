@@ -1,0 +1,55 @@
+name: r_buscar
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  # R base
+  - r-base
+
+  # Core tidyverse packages
+  - r-tidyverse
+  - r-dplyr
+  - r-ggplot2
+  - r-tidyr
+  - r-readr
+  - r-purrr
+  - r-tibble
+  - r-stringr
+  - r-forcats
+
+  # Data I/O
+  - r-arrow
+  - r-jsonlite
+
+  # Plotting and visualization
+  - r-patchwork
+  - r-scales
+  - r-viridis
+  - r-rcolorbrewer
+  - r-cowplot
+  - r-pheatmap
+  - r-magick
+  - bioconductor-complexheatmap
+  - r-circlize
+  - r-plotly
+  - r-networkd3
+  - r-htmlwidgets
+  - r-webshot
+
+  # Webshot dependencies
+  - openssl
+  - phantomjs
+
+  # Dimensionality reduction
+  - r-umap
+
+  # Additional useful packages for scientific plotting
+  - r-ggrepel
+  - r-ggpubr
+  - r-gridExtra
+
+  # Jupyter support for R
+  - r-irkernel
+  - jupyter
+  - jupyterlab

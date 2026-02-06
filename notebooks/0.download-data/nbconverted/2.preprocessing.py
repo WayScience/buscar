@@ -475,6 +475,9 @@ cfret_profiles = pl.read_parquet(cfret_profiles_path)
 # adding a unique cell ID based on all features
 cfret_profiles = add_cell_id_hash(cfret_profiles, force=True)
 
+# drop rows cells that have been treated with drug_x
+cfret_profiles = cfret_profiles.filter(pl.col("Metadata_treatment") != "drug_x")
+
 # split features
 meta_cols, features_cols = split_meta_and_features(cfret_profiles)
 
