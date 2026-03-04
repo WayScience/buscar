@@ -105,8 +105,8 @@ cfret_df.head()
 # In[5]:
 
 
-ref_df = cfret_df.filter(pl.col("Metadata_cell_type_and_treatment") == failing_label)
-target_df = cfret_df.filter(pl.col("Metadata_cell_type_and_treatment") == healthy_label)
+ref_df = cfret_df.filter(pl.col(treatment_col) == failing_label)
+target_df = cfret_df.filter(pl.col(treatment_col) == healthy_label)
 
 
 # We apply a statistical test (Kolmogorov-Smirnov) to each feature, comparing the distributions between the two profiles. Following this, we correct the p-values using the False Discovery Rate (FDR) method. Finally, we store the results for downstream plotting and analysis.
