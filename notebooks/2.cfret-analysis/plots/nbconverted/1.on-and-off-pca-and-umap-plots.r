@@ -1,4 +1,10 @@
 # Load required libraries
+# tidyverse: for data manipulation and visualization
+# arrow: for reading parquet files efficienty
+# jsonlite: for reading json files
+# ggplot2, patchwork, scales, RColorBrewer: for plotting
+# umap: for umap analysis
+# magick: for image processing (creating GIFs)
 suppressPackageStartupMessages({
     library(tidyverse)
     library(arrow)
@@ -11,7 +17,6 @@ suppressPackageStartupMessages({
     library(dplyr)
     library(RColorBrewer)
 })
-
 
 # Set random seed for reproducibility
 set.seed(0)
@@ -144,21 +149,23 @@ legend_size <- 3
 render_dpi <- 300
 
 # Extract variance explained values for axis labels
+# We multiply by 100 to get the percentage of variance explained by each PC
 pc1_var_on <- pca_on_var_exp_df %>% filter(PC == "PC1") %>% pull(Metadata_explained_variance_ratio) * 100
 pc2_var_on <- pca_on_var_exp_df %>% filter(PC == "PC2") %>% pull(Metadata_explained_variance_ratio) * 100
 pc1_var_off <- pca_off_var_exp_df %>% filter(PC == "PC1") %>% pull(Metadata_explained_variance_ratio) * 100
 pc2_var_off <- pca_off_var_exp_df %>% filter(PC == "PC2") %>% pull(Metadata_explained_variance_ratio) * 100
 
 # Create on-target PCA plot
+# We plot PC1 vs PC2, coloring points by treatment condition
 plot_pca_on <- ggplot(pca_on_df, aes(x = PC1, y = PC2, color = Metadata_cell_treatment)) +
-    geom_point(alpha = point_alpha, size = point_size, shape = point_shape) +
-    scale_color_manual(values = color_palette, name = "Cell Treatment") +
+    geom_point(alpha = point_alpha, size = point_size, shape = point_shape) + # Scatter plot points
+    scale_color_manual(values = color_palette, name = "Cell Treatment") + # Custom colors
     labs(
         title = "On-target morphological signature",
-        x = sprintf("PC1 (%.1f%%)", pc1_var_on),
+        x = sprintf("PC1 (%.1f%%)", pc1_var_on), # Add variance % to axis labels
         y = sprintf("PC2 (%.1f%%)", pc2_var_on)
     ) +
-    guides(color = guide_legend(override.aes = list(alpha = legend_alpha, size = legend_size)))
+    guides(color = guide_legend(override.aes = list(alpha = legend_alpha, size = legend_size))) # Fix legend point style
 
 # Create off-target PCA plot
 plot_pca_off <- ggplot(pca_off_df, aes(x = PC1, y = PC2, color = Metadata_cell_treatment)) +
@@ -171,15 +178,16 @@ plot_pca_off <- ggplot(pca_off_df, aes(x = PC1, y = PC2, color = Metadata_cell_t
     ) +
     guides(color = guide_legend(override.aes = list(alpha = legend_alpha, size = legend_size)))
 
-# Combine plots using patchwork
+# Combine plots using patchwork library
+# The '+' operator places plots side-by-side
 pca_combined <- plot_pca_on + plot_pca_off +
-    plot_layout(guides = "collect") +
+    plot_layout(guides = "collect") + # Combine legends into one
     plot_annotation(
         title = "PCA analysis: morphological signature discrimination",
         theme = theme(plot.title = element_text(face = "bold", size = 14, hjust = 0.5))
     )
 
-# Display plot
+# Display plot parameters for Jupyter
 options(repr.plot.width = plot_width_combined, repr.plot.height = plot_height_combined, repr.plot.res = render_dpi)
 print(pca_combined)
 
@@ -269,15 +277,16 @@ if (!all(required_umap_cols %in% names(umap_on_df))) {
 cat("\nUMAP data loaded successfully\n")
 
 # Create on-target UMAP plot
+# UMAP1 and UMAP2 are the coordinates obtained from dimensionality reduction
 plot_umap_on <- ggplot(umap_on_df, aes(x = UMAP1, y = UMAP2, color = Metadata_cell_treatment)) +
-    geom_point(alpha = point_alpha, size = point_size, shape = point_shape) +
-    scale_color_manual(values = color_palette, name = "Cell Treatment") +
+    geom_point(alpha = point_alpha, size = point_size, shape = point_shape) + # Plot points
+    scale_color_manual(values = color_palette, name = "Cell Treatment") + # Use consistent color palette
     labs(
         title = "On-target morphological signature",
         x = "UMAP 1",
         y = "UMAP 2"
     ) +
-    guides(color = guide_legend(override.aes = list(alpha = legend_alpha, size = legend_size)))
+    guides(color = guide_legend(override.aes = list(alpha = legend_alpha, size = legend_size))) # Enhance legend readability
 
 # Create off-target UMAP plot
 plot_umap_off <- ggplot(umap_off_df, aes(x = UMAP1, y = UMAP2, color = Metadata_cell_treatment)) +
@@ -291,6 +300,7 @@ plot_umap_off <- ggplot(umap_off_df, aes(x = UMAP1, y = UMAP2, color = Metadata_
     guides(color = guide_legend(override.aes = list(alpha = legend_alpha, size = legend_size)))
 
 # Combine plots using patchwork
+# The layout function collects guides so we have a single legend for both plots
 umap_combined <- plot_umap_on + plot_umap_off +
     plot_layout(guides = "collect") +
     plot_annotation(

@@ -1,5 +1,11 @@
 #!/usr/bin/env python
 
+# # 4. Assessing Morphological Significance
+#
+# In this notebook, we evaluate the morphological significance of the "on" and "off" signatures to determine how informative these features are when comparing healthy and diseased (failing) cardiac fibroblasts.
+#
+# We calculate statistical significance using the Kolmogorov-Smirnov (KS) test for each feature and apply False Discovery Rate (FDR) correction. The resulting table will be used in subsequent steps to visualize the significance of these feature spaces.
+
 # In[1]:
 
 
@@ -14,6 +20,8 @@ from statsmodels.stats.multitest import fdrcorrection
 
 from utils.data_utils import split_meta_and_features
 from utils.io_utils import load_configs, load_profiles
+
+# Setting input and output paths
 
 # In[2]:
 
@@ -38,6 +46,8 @@ signatures_results_dir = pathlib.Path(results_dir / "signatures")
 signatures_results_dir.mkdir(exist_ok=True)
 
 
+# Setting notebook parameters
+
 # In[3]:
 
 
@@ -49,6 +59,8 @@ healthy_label = "healthy_DMSO"
 failing_label = "failing_DMSO"
 on_off_signatures_method = "ks_test"
 
+
+# Loading profiles
 
 # In[4]:
 
@@ -88,12 +100,16 @@ print(f"Dataframe shape: {cfret_df.shape}")
 cfret_df.head()
 
 
+# Separating profiles
+
 # In[5]:
 
 
 ref_df = cfret_df.filter(pl.col("Metadata_cell_type_and_treatment") == failing_label)
 target_df = cfret_df.filter(pl.col("Metadata_cell_type_and_treatment") == healthy_label)
 
+
+# We apply a statistical test (Kolmogorov-Smirnov) to each feature, comparing the distributions between the two profiles. Following this, we correct the p-values using the False Discovery Rate (FDR) method. Finally, we store the results for downstream plotting and analysis.
 
 # In[6]:
 
@@ -125,7 +141,8 @@ ks_results_df = ks_results_df.with_columns(
 )
 
 # add a column for significance based on a threshold (e.g., 0.05)
-# if lower than 0.05 then there should be a label known as "on" and higher than 0.05 should be "off"
+# if lower than 0.05 then there should be a label known as "on" and higher than 0.05
+# should be "off"
 ks_results_df = ks_results_df.with_columns(
     pl.when(pl.col("p_value_fdr_corrected") < 0.05)
     .then(pl.lit("on"))

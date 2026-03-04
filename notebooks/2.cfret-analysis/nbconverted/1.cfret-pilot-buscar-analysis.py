@@ -191,3 +191,9 @@ treatment_scores = measure_phenotypic_activity(
 treatment_scores.write_csv(
     phenotypic_scores_results_dir / "cfret_pilot_phenotypic_scores.csv"
 )
+
+
+# In[8]:
+
+
+treatment_scores
