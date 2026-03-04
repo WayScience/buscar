@@ -162,14 +162,14 @@ else:
 
 # ### Measuring phenotypic activity
 #
-# This section quantifies how each treatment affects cell morphology compared to the reference control (DMSO_heart_11), using the previously defined on and off signatures. The resulting phenotypic scores are used to rank treatments and highlight the most active compounds.
+# This section quantifies how each treatment affects cell morphology relative to the healthy reference state (`healthy_label`) and the failing target state (`failing_label`), using the previously defined on and off signatures. The resulting phenotypic scores are used to rank treatments and highlight the most active compounds.
 #
 # **How scores are calculated:**
 #
-# - **On-signature features:** We use the Earth Mover's Distance (EMD) to measure how much the on-features for each treatment differ from the reference. A higher EMD means a greater morphological change.
-# - **Off-signature features:** We use the affected ratio, which detects if features that should remain stable (off-features) are altered by a treatment. A higher affected ratio suggests more off-target or unintended effects.
+# - **On-signature features:** We use the Earth Mover's Distance (EMD) to measure how much the on-features for each treatment differ from the healthy reference. The EMD is normalized so that the failing target state has an on-score of 1.0; treatments closer to the healthy reference have lower on-scores, and treatments more similar to the failing state have higher on-scores.
+# - **Off-signature features:** We use the affected ratio, which detects if features that should remain stable (off-features) are altered by a treatment. A higher affected ratio suggests more off-target or unintended effects, while a lower ratio indicates better preservation of off-features.
 #
-# In summary, low on-signature scores indicate strong, intended phenotypic changes, while high off-signature scores may indicate unwanted or broad effects.
+# In summary, low on-signature scores indicate profiles that remain close to the healthy reference (desired effect), and low off-signature scores indicate minimal off-target or broad effects. Treatments are therefore ranked so that lower on- and off-signature scores are preferred.
 
 # In[7]:
 
