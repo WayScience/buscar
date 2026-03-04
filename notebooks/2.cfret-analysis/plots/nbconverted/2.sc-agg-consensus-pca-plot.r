@@ -4,8 +4,8 @@ library(ggplot2)
 library(tidyr)
 library(viridis)
 library(RColorBrewer)
+library(grid)
 library(IRdisplay)})
-
 
 data_dir <- file.path("../../0.download-data/data/sc-profiles")
 figures_dir <- file.path("./figures")
@@ -130,12 +130,12 @@ pca_plot <- ggplot() +
     axis.title = element_text(face = "bold", size = 12),
     axis.line = element_line(linewidth = 1.2),
     axis.ticks = element_line(linewidth = 1.2),
-    axis.ticks.length = unit(0.15, "cm"),
+    axis.ticks.length = grid::unit(0.15, "cm"),
     legend.position = "right",
     legend.box = "vertical",
     legend.title = element_text(face = "bold", size = 10),
     legend.text = element_text(size = 9),
-    legend.key.size = unit(0.8, "cm"),
+    legend.key.size = grid::unit(0.8, "cm"),
     legend.background = element_rect(color = "black", linewidth = 1.2),
     panel.grid.major = element_line(color = "gray90", linewidth = 0.3),
     panel.grid.minor = element_blank()

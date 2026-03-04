@@ -16,8 +16,8 @@ if (!file.exists(signatures_stats_path)) {
 
 # setting output path for the generated plot
 sig_plot_output_dir = file.path("./figures")
-if (!file.exists(sig_plot_output_dir)) {
-  stop(paste("File not found:", signatures_stats_path))
+if (!dir.exists(sig_plot_output_dir)) {
+  dir.create(sig_plot_output_dir, showWarnings = FALSE, recursive = TRUE)
 }
 
 # load feature space config signatures_stats
@@ -35,7 +35,8 @@ sig_stats_df$channel <- sapply(strsplit(sig_stats_df$feature, "_"), `[`, 1)
 
 # Generate a color palette for the different channels
 n_channels <- length(unique(sig_stats_df$channel))
-dark2_palette <- brewer.pal(min(n_channels, 8), "Dark2")
+# brewer.pal requires at least 3 colors to avoid warnings
+dark2_palette <- brewer.pal(max(3, min(n_channels, 8)), "Dark2")
 
 # Set consistent Y-axis limits across both plots
 # Multiply by 1.1 to provide headroom above the most significant point
@@ -71,6 +72,7 @@ plot_significant <- ggplot(sig_stats_df, aes(x = ks_stat, y = neg_log10_p_value,
   scale_color_manual(
     # Using consistent terminology: on-morphological and off-morphological signatures
     values = c("off" = "gray60", "on" = "#E41A1C"),
+    labels = c("off" = "off-morphological", "on" = "on-morphological")
   ) +
   scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.02, 0.05))) +
   geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "gray40", linewidth = 0.5) +

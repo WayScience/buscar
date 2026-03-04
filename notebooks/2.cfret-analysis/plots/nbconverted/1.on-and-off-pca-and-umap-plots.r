@@ -1,10 +1,3 @@
-# Load required libraries
-# tidyverse: for data manipulation and visualization
-# arrow: for reading parquet files efficienty
-# jsonlite: for reading json files
-# ggplot2, patchwork, scales, RColorBrewer: for plotting
-# umap: for umap analysis
-# magick: for image processing (creating GIFs)
 suppressPackageStartupMessages({
     library(tidyverse)
     library(arrow)
