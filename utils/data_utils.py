@@ -7,7 +7,6 @@ as well as for saving, loading, and writing files.
 
 import hashlib
 import json
-import sys
 from collections import defaultdict
 from typing import Literal
 
@@ -737,11 +736,11 @@ def transform_ensg_to_gene_symbol(ensg_ids: str | list[str]) -> dict:
         f"{server}/lookup/id",
         headers=headers,
         data=json.dumps({"ids": ensg_ids}),  # note: "ids" not "id"
+        timeout=30,
     )
 
     if not r.ok:
         r.raise_for_status()
-        sys.exit(1)
 
     # parse the JSON response to extract gene symbols corresponding to the provided
     # ENSG IDs
