@@ -443,11 +443,13 @@ def measure_phenotypic_activity(
         )
 
         # store computed scores for this treatment
-        scores.append((ref_state, treatment, on_score, off_score))
+        scores.append([ref_state, treatment, on_score, off_score])
 
     # construct dataframe from collected scores
     scores_df = pl.DataFrame(
-        scores, schema=["ref_profile", "treatment", "on_score", "off_score"]
+        scores,
+        schema=["ref_profile", "treatment", "on_score", "off_score"],
+        orient="row",
     )
 
     # rank treatments: prioritize low on-scores, then low off-scores
