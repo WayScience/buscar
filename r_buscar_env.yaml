@@ -4,6 +4,9 @@ channels:
   - bioconda
   - defaults
 dependencies:
+  # Python runtime
+  - python>=3.10,<3.14
+
   # R base
   - r-base
 
@@ -38,6 +41,7 @@ dependencies:
   - r-networkd3
   - r-htmlwidgets
   - r-webshot
+  - r-ggplotify
 
   # Webshot dependencies
   - openssl
@@ -55,3 +59,23 @@ dependencies:
   - r-irkernel
   - jupyter
   - jupyterlab
+  - ipykernel
+
+  # Core Python dependencies for buscar workflows
+  - numpy>=2.2.5,<3.0.0
+  - scipy>=1.15.3,<2.0.0
+  - matplotlib>=3.10.3,<4.0.0
+  - polars>=1.29.0,<2.0.0
+  - statsmodels>=0.14.4,<0.15.0
+  - scikit-learn>=1.6.1,<2.0.0
+  - pycytominer>=1.2.3,<2.0.0
+  - tqdm>=4.67.1
+  - pot>=0.9.5
+  - beartype>=0.21.0
+  - umap-learn>=0.5.9
+  - narwhals>=2.4.0
+  - optuna>=4.5.0
+  - scanpy>=1.11.4
+  - igraph>=0.11.9
+  - leidenalg>=0.10.2
+  - louvain>=0.8.2

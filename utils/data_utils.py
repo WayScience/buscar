@@ -6,12 +6,14 @@ as well as for saving, loading, and writing files.
 """
 
 import hashlib
+import json
 from collections import defaultdict
 from typing import Literal
 
 import numpy as np
 import pandas as pd
 import polars as pl
+import requests
 from pycytominer.cyto_utils import infer_cp_features
 
 
@@ -623,7 +625,8 @@ def add_cell_id_hash(
 def shuffle_feature_profiles(
     profiles: pl.DataFrame,
     feature_cols: list[str],
-    method: Literal["row", "column"] = "row",
+    method: Literal["row", "column", "label"] = "row",
+    label_col: str | None = None,
     seed: int = 42,
 ) -> pl.DataFrame:
     """
@@ -670,18 +673,89 @@ def shuffle_feature_profiles(
 
     # column-wise shuffling
     elif method == "column":
-        shuffled_features = {}
-        for col in feature_cols:
-            values = profiles[col].to_numpy().copy()
-            np.random.shuffle(values)
-            shuffled_features[col] = values
-
-        # Build the shuffled dataframe
-        shuffled_df = profiles.select(meta_cols)
-        for col in feature_cols:
-            shuffled_df = shuffled_df.with_columns(
-                pl.Series(name=col, values=shuffled_features[col])
+        return profiles.with_columns(
+            [
+                pl.col(col).shuffle(seed=seed + hash(col) % (2**32))
+                for col in feature_cols
+            ]
+        )
+    elif method == "label":
+        if label_col is None:
+            raise ValueError(
+                "label_col must be specified when using 'label' shuffle method."
             )
-        return shuffled_df
+
+        # return the profiels with
+        return profiles.with_columns(pl.col(label_col).shuffle(seed=seed))
     else:
         raise ValueError(f"Unknown shuffle method: {method}")
+
+
+def transform_ensg_to_gene_symbol(ensg_ids: str | list[str]) -> dict:
+    """
+    Convert Ensembl gene IDs (ENSG) to human-readable gene symbols.
+
+    This function queries the Ensembl REST API to retrieve gene display names
+    corresponding to provided ENSG identifiers. If a gene ID cannot be found,
+    it will be mapped to "N/A" in the output dictionary.
+
+    Parameters
+    ----------
+    ensg_ids : str or list of str, default=gene_ids
+        Single Ensembl gene ID (e.g., "ENSG00000164754") or a list of
+        Ensembl gene IDs to convert to gene symbols.
+
+    Returns
+    -------
+    dict
+        Dictionary mapping each ENSG ID (key) to its corresponding gene
+        symbol (value). Gene IDs that cannot be resolved are mapped to "N/A".
+
+    Examples
+    --------
+    >>> transform_ensg_to_gene_symbol("ENSG00000164754")
+    {'ENSG00000164754': 'RAD21'}
+
+    >>> transform_ensg_to_gene_symbol(["ENSG00000164754", "ENSG00000179698"])
+    {'ENSG00000164754': 'RAD21', 'ENSG00000179698': 'WDR97'}
+
+    Notes
+    -----
+    This function makes a POST request to the Ensembl REST API endpoint
+    (https://rest.ensembl.org/lookup/id). Network connectivity is required.
+    The function will exit with status code 1 if the API request fails.
+    """
+    # check if the list is empty
+    if isinstance(ensg_ids, str):
+        ensg_ids = [ensg_ids]
+
+    # setting up the request to Ensembl REST API
+    server = "https://rest.ensembl.org"
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+
+    # sending the POST request to Ensembl REST API to retrieve gene information
+    # based on ENSG IDs
+    r = requests.post(
+        f"{server}/lookup/id",
+        headers=headers,
+        data=json.dumps({"ids": ensg_ids}),  # note: "ids" not "id"
+        timeout=30,
+    )
+
+    if not r.ok:
+        r.raise_for_status()
+
+    # parse the JSON response to extract gene symbols corresponding to the provided
+    # ENSG IDs
+    decoded = r.json()
+
+    # converting the decoded response into a dictionary mapping ENSG IDs to gene symbols
+    decoded_genes = {}
+    for eng_gene in ensg_ids:
+        gene_info = decoded.get(eng_gene)
+        if gene_info is not None:
+            decoded_genes[eng_gene] = gene_info.get("display_name", eng_gene)
+        else:
+            decoded_genes[eng_gene] = eng_gene
+
+    return decoded_genes
