@@ -18,7 +18,7 @@ from buscar.signatures import get_signatures
 from utils.data_utils import shuffle_feature_profiles
 from utils.io_utils import load_configs, load_profiles
 
-# In[2]:
+# In[ ]:
 
 
 def shuffle_signatures(
@@ -43,10 +43,11 @@ def shuffle_signatures(
     n_off = len(off_sig)
 
     # guard: need enough features to fill both without overlap
-    assert n_on + n_off <= len(all_features), (
-        f"Not enough features ({len(all_features)}) to fill "
-        f"on ({n_on}) + off ({n_off}) without replacement"
-    )
+    if n_on + n_off > len(all_features):
+        raise ValueError(
+            f"Not enough features ({len(all_features)}) to fill "
+            f"on ({n_on}) + off ({n_off}) without replacement"
+        )
 
     # sample without replacement so on and off don't overlap
     sampled = rng.choice(all_features, size=n_on + n_off, replace=False)
@@ -72,9 +73,9 @@ mitocheck_profile_path = (mitocheck_data / "mitocheck_concat_profiles.parquet").
 )
 
 # setting config paths
-ensg_genes_config_path = (
-    mitocheck_data / "mitocheck_ensg_to_gene_symbol_mapping.json"
-).resolve(strict=True)
+# ensg_genes_config_path = (
+#     mitocheck_data / "mitocheck_ensg_to_gene_symbol_mapping.json"
+# ).resolve(strict=True)
 mitocheck_feature_space_config = (
     mitocheck_data / "mitocheck_feature_space_configs.json"
 ).resolve(strict=True)
@@ -91,7 +92,7 @@ moa_analysis_output.mkdir(exist_ok=True)
 
 
 # load in configs
-ensg_genes_decoder = load_configs(ensg_genes_config_path)
+# ensg_genes_decoder = load_configs(ensg_genes_config_path)
 feature_space_configs = load_configs(mitocheck_feature_space_config)
 meta_feats = feature_space_configs["metadata-features"]
 morph_feats = feature_space_configs["morphology-features"]
@@ -168,7 +169,7 @@ cell_proportion_df = (
 
 
 # parameters for the analysis
-shuffle_flag = True
+shuffle_flag = False
 negcon_state = "Interphase"
 poscon_state = "Prometaphase"
 
@@ -227,7 +228,7 @@ prometa_phase_ranks = measure_phenotypic_activity(
     state_col="Mitocheck_Phenotypic_Class",
     on_method="emd",
     off_method="ratio_affected",
-    n_threads=-1,
+    n_threads=1,
     raw_emd_scores=True,
 )
 
@@ -252,6 +253,18 @@ prometa_phase_ranks.write_parquet(moa_analysis_output / output_filename)
 prometa_phase_ranks
 
 
+# In[11]:
+
+
+# check if there are any strings in thsi dataframe (there shouldn't be since we only have metadata and numeric columns)
+string_cols = [
+    col for col, dtype in profiles[on_sigs].schema.items() if dtype == pl.Utf8
+]
+if string_cols:
+    print(f"Warning: Found string columns in prometa_phase_ranks: {string_cols}")
+# profiles[on_sigs]
+
+
 # ## Analysis 2: Leave-One-Gene-Out Analysis
 #
 # In this analysis, we perform a leave-one-gene-out (LOGO) evaluation to assess whether data leakage from pooling single-cell profiles inflates phenotypic activity scores.
@@ -269,7 +282,7 @@ prometa_phase_ranks
 
 # Get cell state information
 
-# In[11]:
+# In[12]:
 
 
 cell_states = (
@@ -287,15 +300,15 @@ cell_states = (
 
 # Caclulate the proportion of cell states that makes up a specific gene
 
-# In[12]:
+# In[13]:
 
 
 # parameters for the analysis
-shuffle_flag = True
+shuffle_flag = False
 seed = 0
 
 
-# In[13]:
+# In[14]:
 
 
 if shuffle_flag:
@@ -309,14 +322,14 @@ if shuffle_flag:
     )
 
 
-# In[14]:
+# In[ ]:
 
 
 # select data based on shuffle_flag
 profiles = shuffled_mitocheck_df if shuffle_flag else labeled_mitocheck_df
 
 on_off_sigs = []
-min_cells = 2
+min_cells = 10
 
 results_df = []
 for cell_state in tqdm(cell_states, desc="Processing cell states"):
@@ -416,7 +429,7 @@ for cell_state in tqdm(cell_states, desc="Processing cell states"):
             ref_state=cell_state,
             treatment_col="Metadata_Gene",
             state_col="Mitocheck_Phenotypic_Class",
-            n_threads=-1,
+            n_threads=1,
             raw_emd_scores=True,
         )
 
@@ -486,7 +499,7 @@ for cell_state in tqdm(cell_states, desc="Processing cell states"):
         ref_state=cell_state,
         treatment_col="Metadata_Gene",
         state_col="Mitocheck_Phenotypic_Class",
-        n_threads=-1,
+        n_threads=1,
         raw_emd_scores=True,
         seed=seed,
     )

@@ -67,12 +67,12 @@ CMAP_ON <- colorRampPalette(c('#e8f1fb', '#2c7fb8'))
 CMAP_OFF <- colorRampPalette(c('#fff0df', '#d95f0e'))
 
 draw_centered_colorbar <- function(cmap_fun, label) {
-  par(mar = c(0.4, 0.4, 0.4, 0.4))
+  par(mar = c(0.6, 0.6, 0.6, 0.6))
   plot.new()
   plot.window(xlim = c(0, 1), ylim = c(0, 1), xaxs = 'i', yaxs = 'i')
   bar_raster <- as.raster(matrix(cmap_fun(256), nrow = 1))
-  rasterImage(bar_raster, xleft = 0.14, ybottom = 0.40, xright = 0.86, ytop = 0.62, interpolate = FALSE)
-  text(0.5, 0.20, labels = label, cex = 1.53)
+  rasterImage(bar_raster, xleft = 0.14, ybottom = 0.42, xright = 0.86, ytop = 0.68, interpolate = FALSE)
+  text(0.5, 0.18, labels = label, cex = 2.14)
 }
 
 draw_gene_rankings <- function(input_df, title = 'Rankings of genes per phenotypic state') {
@@ -100,8 +100,8 @@ draw_gene_rankings <- function(input_df, title = 'Rankings of genes per phenotyp
   layout_mat[n_main_rows + 1, 2] <- on_bar_panel
   layout_mat[n_main_rows + 1, 3] <- off_bar_panel
 
-  layout(layout_mat, heights = c(rep(c(0.32, 1, 1, 0.35), n_rows), 0.38))
-  par(bg = 'white', oma = c(4.8, 2.5, 5, 1), mar = c(1.0, 8.0, 0.6, 0.8), xpd = NA)
+  layout(layout_mat, heights = c(rep(c(0.50, 1, 1, 0.55), n_rows), 0.60))
+  par(bg = 'white', oma = c(6.5, 3.5, 6.5, 1.5), mar = c(1.5, 11.5, 1.0, 1.2), xpd = NA)
 
   for (profile in input_profiles) {
     sub <- input_df %>% filter(ref_profile == profile) %>% head(60)
@@ -118,22 +118,22 @@ draw_gene_rankings <- function(input_df, title = 'Rankings of genes per phenotyp
 
     image(x = seq_len(n_genes), y = 1, z = matrix(proportions, ncol = 1),
           col = CMAP_PROP(256), axes = FALSE, xlab = '', ylab = '')
-    axis(2, at = 1, labels = 'proportion', las = 1, tick = FALSE, cex.axis = 1.76, line = -0.35)
-    title(main = profile, cex.main = 1.9, font.main = 2, line = 0.3)
+    axis(2, at = 1, labels = 'proportion', las = 1, tick = FALSE, cex.axis = 2.46, line = -0.50)
+    title(main = profile, cex.main = 2.66, font.main = 2, line = 0.5)
 
     image(x = seq_len(n_genes), y = 1, z = matrix(on_log, ncol = 1),
           col = CMAP_ON(256), axes = FALSE, xlab = '', ylab = '')
-    axis(2, at = 1, labels = 'on score', las = 1, tick = FALSE, cex.axis = 1.76, line = -0.35)
+    axis(2, at = 1, labels = 'on score', las = 1, tick = FALSE, cex.axis = 2.46, line = -0.50)
 
     image(x = seq_len(n_genes), y = 1, z = matrix(off_scores, ncol = 1),
           col = CMAP_OFF(256), axes = FALSE, xlab = '', ylab = '')
-    axis(2, at = 1, labels = 'off score', las = 1, tick = FALSE, cex.axis = 1.76, line = -0.35)
+    axis(2, at = 1, labels = 'off score', las = 1, tick = FALSE, cex.axis = 2.46, line = -0.50)
     x_ticks <- seq(1, n_genes, by = 10)
-    axis(1, at = x_ticks, labels = x_ticks, cex.axis = 1.63)
-    mtext('Gene rank  (1 = lowest on/off score)', side = 1, line = 2.35, cex = 1.12)
+    axis(1, at = x_ticks, labels = x_ticks, cex.axis = 2.28)
+    mtext('Gene rank  (1 = lowest on/off score)', side = 1, line = 3.0, cex = 1.57)
   }
 
-  mtext(title, side = 3, outer = TRUE, line = 2.2, cex = 1.9, font = 2)
+  mtext(title, side = 3, outer = TRUE, line = 3.0, cex = 2.66, font = 2)
 
   draw_centered_colorbar(CMAP_PROP, 'proportion  (cell fraction)')
   draw_centered_colorbar(CMAP_ON,   'on score  (log1p, light = low)')
@@ -142,7 +142,7 @@ draw_gene_rankings <- function(input_df, title = 'Rankings of genes per phenotyp
 
 render_and_display <- function(input_df, out_path, title) {
   n_rows <- ceiling(length(unique(input_df$ref_profile)) / NCOLS)
-  png(out_path, width = 24, height = n_rows * 6.8, units = 'in', res = 200)
+  png(out_path, width = 24, height = n_rows * 9.5, units = 'in', res = 200)
   draw_gene_rankings(input_df, title)
   dev.off()
   cat(sprintf('Saved -> %s\n', out_path))

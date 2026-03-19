@@ -125,14 +125,14 @@ def compute_earth_movers_distance(
     elif n_threads < 1:
         raise ValueError("n_threads must be a positive integer or -1 for max threads.")
 
-    # Convert the profiles to numpy arrays
-    p1 = profile1.to_numpy()
-    p2 = profile2.to_numpy()
-
     # check if either profile is empty and raise an error if so
     # this avoid division by zero errors when computing the EMD
     if profile1.is_empty() or profile2.is_empty():
         raise ValueError("Both profiles must contain at least one row.")
+
+    # Convert the profiles to numpy arrays
+    p1 = profile1.to_numpy()
+    p2 = profile2.to_numpy()
 
     # Subsample if requested
     if subsample_size is not None:

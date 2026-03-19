@@ -99,6 +99,7 @@ compute_consistency <- function(bundle) {
   }
 
   # Pairwise correlation on sparse rank matrix preserves shuffled information.
+  # This avoids collapsing to ~1 treatment for shuffled data after complete-case filtering.
   R_sparse <- as.matrix(bundle$rank_matrix_sparse)
   corr_matrix <- cor(R_sparse, method = 'spearman', use = 'pairwise.complete.obs')
 
@@ -123,7 +124,7 @@ compute_consistency <- function(bundle) {
 plot_corr_heatmap <- function(consistency, title_suffix = '') {
   ggplot(consistency$corr_long, aes(x = x, y = y, fill = rho)) +
     geom_tile(color = 'white', linewidth = 0.3) +
-    geom_text(aes(label = ifelse(is.na(rho), 'NA', sprintf('%.2f', rho))), size = 4.5, color = '#222222') +
+    geom_text(aes(label = ifelse(is.na(rho), 'NA', sprintf('%.2f', rho))), size = 6.3, color = '#222222') +
     scale_fill_gradient2(
       low = '#d62728',
       mid = '#f7f7f7',
@@ -134,20 +135,20 @@ plot_corr_heatmap <- function(consistency, title_suffix = '') {
     ) +
     labs(
       title = sprintf(
-        "Cross-phenotype Spearman rank correlation%s\nKendall's W = %s  (complete-case n = %d, %d phenotypic states)",
+        "Cross-phenotype Spearman rank correlation ρ %s\nKendall's W = %s  (complete-case n = %d, %d phenotypic states)",
         title_suffix, consistency$w_label, consistency$n_subjects, consistency$k_raters
       ),
       x = NULL,
       y = NULL,
       fill = 'Spearman rank correlation'
     ) +
-    theme_minimal(base_size = 14) +
+    theme_minimal(base_size = 20) +
     theme(
-      plot.title = element_text(face = 'bold', size = 18, hjust = 0.5, color = '#1a1a2e'),
-      axis.text.x = element_text(angle = 45, hjust = 1, size = 14, color = '#222222'),
-      axis.text.y = element_text(size = 14, color = '#222222'),
-      legend.title = element_text(face = 'bold', size = 16, color = '#1a1a2e'),
-      legend.text = element_text(size = 14, color = '#222222'),
+      plot.title = element_text(face = 'bold', size = 25, hjust = 0.5, color = '#1a1a2e'),
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 20, color = '#222222'),
+      axis.text.y = element_text(size = 20, color = '#222222'),
+      legend.title = element_text(face = 'bold', size = 22, color = '#1a1a2e'),
+      legend.text = element_text(size = 20, color = '#222222'),
       panel.grid = element_blank()
     )
 }
@@ -204,10 +205,10 @@ save_corr_clustermap <- function(consistency, file_name, title_suffix = '', labe
     cluster_cols = TRUE,
     display_numbers = anno_numbers,
     number_color = '#222222',
-    fontsize = 14,
-    fontsize_row = 14,
-    fontsize_col = 14,
-    fontsize_number = 12,
+    fontsize = 20,
+    fontsize_row = 20,
+    fontsize_col = 20,
+    fontsize_number = 17,
     border_color = '#e0e0e0',
     main = sprintf(
       "Cross-phenotype Spearman ρ — hierarchical clustering%s\nKendall's W = %s  (complete-case n = %d, k = %d)",
@@ -315,17 +316,18 @@ plot_df <- tibble::tibble(W = perm_W)
 p_perm <- ggplot(plot_df, aes(x = W)) +
   geom_histogram(bins = 40, fill = '#6baed6', color = 'white', alpha = 0.95) +
   geom_vline(xintercept = real_stats$W, color = '#d62728', linewidth = 1.2) +
-  annotate('text', x = real_stats$W, y = Inf, label = sprintf('real W = %.3f', real_stats$W), vjust = 1.5, hjust = -0.05, color = '#d62728', size = 4.5) +
+  annotate('text', x = real_stats$W, y = Inf, label = sprintf('real W = %.3f', real_stats$W), vjust = 1.5, hjust = -0.05, color = '#d62728', size = 6.3) +
+  scale_x_continuous(limits = c(NA, 0.5)) +
   labs(
     title = "Kendall's W: Real vs Permutation Null (label permutation)",
     subtitle = sprintf('Permutation null (n = %d) | empirical p(real >= null) = %s', n_permutations, ifelse(is.na(empirical_p_real), 'NA', sprintf('%.4f', empirical_p_real))),
     x = "Kendall's W under label-permutation null",
     y = 'Frequency'
   ) +
-  theme_minimal(base_size = 14) +
+  theme_minimal(base_size = 20) +
   theme(
-    plot.title = element_text(face = 'bold', size = 18),
-    plot.subtitle = element_text(size = 13)
+    plot.title = element_text(face = 'bold', size = 25),
+    plot.subtitle = element_text(size = 18)
   )
 
 perm_plot_out <- file.path(gene_rel_dir, 'kendall_w_permutation_null_histogram.png')

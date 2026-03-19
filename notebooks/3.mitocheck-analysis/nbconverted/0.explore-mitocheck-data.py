@@ -53,9 +53,9 @@ mitocheck_profile_path = (mitocheck_data / "mitocheck_concat_profiles.parquet").
 )
 
 # ENSG → gene-symbol mapping (MitoCheck uses Ensembl gene IDs internally)
-ensg_genes_config_path = (
-    mitocheck_data / "mitocheck_ensg_to_gene_symbol_mapping.json"
-).resolve(strict=True)
+# ensg_genes_config_path = (
+#     mitocheck_data / "mitocheck_ensg_to_gene_symbol_mapping.json"
+# ).resolve(strict=True)
 
 # Feature-space config: defines which columns are metadata vs. morphology features
 mitocheck_feature_space_config = (
@@ -87,7 +87,7 @@ plots_dir.mkdir(exist_ok=True)
 # Load configuration files:
 #   - ensg_genes_decoder: maps Ensembl gene IDs (ENSG*) to human-readable gene symbols
 #   - feature_space_configs: lists metadata columns vs. morphology feature columns
-ensg_genes_decoder = load_configs(ensg_genes_config_path)
+# ensg_genes_decoder = load_configs(ensg_genes_config_path)
 feature_space_configs = load_configs(mitocheck_feature_space_config)
 
 
@@ -187,18 +187,32 @@ cell_counts = (
     .sort("count", descending=True)
 )
 
-# Bar plot with log-scale y-axis to visualize class imbalance
+# Bar plot with linear y-axis to visualize class imbalance
 cell_counts_pd = cell_counts.to_pandas()
 fig, ax = plt.subplots(figsize=(10, 5))
-ax.bar(
+bars = ax.bar(
     cell_counts_pd["Mitocheck_Phenotypic_Class"],
     cell_counts_pd["count"],
     color="steelblue",
 )
 ax.set_title("Cell counts per phenotypic class (treatment cells only)")
 ax.set_xlabel("Phenotypic class")
-ax.set_ylabel("Cell count (log scale)")
-ax.set_yscale("log")
+ax.set_ylabel("Cell count")
+# Set y-axis limit to 500
+ax.set_ylim(0, 500)
+# Add the number of cells on top of each bar
+for bar, count in zip(bars, cell_counts_pd["count"]):
+    height = bar.get_height()
+    ax.annotate(
+        f"{int(count):,}",
+        xy=(bar.get_x() + bar.get_width() / 2, height),
+        xytext=(0, 3),
+        textcoords="offset points",
+        ha="center",
+        va="bottom",
+        fontsize=9,
+        color="black",
+    )
 plt.xticks(rotation=90)
 plt.tight_layout()
 plt.savefig(plots_dir / "phenotypic_class_distribution.png", dpi=300)
@@ -363,10 +377,10 @@ g = sns.clustermap(
 )
 
 # Place the title at the very top of the figure (not on the heatmap axes)
-g.fig.suptitle("Morphology feature correlation clustermap", fontsize=14, y=1.02)
+g.figure.suptitle("Morphology feature correlation clustermap", fontsize=14, y=1.02)
 
 # Adjust layout so the heatmap sits snugly against the dendrograms
-g.fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+g.figure.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
 plt.savefig(
     plots_dir / "feature_correlation_clustermap.png",
