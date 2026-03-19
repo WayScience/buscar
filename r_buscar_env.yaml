@@ -1,0 +1,81 @@
+name: r_buscar
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  # Python runtime
+  - python>=3.10,<3.14
+
+  # R base
+  - r-base
+
+  # Core tidyverse packages
+  - r-tidyverse
+  - r-dplyr
+  - r-ggplot2
+  - r-tidyr
+  - r-readr
+  - r-purrr
+  - r-tibble
+  - r-stringr
+  - r-forcats
+
+  # Data I/O
+  - r-arrow
+  - r-jsonlite
+
+  # Plotting and visualization
+  - r-patchwork
+  - r-scales
+  - r-viridis
+  - r-rcolorbrewer
+  - r-cowplot
+  - r-pheatmap
+  - r-magick
+  - r-gganimate
+  - r-gifski
+  - bioconductor-complexheatmap
+  - r-circlize
+  - r-plotly
+  - r-networkd3
+  - r-htmlwidgets
+  - r-webshot
+  - r-ggplotify
+
+  # Webshot dependencies
+  - openssl
+  - phantomjs
+
+  # Dimensionality reduction
+  - r-umap
+
+  # Additional useful packages for scientific plotting
+  - r-ggrepel
+  - r-ggpubr
+  - r-gridExtra
+
+  # Jupyter support for R
+  - r-irkernel
+  - jupyter
+  - jupyterlab
+  - ipykernel
+
+  # Core Python dependencies for buscar workflows
+  - numpy>=2.2.5,<3.0.0
+  - scipy>=1.15.3,<2.0.0
+  - matplotlib>=3.10.3,<4.0.0
+  - polars>=1.29.0,<2.0.0
+  - statsmodels>=0.14.4,<0.15.0
+  - scikit-learn>=1.6.1,<2.0.0
+  - pycytominer>=1.2.3,<2.0.0
+  - tqdm>=4.67.1
+  - pot>=0.9.5
+  - beartype>=0.21.0
+  - umap-learn>=0.5.9
+  - narwhals>=2.4.0
+  - optuna>=4.5.0
+  - scanpy>=1.11.4
+  - igraph>=0.11.9
+  - leidenalg>=0.10.2
+  - louvain>=0.8.2

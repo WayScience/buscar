@@ -34,8 +34,33 @@ dependencies = [
   "pycytominer>=1.2.3,<2.0.0", 
 ]
 
+<<<<<<< HEAD
 [project.optional-dependencies]
 dev = ["pre-commit>=4.2.0", "pytest>=8.4.1", "pytest-cov>=6.0.0", "ruff>=0.8.1"]
+=======
+[tool.poetry.dependencies]
+python = ">=3.10,<3.14"
+numpy = ">=2.2.5,<3.0.0"
+scipy = ">=1.15.3,<2.0.0"
+matplotlib = ">=3.10.3,<4.0.0"
+polars = ">=1.29.0,<2.0.0"
+statsmodels = ">=0.14.4,<0.15.0"
+scikit-learn = ">=1.6.1,<2.0.0"
+pycytominer = ">=1.2.3,<2.0.0"
+jupyter = "^1.1.1"
+ipykernel = "^6.29.5"
+tqdm = "^4.67.1"
+pot = "^0.9.5"
+beartype = "^0.21.0"
+umap-learn = "^0.5.9.post2"
+narwhals = "^2.4.0"
+optuna = "^4.5.0"
+scanpy = "^1.11.4"
+igraph = "^0.11.9"
+leidenalg = "^0.10.2"
+louvain = "^0.8.2"
+requests = "^2.32.5"
+>>>>>>> 2c578a6 (Mitocheck analysis (#79))
 
 [project.urls]
 Homepage = "https://github.com/WayScience/buscar"
