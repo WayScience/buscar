@@ -2,7 +2,7 @@
 
 # # Downloading Single-Cell Profiles
 #
-# This notebook downloading metadata and single-cell profiles from three key datasets:
+# This notebook downloads metadata and single-cell profiles from three key datasets:
 #
 # 1. **CPJUMP1 Pilot Dataset** ([link](https://github.com/jump-cellpainting/2024_Chandrasekaran_NatureMethods_CPJUMP1)): Metadata is downloaded and processed to identify and organize plates containing wells treated with compound perturbations for downstream analysis.
 # 2. **MitoCheck Dataset**: Normalized and feature-selected single-cell profiles are downloaded for further analysis.
