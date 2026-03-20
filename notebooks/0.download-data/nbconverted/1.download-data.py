@@ -139,7 +139,7 @@ broad_compound_moa_metadata = broad_compound_moa_metadata.rename(
     {col: f"Metadata_{col}" for col in broad_compound_moa_metadata.columns}
 )
 
-# replace null values in the boroad compound moa to "unknown"
+# replace null values in the broad compound moa to "unknown"
 broad_compound_moa_metadata = broad_compound_moa_metadata.with_columns(
     pl.col("Metadata_moa").fill_null("unknown")
 )
