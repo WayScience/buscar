@@ -115,7 +115,7 @@ exp_metadata_path = (
     profiles_dir / "cpjump1" / "cpjump1_compound_experimental-metadata.csv"
 ).resolve(strict=True)
 
-# cpjump1 compound metadta
+# cpjump1 compound metadata
 cmp_metadata_path = (
     profiles_dir / "cpjump1" / "cpjump1_compound_compound-metadata.tsv"
 ).resolve(strict=True)
