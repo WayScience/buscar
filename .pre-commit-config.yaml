@@ -35,7 +35,7 @@ repos:
 
   # Ruff for linting and formatting Python files
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.5
+    rev: v0.15.7
     hooks:
     -   id: ruff-check
         args: ["--fix"]
