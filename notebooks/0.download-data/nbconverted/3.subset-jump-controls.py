@@ -1,22 +1,23 @@
 #!/usr/bin/env python
+# coding: utf-8
 
-# # 3. Subsetting CPJUMP1 controls
-#
+# # 3. Subsetting CPJUMP1 controls 
+# 
 # In this notebook, we subset control samples from the CPJUMP1 CRISPR dataset using stratified sampling. We generate 10 different random seeds to create multiple subsets, each containing 15% of the original control data stratified by plate and well metadata. This approach ensures reproducible sampling while maintaining the distribution of controls across experimental conditions.
-#
+# 
 # The subsampled datasets are saved as individual parquet files for downstream analysis and model training purposes.
-#
+# 
 
 # In[1]:
 
 
-import pathlib
 import sys
-
+import pathlib
 import polars as pl
 
 sys.path.append("../../")
 from utils.io_utils import load_profiles
+
 
 # Load helper functions
 
@@ -169,7 +170,7 @@ for seed_val in range(10):
     )
 
 
-# Selecting only positive controls and saving it
+# Selecting only positive controls and saving it 
 
 # In[6]:
 
@@ -180,3 +181,4 @@ poscon_cp_df = profiles_df.filter(
     & (pl.col("Metadata_control_type") == "poscon_cp")
 )
 poscon_cp_df.write_parquet(poscon_data_dir / "poscon_cp_df.parquet")
+
