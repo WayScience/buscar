@@ -8,11 +8,12 @@
 # - **Global Distribution Plots**: KDE plots comparing the distributions of mean `on_score` and `off_score` for real and shuffled conditions, annotated with statistical tests (Mann-Whitney U, KS test).
 # - **Plate-Pairing Heatmaps**: Per-treatment `ref_plate × compared_plate` matrices of mean `on_score`, shown for the top, middle, and bottom treatments by mean score.
 
-# In[51]:
+# In[50]:
 
 
 import pathlib
 
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
@@ -25,7 +26,7 @@ from statsmodels.stats.multitest import multipletests
 PALETTE = {"real": "#2196F3", "shuffled": "#FF5722"}
 
 
-# In[52]:
+# In[51]:
 
 
 data_dir = pathlib.Path("./results/replicate_analysis")
@@ -49,7 +50,7 @@ shuffled_a549_rep_trt_df = pl.read_parquet(
 # output dir
 output_dir = pathlib.Path("./results/replicate_analysis")
 
-plot_output = output_dir / "plots"
+plot_output = pathlib.Path("./plots/replicate-analysis")
 plot_output.mkdir(parents=True, exist_ok=True)
 
 
@@ -59,16 +60,14 @@ plot_output.mkdir(parents=True, exist_ok=True)
 #
 # **Approach:** aggregate each treatment's scores (mean across all iterations and plate comparisons, excluding self-comparisons where `ref_plate_rep == compared_plate_rep`) so each treatment contributes equally to the distribution.
 
-# In[ ]:
+# In[52]:
 
 
 def prepare_cross_data(real_df: pl.DataFrame, shuffled_df: pl.DataFrame):
-    """Label, combine, filter to cross-plate comparisons, and aggregate per treatment."""
+    """Label, combine, and aggregate per treatment."""
     real = real_df.with_columns(pl.lit("paired").alias("condition"))
     shuf = shuffled_df.with_columns(pl.lit("non-paired").alias("condition"))
-    cross_df = pl.concat([real, shuf]).filter(
-        pl.col("ref_plate_rep") != pl.col("compared_plate_rep")
-    )
+    cross_df = pl.concat([real, shuf])
     agg_df = (
         cross_df.group_by(["condition", "treatment"])
         .agg(
@@ -136,8 +135,8 @@ def plot_global_distributions(
         axes,
         ["mean_on_score", "mean_off_score"],
         [
-            "On-Score Distribution (cross-plate replicates)",
-            "Off-Score Distribution (cross-plate replicates)",
+            "On-Score Distribution",
+            "Off-Score Distribution",
         ],
         ["Mean On-Score per Treatment", "Mean Off-Score per Treatment"],
     ):
@@ -183,7 +182,7 @@ def plot_global_distributions(
         ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.2f"))
 
     plt.suptitle(
-        f"{cell_type} Global Score Distributions (per-treatment means, cross-plate only)",
+        f"{cell_type} Global Score Distributions (per-treatment means)",
         fontsize=13,
         y=1.02,
     )
@@ -215,22 +214,11 @@ def plot_plate_pair_heatmaps(
         + sorted_trts.iloc[mid - 1 : mid + 2]["treatment"].tolist()
         + sorted_trts.iloc[-3:]["treatment"].tolist()
     )
-    cross_source = source_df.filter(
-        pl.col("ref_plate_rep") != pl.col("compared_plate_rep")
-    )
-    all_scores = cross_source.filter(pl.col("treatment").is_in(selected_trts))[
-        "on_score"
-    ].to_numpy()
-    vmin, vmax, vcenter = (
-        float(np.percentile(all_scores, 5)),
-        float(np.percentile(all_scores, 95)),
-        1.0,
-    )
 
     fig, axes = plt.subplots(3, 3, figsize=(19, 17))
     for ax, trt in zip(axes.flatten(), selected_trts):
         pivot = (
-            cross_source.filter(pl.col("treatment") == trt)
+            source_df.filter(pl.col("treatment") == trt)
             .group_by(["ref_plate_rep", "compared_plate_rep"])
             .agg(pl.col("on_score").mean())
             .sort(["ref_plate_rep", "compared_plate_rep"])
@@ -241,6 +229,16 @@ def plot_plate_pair_heatmaps(
         )
         pivot.index.name = "Reference plate"
         pivot.columns.name = "Compared plate"
+
+        # Per-facet symmetric colorbar centered at 1
+        trt_scores = pivot.values.flatten()
+        trt_scores = trt_scores[~np.isnan(trt_scores)]
+        vcenter = 1.0
+        p5 = float(np.percentile(trt_scores, 5))
+        p95 = float(np.percentile(trt_scores, 95))
+        max_dev = max(abs(p95 - vcenter), abs(vcenter - p5))
+        vmin, vmax = vcenter - max_dev, vcenter + max_dev
+
         mean_score = sorted_trts.loc[
             sorted_trts["treatment"] == trt, "mean_on_score"
         ].values[0]
@@ -257,6 +255,24 @@ def plot_plate_pair_heatmaps(
             linewidths=0.4,
             cbar_kws={"shrink": 0.8},
         )
+
+        # Draw a darker outline on diagonal cells (same plate vs same plate)
+        col_labels = list(pivot.columns)
+        for row_i, row_label in enumerate(pivot.index):
+            if row_label in col_labels:
+                col_j = col_labels.index(row_label)
+                ax.add_patch(
+                    mpatches.Rectangle(
+                        (col_j, row_i),
+                        1,
+                        1,
+                        fill=False,
+                        edgecolor="black",
+                        linewidth=3,
+                        clip_on=False,
+                    )
+                )
+
         ax.set_title(f"{trt}\n(mean on_score={mean_score:.3f})", fontsize=20)
         ax.set_xlabel("Compared plate", fontsize=13, fontweight="bold")
         ax.set_ylabel("Reference plate", fontsize=13, fontweight="bold")
@@ -276,7 +292,7 @@ def plot_plate_pair_heatmaps(
 print("Functions loaded.")
 
 
-# In[54]:
+# In[53]:
 
 
 u2os_cross_df, u2os_agg_df, u2os_real_agg, u2os_shuf_agg = prepare_cross_data(
@@ -290,7 +306,7 @@ print(
 )
 
 
-# In[55]:
+# In[54]:
 
 
 a549_cross_df, a549_agg_df, a549_real_agg, a549_shuf_agg = prepare_cross_data(
@@ -304,7 +320,7 @@ print(
 )
 
 
-# In[56]:
+# In[55]:
 
 
 u2os_stats_df = run_statistical_tests(u2os_real_agg, u2os_shuf_agg)
@@ -316,7 +332,7 @@ u2os_stats_df.write_csv(output_dir / "u2os_statistical_tests.csv", separator=","
 u2os_stats_df
 
 
-# In[57]:
+# In[56]:
 
 
 a549_stats_df = run_statistical_tests(a549_real_agg, a549_shuf_agg)
@@ -327,7 +343,7 @@ a549_stats_df.write_csv(output_dir / "a549_statistical_tests.csv", separator=","
 a549_stats_df
 
 
-# In[58]:
+# In[57]:
 
 
 plot_global_distributions(
@@ -335,11 +351,11 @@ plot_global_distributions(
     u2os_shuf_agg,
     u2os_stats_df,
     cell_type="U2OS",
-    save_path=plot_output / "u2os_global_score_distributions.png",
+    save_path=plot_output / "compound_u2os_global_score_distributions.png",
 )
 
 
-# In[59]:
+# In[58]:
 
 
 plot_global_distributions(
@@ -347,7 +363,7 @@ plot_global_distributions(
     a549_shuf_agg,
     a549_stats_df,
     cell_type="A549",
-    save_path=plot_output / "a549_global_score_distributions.png",
+    save_path=plot_output / "compound_a549_global_score_distributions.png",
 )
 
 
@@ -355,7 +371,7 @@ plot_global_distributions(
 #
 # For selected treatments, build a `ref_plate × compared_plate` matrix of mean `on_score` (averaged across iterations). A well-replicated treatment should produce a near-uniform matrix (~1.0). Outlier plates appear as divergent rows or columns.
 
-# In[65]:
+# In[59]:
 
 
 plot_plate_pair_heatmaps(
@@ -364,11 +380,11 @@ plot_plate_pair_heatmaps(
     u2os_agg_df,
     cell_type="U2OS",
     condition="paired",
-    save_path=plot_output / "u2os_plate_pair_heatmaps_real.png",
+    save_path=plot_output / "compound_u2os_plate_pair_heatmaps_real.png",
 )
 
 
-# In[66]:
+# In[60]:
 
 
 plot_plate_pair_heatmaps(
@@ -377,11 +393,11 @@ plot_plate_pair_heatmaps(
     u2os_agg_df,
     cell_type="U2OS",
     condition="non-paired",
-    save_path=plot_output / "u2os_plate_pair_heatmaps_non_rep.png",
+    save_path=plot_output / "compound_u2os_plate_pair_heatmaps_non_rep.png",
 )
 
 
-# In[67]:
+# In[61]:
 
 
 plot_plate_pair_heatmaps(
@@ -390,11 +406,11 @@ plot_plate_pair_heatmaps(
     a549_agg_df,
     cell_type="A549",
     condition="paired",
-    save_path=plot_output / "a549_plate_pair_heatmaps_real.png",
+    save_path=plot_output / "compound_a549_plate_pair_heatmaps_real.png",
 )
 
 
-# In[68]:
+# In[62]:
 
 
 plot_plate_pair_heatmaps(
@@ -403,5 +419,5 @@ plot_plate_pair_heatmaps(
     a549_agg_df,
     cell_type="A549",
     condition="non-paired",
-    save_path=plot_output / "a549_plate_pair_heatmaps_non_rep.png",
+    save_path=plot_output / "compound_a549_plate_pair_heatmaps_non_rep.png",
 )
