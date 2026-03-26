@@ -92,10 +92,10 @@ scores_plot <- ggplot(scores_df, aes(x = off_score, y = on_score, color = treatm
 
   # Labels
   labs(
-    x        = "Off score",
-    y        = "On score",
+    x        = "Off-buscar score",
+    y        = "On-buscar score",
     title    = "CFReT-Circ Buscar scores",
-    subtitle = "Reference: Healthy DMSO CF cells",
+    subtitle = "Reference: healthy DMSO CF cells",
     color    = "Treatment"
   ) +
 
