@@ -1,6 +1,6 @@
 comparison,value
 real,0.3119730571847507
-perm_null_mean,0.06288665288214809
-perm_null_sd,0.015597630731234009
+perm_null_mean,0.06247271639021261
+perm_null_sd,0.015491729056433213
 empirical_p_real_vs_perm,0
-zscore_real_vs_perm,15.969502586300562
+zscore_real_vs_perm,16.105390165659312
