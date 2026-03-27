@@ -73,7 +73,6 @@ if (!file.exists(pca_on_var_exp_path)) stop("PCA on-target explained variance fi
 if (!file.exists(pca_off_var_exp_path)) stop("PCA off-target explained variance file not found")
 
 # UMAP file paths
-umap_global_path <- file.path(umap_dir, "cfret_pilot_all_morph_umap.parquet")
 umap_on_path <- file.path(umap_dir, "cfret_pilot_on_morph_umap.parquet")
 umap_off_path <- file.path(umap_dir, "cfret_pilot_off_morph_umap.parquet")
 umap_all_path <- file.path(umap_dir, "cfret_pilot_all_morph_umap.parquet")
