@@ -316,7 +316,10 @@ def shuffle_feature_profiles(
     # column-wise shuffling
     elif method == "column":
         return profiles.with_columns(
-            [pl.col(col).shuffle(seed=seed + i) for i, col in enumerate(feature_cols)]
+            [
+                pl.col(col).shuffle(seed=seed + hash(col) % (2**32))
+                for col in feature_cols
+            ]
         )
     elif method == "label":
         if label_col is None:

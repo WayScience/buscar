@@ -125,14 +125,14 @@ def compute_earth_movers_distance(
     elif n_threads < 1:
         raise ValueError("n_threads must be a positive integer or -1 for max threads.")
 
-    # Convert the profiles to numpy arrays
-    p1 = profile1.to_numpy()
-    p2 = profile2.to_numpy()
-
     # check if either profile is empty and raise an error if so
     # this avoid division by zero errors when computing the EMD
     if profile1.is_empty() or profile2.is_empty():
         raise ValueError("Both profiles must contain at least one row.")
+
+    # Convert the profiles to numpy arrays
+    p1 = profile1.to_numpy()
+    p2 = profile2.to_numpy()
 
     # Subsample if requested
     if subsample_size is not None:
@@ -205,7 +205,7 @@ def calculate_score(
     signature: list[str],
     signature_type: Literal["on", "off"],
     on_calculation: Literal["emd"] = "emd",
-    off_calculation: Literal["ratio_affected", "emd"] = "ratio_affected",
+    off_calculation: Literal["ratio_affected"] = "ratio_affected",
     ratio_stats_method: str = "ks_test",
     n_threads: int = 1,
     seed: int = 0,
@@ -229,10 +229,9 @@ def calculate_score(
     on_calculation : Literal["emd"], optional
         Method used to compute the on-score. Only Earth Mover's Distance ("emd") is
         currently supported, by default "emd".
-    off_calculation : Literal["ratio_affected", "emd"], optional
+    off_calculation : Literal["ratio_affected"]
         Method used to compute the off-score:
         - "ratio_affected": proportion of off features that became significant.
-        - "emd": Earth Mover's Distance in off-feature space.
         By default "ratio_affected".
     ratio_stats_method : str, optional
         Statistical test used when ``off_calculation`` is ``"ratio_affected"`` to assess
@@ -266,7 +265,6 @@ def calculate_score(
         else:
             raise ValueError(
                 f"Invalid off_calculation '{off_calculation}'. Must be 'ratio_affected'"
-                " or 'emd'."
             )
 
     else:
@@ -406,7 +404,11 @@ def measure_phenotypic_activity(
             continue
 
         # extract morphological features for reference condition (excluding metadata)
-        ref_profile = profiles.filter(pl.col(state_col) == ref_state).drop(meta_cols)
+
+        # state can either be defined in the treatment column or in a separate column
+        # (state_col) parameter
+        _state_col = state_col if state_col is not None else treatment_col
+        ref_profile = profiles.filter(pl.col(_state_col) == ref_state).drop(meta_cols)
 
         # extract morphological features for current treatment condition
         target_profile = profiles.filter(pl.col(treatment_col) == treatment).drop(
@@ -443,15 +445,6 @@ def measure_phenotypic_activity(
         )
 
         # store computed scores for this treatment
-        # print type of all outputs (
-        print(
-            f"ref_state: {type(ref_state)}, treatment: {type(treatment)}, "
-            f"on_score: {type(on_score)}, off_score: {type(off_score)}"
-        )
-        print(
-            f"ref_state: {ref_state}, treatment: {treatment}, "
-            f"on_score: {on_score}, off_score: {off_score}"
-        )
         scores.append([ref_state, treatment, on_score, off_score])
 
     # construct dataframe from collected scores

@@ -1,12 +1,6 @@
 #!/usr/bin/env python
 
-# # 4. Assessing Morphological Significance
-#
-# In this notebook, we evaluate the morphological significance of the "on" and "off" signatures to determine how informative these features are when comparing healthy and diseased (failing) cardiac fibroblasts.
-#
-# We calculate statistical significance using the Kolmogorov-Smirnov (KS) test for each feature and apply False Discovery Rate (FDR) correction. The resulting table will be used in subsequent steps to visualize the significance of these feature spaces.
-
-# In[1]:
+# In[11]:
 
 
 import pathlib
@@ -18,12 +12,73 @@ sys.path.append("../../")
 from scipy.stats import ks_2samp
 from statsmodels.stats.multitest import fdrcorrection
 
-from utils.data_utils import split_meta_and_features
+from utils.data_utils import shuffle_feature_profiles, split_meta_and_features
 from utils.io_utils import load_configs, load_profiles
 
-# Setting input and output paths
+# In[12]:
 
-# In[2]:
+
+def compute_ks_signature(
+    ref_df: pl.DataFrame,
+    target_df: pl.DataFrame,
+    features: list[str],
+    output_path: pathlib.Path,
+    alpha: float = 0.05,
+) -> pl.DataFrame:
+    """Run KS test on each feature between ref and target, apply FDR correction,
+    and save results to a CSV.
+
+    Parameters
+    ----------
+    ref_df : pl.DataFrame
+        Reference population DataFrame.
+    target_df : pl.DataFrame
+        Target population DataFrame.
+    features : list[str]
+        Feature column names to test.
+    output_path : pathlib.Path
+        Path to write the resulting CSV.
+    alpha : float
+        Significance threshold for the "on"/"off" signature label.
+
+    Returns
+    -------
+    pl.DataFrame
+        KS test results with FDR-corrected p-values, -log10 transform, signature
+        label, and channel.
+    """
+    ks_stats, p_values = zip(
+        *[ks_2samp(ref_df[feat], target_df[feat]) for feat in features]
+    )
+
+    _, p_values_fdr = fdrcorrection(list(p_values))
+
+    results_df = (
+        pl.DataFrame(
+            {
+                "feature": features,
+                "p_value": list(p_values),
+                "ks_stat": list(ks_stats),
+                "p_value_fdr_corrected": p_values_fdr,
+            }
+        )
+        .with_columns(
+            (-pl.col("p_value_fdr_corrected").log10()).alias("neg_log10_p_value")
+        )
+        .with_columns(
+            pl.when(pl.col("p_value_fdr_corrected") < alpha)
+            .then(pl.lit("on"))
+            .otherwise(pl.lit("off"))
+            .alias("signature")
+        )
+        .with_columns(pl.col("feature").str.split("_").list.get(0).alias("channel"))
+    )
+
+    results_df.write_csv(output_path)
+    return results_df
+
+
+# In[13]:
 
 
 # load in raw data from
@@ -46,9 +101,7 @@ signatures_results_dir = pathlib.Path(results_dir / "signatures")
 signatures_results_dir.mkdir(exist_ok=True)
 
 
-# Setting notebook parameters
-
-# In[3]:
+# In[14]:
 
 
 # setting parameters
@@ -60,9 +113,7 @@ failing_label = "failing_DMSO"
 on_off_signatures_method = "ks_test"
 
 
-# Loading profiles
-
-# In[4]:
+# In[15]:
 
 
 # loading profiles
@@ -100,64 +151,61 @@ print(f"Dataframe shape: {cfret_df.shape}")
 cfret_df.head()
 
 
-# Separating profiles
-
-# In[5]:
+# In[16]:
 
 
 ref_df = cfret_df.filter(pl.col("Metadata_cell_type_and_treatment") == failing_label)
 target_df = cfret_df.filter(pl.col("Metadata_cell_type_and_treatment") == healthy_label)
 
 
-# We apply a statistical test (Kolmogorov-Smirnov) to each feature, comparing the distributions between the two profiles. Following this, we correct the p-values using the False Discovery Rate (FDR) method. Finally, we store the results for downstream plotting and analysis.
-
-# In[6]:
+# In[17]:
 
 
-# apply ks test to each feature (single loop)
-ks_stats = []
-p_values = []
-for feature in cfret_feats:
-    stat, p_value = ks_2samp(ref_df[feature], target_df[feature])
-    ks_stats.append(stat)
-    p_values.append(p_value)
-
-# FDR correction (vectorized)
-_, p_values_fdr = fdrcorrection(p_values)
-
-# Create DataFrame
-ks_results_df = pl.DataFrame(
-    {
-        "feature": cfret_feats,
-        "p_value": p_values,
-        "ks_stat": ks_stats,
-        "p_value_fdr_corrected": p_values_fdr,
-    }
+ks_results_df = compute_ks_signature(
+    ref_df=ref_df,
+    target_df=target_df,
+    features=cfret_feats,
+    output_path=signatures_results_dir / "signature_importance.csv",
 )
 
-# Vectorized log transformation
-ks_results_df = ks_results_df.with_columns(
-    (-pl.col("p_value_fdr_corrected").log10()).alias("neg_log10_p_value")
-)
-
-# add a column for significance based on a threshold (e.g., 0.05)
-# if lower than 0.05 then there should be a label known as "on" and higher than 0.05
-# should be "off"
-ks_results_df = ks_results_df.with_columns(
-    pl.when(pl.col("p_value_fdr_corrected") < 0.05)
-    .then(pl.lit("on"))
-    .otherwise(pl.lit("off"))
-    .alias("signature")
-)
-
-# add a column of "channel" where we splitthe feature name and takethe first split
-ks_results_df = ks_results_df.with_columns(
-    pl.col("feature").str.split("_").list.get(0).alias("channel")
-)
-
-# save dataframe as csv
-ks_results_df.write_csv(signatures_results_dir / "signature_importance.csv")
-
-# display
 print(ks_results_df.shape)
 ks_results_df.head()
+
+
+# Now apply on shuffled data
+
+# In[18]:
+
+
+# concat
+concat_df = pl.concat([ref_df, target_df])
+
+# shuffle
+shuffled_concat_df = shuffle_feature_profiles(
+    concat_df, cfret_feats, method="column", seed=0
+)
+
+# filter shuffled_concat_df to get shuffled_ref_df and shuffled_target_df
+shuffled_ref_df = shuffled_concat_df.filter(
+    pl.col("Metadata_cell_type_and_treatment") == failing_label
+)
+shuffled_target_df = shuffled_concat_df.filter(
+    pl.col("Metadata_cell_type_and_treatment") == healthy_label
+)
+
+
+# In[19]:
+
+
+ks_results_df = compute_ks_signature(
+    ref_df=shuffled_ref_df,
+    target_df=shuffled_target_df,
+    features=cfret_feats,
+    output_path=signatures_results_dir / "shuffle_signature_importance.csv",
+)
+
+print(ks_results_df.shape)
+ks_results_df.head()
+
+
+# In[ ]:

@@ -1,37 +1,35 @@
 #!/usr/bin/env python
-# coding: utf-8
 
 # # 2. Preprocessing Data
-# 
+#
 # This notebook demonstrates how to preprocess single-cell profile data for downstream analysis. It covers the following steps:
-# 
+#
 # **Overview**
-# 
+#
 # - **Data Exploration**: Examining the structure and contents of the downloaded datasets
 # - **Metadata Handling**: Loading experimental metadata to guide data selection and organization
 # - **Feature Selection**: Applying a shared feature space for consistency across datasets
 # - **Profile Concatenation**: Merging profiles from multiple experimental plates into a unified DataFrame
 # - **Format Conversion**: Converting raw CSV files to Parquet format for efficient storage and access
 # - **Metadata and Feature Documentation**: Saving metadata and feature information to ensure reproducibility
-# 
+#
 # These preprocessing steps ensure that all datasets are standardized, well-documented, and ready for comparative and integrative analyses.
 
 # In[1]:
 
 
-import sys
 import json
 import pathlib
+import sys
 
 import polars as pl
 
 sys.path.append("../../")
-from utils.data_utils import split_meta_and_features, add_cell_id_hash
+from utils.data_utils import add_cell_id_hash, split_meta_and_features
 from utils.io_utils import load_and_concat_profiles
 
-
-# ## Helper functions 
-# 
+# ## Helper functions
+#
 # Contains helper function that pertains to this notebook.
 
 # In[2]:
@@ -99,7 +97,7 @@ def remove_feature_prefixes(df: pl.DataFrame, prefix: str = "CP__") -> pl.DataFr
 
 
 # Defining the input and output directories used throughout the notebook.
-# 
+#
 # > **Note:** The shared profiles utilized here are sourced from the [JUMP-single-cell](https://github.com/WayScience/JUMP-single-cell) repository. All preprocessing and profile generation steps are performed in that repository, and this notebook focuses on downstream analysis using the generated profiles.
 
 # In[3]:
@@ -184,9 +182,9 @@ shared_features = loaded_shared_features["shared-features"]
 
 
 # ## Preprocessing CPJUMP1 Data
-# 
+#
 # Using the filtered plate file paths and shared features configuration, we load all individual profile files and concatenate them into a single comprehensive DataFrame. This step combines data from multiple experimental plates, for either compound or CRISPR perturbation types, while maintaining a consistent feature space defined by the shared features list.
-# 
+#
 # The concatenation process ensures:
 # - All profiles use the same feature set for downstream compatibility
 # - Metadata columns are preserved across all plates
@@ -268,20 +266,20 @@ cpjump1_profiles.select(meta_cols + features_cols).write_parquet(concat_output_p
 
 
 # ## Preprocessing MitoCheck Dataset
-# 
+#
 # This section processes the MitoCheck dataset by loading training data, positive controls, and negative controls from compressed CSV files. The data is standardized and converted to Parquet format for consistency with other datasets and improved performance.
-# 
+#
 # **Key preprocessing steps:**
-# 
+#
 # - **Loading datasets**: Reading training data, positive controls, and negative controls from compressed CSV files
 # - **Control labeling**: Adding phenotypic class labels ("poscon" and "negcon") to distinguish control types
-# - **Feature filtering**: Extracting only Cell Profiler (CP) features to match the CPJUMP1 dataset structure  
+# - **Feature filtering**: Extracting only Cell Profiler (CP) features to match the CPJUMP1 dataset structure
 # - **Column standardization**: Removing "CP__" prefixes and ensuring consistent naming conventions
 # - **Feature alignment**: Identifying shared features across all three datasets (training, positive controls, negative controls)
 # - **Metadata preservation**: Maintaining consistent metadata structure across all profile types
 # - **Format conversion**: Saving processed data in optimized Parquet format for efficient downstream analysis
 # - **adding cell id**: adding a cell id column `Metadata_cell_id`
-# 
+#
 # The preprocessing ensures that all MitoCheck datasets share a common feature space and are ready for comparative analysis with CPJUMP1 profiles.
 
 # In[8]:
@@ -371,6 +369,7 @@ mitocheck_meta_data = [
     "Metadata_Gene_Replicate",
 ]
 
+
 # select morphology features by dropping the metadata features and getting only the column names
 cp_mitocheck_profile_features = cp_mitocheck_profile.drop(mitocheck_meta_data).columns
 cp_mitocheck_neg_control_profiles_features = cp_mitocheck_neg_control_profiles.drop(
@@ -400,7 +399,7 @@ with open(mitocheck_dir / "mitocheck_feature_space_configs.json", "w") as f:
     )
 
 
-# In[11]:
+# In[ ]:
 
 
 # create concatenated mitocheck profiles
@@ -425,6 +424,16 @@ concat_mitocheck_profiles = (
 # add unique cell ID based on features of a single profiles
 concat_mitocheck_profiles = add_cell_id_hash(concat_mitocheck_profiles)
 
+# get a list of all unique ENSG IDs in the Metadata_Gene column that starts with "ENSG"
+ensg_ids = [
+    gene
+    for gene in concat_mitocheck_profiles.select("Metadata_Gene")
+    .unique()
+    .to_series()
+    .to_list()
+    if gene.startswith("ENSG")
+]
+
 # save concatenated mitocheck profiles
 concat_mitocheck_profiles.write_parquet(
     mitocheck_dir / "mitocheck_concat_profiles.parquet"
@@ -432,11 +441,11 @@ concat_mitocheck_profiles.write_parquet(
 
 
 # ## Preprocessing CFReT Dataset
-# 
+#
 # This section preprocesses the CFReT dataset to ensure compatibility with downstream analysis workflows.
-# 
+#
 # - **Unique cell identification**: Adding `Metadata_cell_id` column with unique hash values based on all profile features to enable precise cell tracking and deduplication
-# 
+#
 
 # In[12]:
 
@@ -467,4 +476,3 @@ with open(cfret_profiles_dir / "cfret_feature_space_configs.json", "w") as f:
 
 # overwrite dataset with cell
 cfret_profiles.select(meta_cols + features_cols).write_parquet(cfret_profiles_path)
-

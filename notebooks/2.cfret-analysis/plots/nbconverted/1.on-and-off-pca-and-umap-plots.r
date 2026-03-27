@@ -16,13 +16,13 @@ set.seed(0)
 
 # ggplot configuration
 theme_set(
-    theme_minimal(base_size = 12, base_family = "sans") +
+    theme_minimal(base_size = 16, base_family = "sans") +
     theme(
         # Axis styling
         axis.line = element_line(color = "black", linewidth = 0.5),
         axis.ticks = element_line(color = "black", linewidth = 0.5),
-        axis.text = element_text(color = "black", size = 10),
-        axis.title = element_text(face = "bold", size = 11),
+        axis.text = element_text(color = "black", size = 13),
+        axis.title = element_text(face = "bold", size = 14),
 
         # Panel styling
         panel.grid.major = element_line(color = "grey90", linewidth = 0.25),
@@ -31,19 +31,19 @@ theme_set(
         panel.border = element_blank(),
 
         # Plot styling
-        plot.title = element_text(face = "bold", size = 13, hjust = 0.5),
-        plot.subtitle = element_text(size = 10, hjust = 0.5, color = "grey40"),
+        plot.title = element_text(face = "bold", size = 17, hjust = 0.5),
+        plot.subtitle = element_text(size = 13, hjust = 0.5, color = "grey40"),
         plot.background = element_rect(fill = "white", color = NA),
 
         # Legend styling
         legend.position = "right",
-        legend.title = element_text(face = "bold", size = 10),
-        legend.text = element_text(size = 9),
-        legend.background = element_rect(fill = "white", color = "grey80", linewidth = 0.3),
+        legend.title = element_text(face = "bold", size = 13),
+        legend.text = element_text(size = 12),
+        legend.background = element_rect(fill = "white", color = NA), # Change color to NA
         legend.key = element_blank(),
 
         # Strip styling for facets
-        strip.text = element_text(face = "bold", size = 11),
+        strip.text = element_text(face = "bold", size = 14),
         strip.background = element_rect(fill = "grey95", color = "grey80")
     )
 )
@@ -73,15 +73,16 @@ if (!file.exists(pca_on_var_exp_path)) stop("PCA on-target explained variance fi
 if (!file.exists(pca_off_var_exp_path)) stop("PCA off-target explained variance file not found")
 
 # UMAP file paths
-umap_global_path <- file.path(umap_dir, "cfret_pilot_all_morph_umap.parquet")
 umap_on_path <- file.path(umap_dir, "cfret_pilot_on_morph_umap.parquet")
 umap_off_path <- file.path(umap_dir, "cfret_pilot_off_morph_umap.parquet")
+umap_all_path <- file.path(umap_dir, "cfret_pilot_all_morph_umap.parquet")
 
 # Verify files exist
 if (!file.exists(pca_on_path)) stop("PCA on-target file not found")
 if (!file.exists(pca_off_path)) stop("PCA off-target file not found")
 if (!file.exists(umap_on_path)) stop("UMAP on-target file not found")
 if (!file.exists(umap_off_path)) stop("UMAP off-target file not found")
+if (!file.exists(umap_all_path)) stop("UMAP all-target file not found")
 
 # Create figures directory
 dir.create(figures_dir, showWarnings = FALSE, recursive = TRUE)
@@ -177,7 +178,7 @@ pca_combined <- plot_pca_on + plot_pca_off +
     plot_layout(guides = "collect") + # Combine legends into one
     plot_annotation(
         title = "PCA analysis: morphological signature discrimination",
-        theme = theme(plot.title = element_text(face = "bold", size = 14, hjust = 0.5))
+        theme = theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
     )
 
 # Display plot parameters for Jupyter
@@ -198,10 +199,10 @@ cat("Saved PCA overlay plots to:", figures_dir, "\n")
 
 # Prepare data for faceting
 pca_on_df_facet <- pca_on_df %>%
-    mutate(signature_type = sprintf("On-Target (PC1: %.1f%%, PC2: %.1f%%)", pc1_var_on, pc2_var_on))
+    mutate(signature_type = sprintf("On-morphological signature (PC1: %.1f%%, PC2: %.1f%%)", pc1_var_on, pc2_var_on))
 
 pca_off_df_facet <- pca_off_df %>%
-    mutate(signature_type = sprintf("Off-Target (PC1: %.1f%%, PC2: %.1f%%)", pc1_var_off, pc2_var_off))
+    mutate(signature_type = sprintf("Off-morphological signature (PC1: %.1f%%, PC2: %.1f%%)", pc1_var_off, pc2_var_off))
 
 # Create faceted PCA plot
 pca_faceted <- bind_rows(pca_on_df_facet, pca_off_df_facet) %>%
@@ -219,7 +220,7 @@ pca_faceted <- bind_rows(pca_on_df_facet, pca_off_df_facet) %>%
     ) +
     guides(color = guide_legend(override.aes = list(alpha = legend_alpha, size = legend_size))) +
     theme(
-        strip.text = element_text(face = "bold", size = 11),
+        strip.text = element_text(face = "bold", size = 14),
         panel.spacing = unit(1, "lines")
     )
 
@@ -242,16 +243,20 @@ cat("Saved PCA faceted plots to:", figures_dir, "\n")
 # Load pre-computed UMAP results
 umap_on_df <- read_parquet(umap_on_path)
 umap_off_df <- read_parquet(umap_off_path)
+umap_all_df <- read_parquet(umap_all_path)
 
 # Create cell_treatment column
 umap_on_df <- umap_on_df %>%
     mutate(Metadata_cell_treatment = paste(Metadata_cell_type, Metadata_treatment, sep = "_"))
 umap_off_df <- umap_off_df %>%
     mutate(Metadata_cell_treatment = paste(Metadata_cell_type, Metadata_treatment, sep = "_"))
+umap_all_df <- umap_all_df %>%
+    mutate(Metadata_cell_treatment = paste(Metadata_cell_type, Metadata_treatment, sep = "_"))
 
 # Display structure
 cat("UMAP ON shape:", nrow(umap_on_df), "×", ncol(umap_on_df), "\n")
 cat("UMAP OFF shape:", nrow(umap_off_df), "×", ncol(umap_off_df), "\n")
+cat("UMAP ALL shape:", nrow(umap_all_df), "×", ncol(umap_all_df), "\n")
 
 # Display cell counts by treatment
 cell_counts_umap <- umap_on_df %>%
@@ -298,7 +303,7 @@ umap_combined <- plot_umap_on + plot_umap_off +
     plot_layout(guides = "collect") +
     plot_annotation(
         title = "UMAP analysis: morphological signature",
-        theme = theme(plot.title = element_text(face = "bold", size = 14, hjust = 0.5))
+        theme = theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
     )
 
 # Display plot
@@ -318,15 +323,15 @@ cat("Saved UMAP overlay plots to:", figures_dir, "\n")
 
 # Prepare data for faceting
 umap_on_df_facet <- umap_on_df %>%
-    mutate(signature_type = "On-Target")
+    mutate(signature_type = "On-morphological signature")
 
 umap_off_df_facet <- umap_off_df %>%
-    mutate(signature_type = "Off-Target")
+    mutate(signature_type = "Off-morphological signature")
 
 # Create faceted UMAP plot
 umap_faceted <- bind_rows(umap_on_df_facet, umap_off_df_facet) %>%
     mutate(
-        signature_type = factor(signature_type, levels = c("On-Target", "Off-Target")),
+        signature_type = factor(signature_type, levels = c("On-morphological signature", "Off-morphological signature")),
         Metadata_treatment = factor(Metadata_treatment, levels = c("DMSO", "TGFRi"))
     ) %>%
     ggplot(aes(x = UMAP1, y = UMAP2, color = Metadata_cell_treatment)) +
@@ -340,7 +345,7 @@ umap_faceted <- bind_rows(umap_on_df_facet, umap_off_df_facet) %>%
     ) +
     guides(color = guide_legend(override.aes = list(alpha = legend_alpha, size = legend_size))) +
     theme(
-        strip.text = element_text(face = "bold", size = 11),
+        strip.text = element_text(face = "bold", size = 14),
         panel.spacing = unit(1, "lines")
     )
 
@@ -360,41 +365,57 @@ ggsave(
 
 cat("Saved UMAP faceted plots to:", figures_dir, "\n")
 
-# Prepare combined data with signature type for faceting
-umap_on_contour_df <- umap_on_df %>% mutate(signature_type = "On-Target")
-umap_off_contour_df <- umap_off_df %>% mutate(signature_type = "Off-Target")
+#Prepare combined data with signature type for faceting
+umap_on_contour_df <- umap_on_df %>% mutate(signature_type = "On-morph sig.")
+umap_off_contour_df <- umap_off_df %>% mutate(signature_type = "Off-morph sig.")
+umap_all_contour_df <- umap_all_df %>% mutate(signature_type = "All-Features")
 
-umap_contour_df <- bind_rows(umap_on_contour_df, umap_off_contour_df) %>%
+umap_contour_df <- bind_rows(umap_on_contour_df, umap_off_contour_df, umap_all_contour_df) %>%
     mutate(
-        signature_type = factor(signature_type, levels = c("On-Target", "Off-Target"))
+        signature_type = factor(signature_type, levels = c("On-morph sig.", "Off-morph sig.", "All-Features"))
     )
 
-# Faceted contour plot: signature_type (columns) x cell_treatment (rows)
+# Define facet label mappings
+treatment_labels <- c(
+    failing_DMSO  = "Failing DMSO",
+    failing_TGFRi = "Failing TGFRi",
+    healthy_DMSO  = "Healthy DMSO",
+    healthy_TGFRi = "Healthy TGFRi"
+)
+
+# Faceted contour plot: cell_treatment (columns) x signature_type (rows)
 umap_contour_combined <- ggplot(umap_contour_df, aes(x = UMAP1, y = UMAP2, color = Metadata_cell_treatment)) +
     geom_point(alpha = 0.1, size = 1, shape = point_shape) +
-    geom_density_2d(linewidth = 0.8, bins = 12) +
+    geom_density_2d(linewidth = 0.8, bins = 15) +
     scale_color_manual(values = color_palette, name = "Cell Treatment") +
-    facet_grid(Metadata_cell_treatment ~ signature_type, scales = "free") +
-    labs(
-        title = "UMAP KDE contour analysis: morphological signature",
+    facet_grid(
+        signature_type ~ Metadata_cell_treatment,
+        scales = "free",
+        labeller = labeller(
+            Metadata_cell_treatment = treatment_labels
+        )
+        ) +
+        labs(
+        title = "On- and off- morphological signature UMAP",
         x = "UMAP 1",
         y = "UMAP 2"
-    ) +
-    guides(color = guide_legend(override.aes = list(alpha = 1, size = 2, linewidth = 1))) +
-    theme(
-        strip.text = element_text(face = "bold", size = 11),
-        panel.spacing = unit(1, "lines")
-    )
+        ) +
+        guides(color = guide_legend(override.aes = list(alpha = 1, size = 2, linewidth = 1))) +
+        theme(
+        strip.text = element_text(face = "bold", size = 16),
+        panel.spacing = unit(1, "lines"),
+        plot.title = element_text(face = "bold", size = 20, hjust = 0.5)
+        )
 
 # Display plot
-options(repr.plot.width = 12, repr.plot.height = 12, repr.plot.res = render_dpi)
+options(repr.plot.width = 14, repr.plot.height = 7, rep.plot.res = render_dpi)
 
 # Save UMAP KDE contour plot
 ggsave(
     filename = file.path(figures_dir, "umap_kde_contour_faceted.png"),
     plot = umap_contour_combined,
-    width = plot_width_faceted,
-    height = plot_height_faceted,
+    width = 14,
+    height = 7,
     dpi = render_dpi,
     bg = "white"
 )
@@ -414,7 +435,7 @@ for (treat in treatment_order) {
   p <- ggplot(df_sub, aes(x = UMAP1, y = UMAP2, color = signature_type)) +
     geom_point(alpha = 0.1, size = 1, shape = point_shape) +
     geom_density_2d(linewidth = 0.8, bins = 12) +
-    scale_color_manual(values = c("On-Target" = "#1b9e77", "Off-Target" = "#d95f02")) +
+    scale_color_manual(values = c("On-morphological signature" = "#1b9e77", "Off-morphological signature" = "#d95f02")) +
     facet_grid(. ~ signature_type) +
     labs(
       title = paste("UMAP KDE contour:", treat),
@@ -424,7 +445,7 @@ for (treat in treatment_order) {
     xlim(xlim_vals) +
     ylim(ylim_vals) +
     theme(
-      strip.text = element_text(face = "bold", size = 11),
+      strip.text = element_text(face = "bold", size = 14),
       panel.spacing = unit(1, "lines")
     )
   fname <- paste0("tmp_", treat, ".png")

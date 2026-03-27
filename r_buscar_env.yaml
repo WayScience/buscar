@@ -38,6 +38,8 @@ dependencies:
   - r-networkd3
   - r-htmlwidgets
   - r-webshot
+  - r-ggplotify
+  - r-ggside
 
   # Webshot dependencies
   - openssl
