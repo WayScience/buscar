@@ -84,7 +84,7 @@ make_plots <- function(df, show_yside = TRUE, title_suffix = "") {
       legend.position = "right",
       legend.title = element_text(face = "bold", size = 32),
       legend.text = element_text(size = 28),
-      legend.key.size = unit(1.2, "lines"),
+      legend.key.size = grid::unit(1.2, "lines"),
       legend.background = element_blank(),
       panel.grid.minor = element_blank(),
       plot.margin = margin(35, 15, 25, 25), # Increased top margin for multi-line titles
