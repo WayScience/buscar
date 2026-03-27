@@ -436,7 +436,11 @@ for (treat in treatment_order) {
   p <- ggplot(df_sub, aes(x = UMAP1, y = UMAP2, color = signature_type)) +
     geom_point(alpha = 0.1, size = 1, shape = point_shape) +
     geom_density_2d(linewidth = 0.8, bins = 12) +
-    scale_color_manual(values = c("On-morphological signature" = "#1b9e77", "Off-morphological signature" = "#d95f02")) +
+    scale_color_manual(values = c(
+      "On-morph sig." = "#1b9e77",
+      "Off-morph sig." = "#d95f02",
+      "All-Features"  = "#7570b3"
+    )) +
     facet_grid(. ~ signature_type) +
     labs(
       title = paste("UMAP KDE contour:", treat),
