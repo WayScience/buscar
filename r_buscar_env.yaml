@@ -57,4 +57,3 @@ dependencies:
   - r-irkernel
   - jupyter
   - jupyterlab
-  - ipykernel
