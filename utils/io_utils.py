@@ -148,6 +148,119 @@ def load_configs(fpath: str | pathlib.Path) -> dict:
     return config
 
 
+def load_sc_profiles(
+    data_name: str,
+    datatype: str | None = None,
+    convert_to_f32: bool = False,
+) -> tuple[list[str], list[str], pl.DataFrame]:
+    """Load single-cell profiles and their feature space for a named dataset.
+
+    Parameters
+    ----------
+    data_name : str
+        Name of the dataset to load. Supported values: "cpjump1", "cfret", "mitocheck".
+    datatype : str | None, optional
+        Dataset subtype. For "cpjump1": "compound" or "crispr". For "cfret": None (default)
+        or "drug_x". For "mitocheck": only None is supported. Default is None.
+    convert_to_f32 : bool, optional
+        If True, converts all Float64 columns to Float32 to save memory. Default is False
+
+    Returns
+    -------
+    tuple[list[str], list[str], pl.DataFrame]
+        A tuple of (metadata_features, morphology_features, profiles) where:
+        - metadata_features: list of metadata column names
+        - morphology_features: list of morphological feature column names
+        - profiles: Polars DataFrame containing the loaded profiles
+
+    Raises
+    ------
+    ValueError
+        If an unsupported data_name or datatype is provided.
+    """
+    # setting base path where all the data is located
+    base_path = (
+        pathlib.Path(__file__).parent.parent
+        / "notebooks"
+        / "0.download-data"
+        / "data"
+        / "sc-profiles"
+    )
+
+    # load CPJUMP1 profiles
+    # there are two types of profiles:
+    # compound profiles and crispr profiles.
+    if data_name == "cpjump1":
+        if datatype is None or datatype == "compound":
+            profile_path = (
+                base_path / "cpjump1" / "cpjump1_compound_concat_profiles.parquet"
+            )
+            config_path = (
+                base_path / "cpjump1" / "compound_concat_profiles_meta_features.json"
+            )
+        elif datatype == "crispr":
+            profile_path = (
+                base_path / "cpjump1" / "cpjump1_crispr_concat_profiles.parquet"
+            )
+            config_path = (
+                base_path / "cpjump1" / "crispr_concat_profiles_meta_features.json"
+            )
+        else:
+            raise ValueError(
+                f"Unsupported datatype '{datatype}' for 'cpjump1'. Expected 'compound' or 'crispr'."
+            )
+        config = load_configs(config_path)
+        metadata_features = config["concat-profiles"]["meta-features"]
+        morph_features = config["concat-profiles"]["shared-features"]
+
+    # Load CFReT-Circ profiles
+    # there are two options. With drug_x and without drug_x
+    elif data_name == "cfret":
+        if datatype is None:
+            profile_path = (
+                base_path
+                / "cfret"
+                / "localhost230405150001_sc_feature_selected.parquet"
+            )
+            config_path = base_path / "cfret" / "cfret_feature_space_configs.json"
+        elif datatype == "drug_x":
+            profile_path = (
+                base_path
+                / "cfret"
+                / "localhost230405150001_sc_feature_selected_w_drug_x.parquet"
+            )
+            config_path = (
+                base_path / "cfret" / "cfret_feature_space_configs_w_drug_x.json"
+            )
+        else:
+            raise ValueError(
+                f"Unsupported datatype '{datatype}' for 'cfret'. Expected None or 'drug_x'."
+            )
+        config = load_configs(config_path)
+        metadata_features = config["metadata-features"]
+        morph_features = config["morphology-features"]
+
+    # load MitoCheck profiles
+    elif data_name == "mitocheck":
+        if datatype is not None:
+            raise ValueError(
+                f"Unsupported datatype '{datatype}' for 'mitocheck'. Only None is supported."
+            )
+        profile_path = base_path / "mitocheck" / "mitocheck_concat_profiles.parquet"
+        config_path = base_path / "mitocheck" / "mitocheck_feature_space_configs.json"
+        config = load_configs(config_path)
+        metadata_features = config["metadata-features"]
+        morph_features = config["morphology-features"]
+
+    else:
+        raise ValueError(
+            f"Unsupported data_name '{data_name}'. Expected 'cpjump1', 'cfret', or 'mitocheck'."
+        )
+
+    profiles = load_profiles(profile_path, convert_to_f32=convert_to_f32)
+    return metadata_features, morph_features, profiles
+
+
 def download_file(
     source_url: str,
     output_path: pathlib.Path | str,
