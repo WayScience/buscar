@@ -1,3 +1,11 @@
+"""
+Module: io_utils.py
+
+Utility functions for file I/O, including loading single-cell profiles,
+configuration files (YAML/JSON/pickle), downloading files from URLs,
+extracting compressed archives, and concatenating profile DataFrames.
+"""
+
 import gzip
 import json
 import pathlib
@@ -29,7 +37,8 @@ def load_profiles(
     fpath : str | pathlib.Path
         Path to the file containing single-cell profiles.
     convert_to_f32 : bool, optional
-        If True, converts all Float64 columns to Float32 to save memory. Default is False
+        If True, converts all Float64 columns to Float32 to save memory. Default is
+        False
     verbose : bool, optional
         If True, prints information about the loaded profiles. Default is False.
     shared_features : list[str] | None, optional
@@ -48,7 +57,8 @@ def load_profiles(
     FileNotFoundError
         If the file at `fpath` does not exist.
     ValueError
-        If the file format is not supported. Supported formats are: .parquet, .pq, .arrow.
+        If the file format is not supported. Supported formats are: .parquet, .pq,
+        .arrow.
     """
 
     # type checking
@@ -86,10 +96,12 @@ def load_profiles(
     if verbose:
         print(f"Loading profiles from {fpath}...")
         print(
-            f"Loaded profiles shape: rows: {loaded_profiles.shape[0]}, columns: {loaded_profiles.shape[1]}"
+            f"Loaded profiles shape: rows: {loaded_profiles.shape[0]}, "
+            f"columns: {loaded_profiles.shape[1]}"
         )
         print(
-            f"Estimated loaded dataframe size: {round(loaded_profiles.estimated_size('mb'), 2)} MB"
+            "Estimated loaded dataframe size:",
+            f"{round(loaded_profiles.estimated_size('mb'), 2)} MB",
         )
 
     return loaded_profiles
@@ -97,6 +109,7 @@ def load_profiles(
 
 def load_configs(fpath: str | pathlib.Path) -> dict:
     """Load a configuration file and return its contents as a dictionary.
+
     Parameters
     ----------
     fpath : str or pathlib.Path
@@ -143,7 +156,8 @@ def load_configs(fpath: str | pathlib.Path) -> dict:
             raise ValueError(f"Error parsing pickle file {fpath}: {e}")
     else:
         raise ValueError(
-            f"Unsupported file format: {fpath.suffix}. Expected .yaml, .json, .pkl, or .pickle"
+            f"Unsupported file format: {fpath.suffix}. Expected .yaml, .json, .pkl, or "
+            ".pickle"
         )
     return config
 
@@ -153,11 +167,9 @@ def download_file(
     output_path: pathlib.Path | str,
     chunk_size: int = 8192,
 ) -> pathlib.Path:
-    """Downloads a file from a URL with progress tracking.
+    """Download a file from a URL and save it to disk with progress tracking.
 
-    Downloads a file from the specified URL and saves it to the given output path.
-    The download is performed in chunks to handle large files efficiently, and the progress is displayed using
-    the `tqdm` library.
+    Downloads in chunks for memory efficiency. Progress is displayed via `tqdm`.
 
     Parameters
     ----------
@@ -198,17 +210,12 @@ def download_file(
     if output_path.exists() and not output_path.is_file():
         raise FileExistsError(f"Output path {output_path} exists and is not a file.")
 
-    # starting downloading process
     try:
-        # sending GET request to the source URL
         with requests.get(source_url, stream=True) as response:
-            # raise an error if the request was unsuccessful
             response.raise_for_status()
 
-            # get the total size of the file from the response headers
             total_size = int(response.headers.get("content-length", 0))
 
-            # using tqdm to track the download progress
             with (
                 open(output_path, "wb") as file,
                 tqdm(
@@ -219,12 +226,9 @@ def download_file(
                     unit_divisor=1024,
                 ) as pbar,
             ):
-                # iterating over the response content in chunks
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     if chunk:
                         file.write(chunk)
-
-                        # this updates the progress bar
                         pbar.update(len(chunk))
         return output_path
 
@@ -247,7 +251,8 @@ def extract_file(
     file_path : pathlib.Path | str
         Path to the compressed file.
     extract_dir : pathlib.Path | str, optional
-        Directory where the file should be extracted. If None, extracts to the same directory as the file.
+        Directory where the file should be extracted. If None, extracts to the same
+        directory as the file.
 
     Returns
     -------
@@ -300,28 +305,91 @@ def download_compressed_file(
     output_path: pathlib.Path | str,
     chunk_size: int = 8192,
     extract: bool = True,
-) -> None:
+) -> pathlib.Path:
     """
-    Download and optionally extract a compressed file from a URL.
+    Download a file from a URL and optionally extract it.
 
     Parameters
     ----------
     source_url : str
-        The URL of the compressed file to download.
+        URL of the file to download.
     output_path : pathlib.Path | str
-        The local path where the downloaded file should be saved.
+        Local path where the downloaded file will be saved.
+        Must include the correct file extension (e.g. ``.zip``) so the archive
+        format can be inferred during extraction.
     chunk_size : int, optional
-        The size of chunks to download in bytes, by default 8192.
+        Download chunk size in bytes, by default 8192.
     extract : bool, optional
-        Whether to extract the file after downloading, by default True.
+        If True, extracts the archive after downloading, by default True.
 
     Returns
     -------
     pathlib.Path
-        The path to the downloaded (and possibly extracted) file.
+        Path to the downloaded file.
     """
     downloaded_path = download_file(source_url, output_path, chunk_size)
     if extract:
         extract_file(downloaded_path)
 
     return downloaded_path
+
+
+def load_and_concat_profiles(
+    profile_dir: str | pathlib.Path,
+    shared_features: list[str] | None = None,
+    specific_plates: list[pathlib.Path] | None = None,
+) -> pl.DataFrame:
+    """
+    Load all profile files from a directory and concatenate them into a single Polars
+    DataFrame.
+
+    Parameters
+    ----------
+    profile_dir : str or pathlib.Path
+        Directory containing the profile files (.parquet).
+    shared_features : Optional[list[str]], optional
+        List of shared feature names to filter the profiles. If None, all features are
+        loaded.
+    specific_plates : Optional[list[pathlib.Path]], optional
+        List of specific plate file paths to load. If None, all profiles in the
+        directory are loaded.
+
+    Returns
+    -------
+    pl.DataFrame
+        Concatenated Polars DataFrame containing all loaded profiles.
+    """
+    # Ensure profile_dir is a pathlib.Path
+    if isinstance(profile_dir, str):
+        profile_dir = pathlib.Path(profile_dir)
+    elif not isinstance(profile_dir, pathlib.Path):
+        raise TypeError("profile_dir must be a string or a pathlib.Path object")
+
+    # Validate specific_plates
+    if specific_plates is not None:
+        if not isinstance(specific_plates, list):
+            raise TypeError("specific_plates must be a list of pathlib.Path objects")
+        if not all(isinstance(path, pathlib.Path) for path in specific_plates):
+            raise TypeError(
+                "All elements in specific_plates must be pathlib.Path objects"
+            )
+
+    # Use specific_plates if provided, otherwise gather all .parquet files
+    if specific_plates is not None:
+        # Validate that all specific plate files exist
+        for plate_path in specific_plates:
+            if not plate_path.exists():
+                raise FileNotFoundError(f"Profile file not found: {plate_path}")
+        files_to_load = specific_plates
+    else:
+        files_to_load = list(profile_dir.glob("*.parquet"))
+        if not files_to_load:
+            raise FileNotFoundError(f"No profile files found in {profile_dir}")
+
+    # Load and concatenate profiles
+    loaded_profiles = [
+        load_profiles(f, shared_features=shared_features) for f in files_to_load
+    ]
+
+    # Concatenate all loaded profiles
+    return pl.concat(loaded_profiles, rechunk=True)

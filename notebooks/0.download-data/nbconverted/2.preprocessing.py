@@ -26,71 +26,13 @@ import polars as pl
 
 sys.path.append("../../")
 from utils.data_utils import add_cell_id_hash, split_meta_and_features
-from utils.io_utils import load_profiles
+from utils.io_utils import load_and_concat_profiles
 
 # ## Helper functions
 #
 # Contains helper function that pertains to this notebook.
 
 # In[2]:
-
-
-def load_and_concat_profiles(
-    profile_dir: str | pathlib.Path,
-    shared_features: list[str] | None = None,
-    specific_plates: list[pathlib.Path] | None = None,
-) -> pl.DataFrame:
-    """
-    Load all profile files from a directory and concatenate them into a single Polars DataFrame.
-
-    Parameters
-    ----------
-    profile_dir : str or pathlib.Path
-        Directory containing the profile files (.parquet).
-    shared_features : Optional[list[str]], optional
-        List of shared feature names to filter the profiles. If None, all features are loaded.
-    specific_plates : Optional[list[pathlib.Path]], optional
-        List of specific plate file paths to load. If None, all profiles in the directory are loaded.
-
-    Returns
-    -------
-    pl.DataFrame
-        Concatenated Polars DataFrame containing all loaded profiles.
-    """
-    # Ensure profile_dir is a pathlib.Path
-    if isinstance(profile_dir, str):
-        profile_dir = pathlib.Path(profile_dir)
-    elif not isinstance(profile_dir, pathlib.Path):
-        raise TypeError("profile_dir must be a string or a pathlib.Path object")
-
-    # Validate specific_plates
-    if specific_plates is not None:
-        if not isinstance(specific_plates, list):
-            raise TypeError("specific_plates must be a list of pathlib.Path objects")
-        if not all(isinstance(path, pathlib.Path) for path in specific_plates):
-            raise TypeError(
-                "All elements in specific_plates must be pathlib.Path objects"
-            )
-
-    # Use specific_plates if provided, otherwise gather all .parquet files
-    if specific_plates is not None:
-        # Validate that all specific plate files exist
-        for plate_path in specific_plates:
-            if not plate_path.exists():
-                raise FileNotFoundError(f"Profile file not found: {plate_path}")
-        files_to_load = specific_plates
-    else:
-        files_to_load = list(profile_dir.glob("*.parquet"))
-        if not files_to_load:
-            raise FileNotFoundError(f"No profile files found in {profile_dir}")
-
-    # Load and concatenate profiles
-    loaded_profiles = [
-        load_profiles(f, shared_features=shared_features) for f in files_to_load
-    ]
-
-    # Concatenate all loaded profiles
-    return pl.concat(loaded_profiles, rechunk=True)
 
 
 def split_data(
@@ -161,21 +103,33 @@ def remove_feature_prefixes(df: pl.DataFrame, prefix: str = "CP__") -> pl.DataFr
 # In[3]:
 
 
+# Define the type of perturbation for the dataset
+# options are: "compound" or "crispr"
+pert_type = "crispr"
+
+
+# In[4]:
+
+
 # Setting data directory
 data_dir = pathlib.Path("./data").resolve(strict=True)
 
 # Setting profiles directory
 profiles_dir = (data_dir / "sc-profiles").resolve(strict=True)
 
-# setting connectivity map drug repurposing config
-drug_repurposing_config_path = (data_dir / "repurposing_drugs_20180907.txt").resolve(
-    strict=True
-)
 
 # Experimental metadata
 exp_metadata_path = (
-    profiles_dir / "cpjump1" / "cpjump1_compound_experimental-metadata.csv"
+    profiles_dir / "cpjump1" / f"cpjump1_{pert_type}_experimental-metadata.csv"
 ).resolve(strict=True)
+
+# cpjump1 compound metadata
+if pert_type == "compound":
+    cmp_metadata_path = (
+        profiles_dir / "cpjump1" / "cpjump1_compound_compound-metadata.tsv"
+    ).resolve(strict=True)
+else:
+    cmp_metadata_path = None
 
 # Setting CFReT profiles directory
 cfret_profiles_dir = (profiles_dir / "cfret").resolve(strict=True)
@@ -203,9 +157,9 @@ results_dir = pathlib.Path("./results").resolve()
 results_dir.mkdir(exist_ok=True)
 
 
-# Create a list of paths that only points compound treated plates and load the shared features config file that can be found in this [repo](https://github.com/WayScience/JUMP-single-cell)
+# Create a list of paths pointing to the selected CPJUMP1 plates and load the shared features configuration file from the [JUMP-single-cell](https://github.com/WayScience/JUMP-single-cell) repository.
 
-# In[4]:
+# In[5]:
 
 
 # Load experimental metadata
@@ -214,7 +168,7 @@ exp_metadata = pl.read_csv(exp_metadata_path)
 compound_plate_names = (
     exp_metadata.select("Assay_Plate_Barcode").unique().to_series().to_list()
 )
-compound_plate_paths = [
+cpjump1_plate_paths = [
     (profiles_dir / "cpjump1" / f"{plate}_feature_selected_sc_qc.parquet").resolve(
         strict=True
     )
@@ -227,30 +181,30 @@ with open(shared_features_config_path) as f:
 shared_features = loaded_shared_features["shared-features"]
 
 
-# ## Preprocessing CPJUMP1 Compound data
+# ## Preprocessing CPJUMP1 Data
 #
-# Using the filtered compound plate file paths and shared features configuration, we load all individual profile files and concatenate them into a single comprehensive DataFrame. This step combines data from multiple experimental plates while maintaining the consistent feature space defined by the shared features list.
+# Using the filtered plate file paths and shared features configuration, we load all individual profile files and concatenate them into a single comprehensive DataFrame. This step combines data from multiple experimental plates, for either compound or CRISPR perturbation types, while maintaining a consistent feature space defined by the shared features list.
 #
 # The concatenation process ensures:
 # - All profiles use the same feature set for downstream compatibility
 # - Metadata columns are preserved across all plates
 # - Data integrity is maintained during the merge operation
-# - Adding a unique cell id has column `Metadata_cell_id`
+# - A unique cell identifier is added via the `Metadata_cell_id` column
 
-# We are loading per-plate parquet profiles for compound-treated plates, selecting the shared feature set, concatenating them into a single Polars DataFrame while preserving metadata, and adding a unique Metadata_cell_id for each cell. The resulting cpjump1_profiles table is ready for downstream analysis.
+# We load per-plate Parquet profiles for the selected perturbation type (compound or CRISPR), apply the shared feature set, and concatenate them into a single Polars DataFrame while preserving metadata. A unique `Metadata_cell_id` is added for each cell. The resulting `cpjump1_profiles` table is ready for downstream analysis.
 
-# In[5]:
+# In[6]:
 
 
 # Loading compound profiles with shared features and concat into a single DataFrame
 concat_output_path = (
-    cpjump1_output_dir / "cpjump1_compound_concat_profiles.parquet"
+    cpjump1_output_dir / f"cpjump1_{pert_type}_concat_profiles.parquet"
 ).resolve()
 
 # loaded and concatenated profiles
 cpjump1_profiles = load_and_concat_profiles(
     profile_dir=profiles_dir,
-    specific_plates=compound_plate_paths,
+    specific_plates=cpjump1_plate_paths,
     shared_features=shared_features,
 )
 
@@ -258,21 +212,37 @@ cpjump1_profiles = load_and_concat_profiles(
 cpjump1_profiles = add_cell_id_hash(cpjump1_profiles)
 
 
-# Next, we annotate the compound treatments in the CPJUMP1 dataset. We annotate each cell with Mechanism of Action (MoA) information using the [Clue Drug Repurposing Hub](https://clue.io/data/REP#REP). This resource provides comprehensive drug and tool compound annotations, including target information and clinical development status.
-#
+# For compound-treated plates, we annotate each profile with Mechanism of Action (MoA) information using the [Clue Drug Repurposing Hub](https://clue.io/data/REP#REP), which provides drug and tool compound annotations including target information and clinical development status. Cell type metadata is also merged in from the experimental metadata. This step is skipped for CRISPR-treated plates.
 
-# In[6]:
+# In[7]:
 
 
 # load drug repurposing moa file and add prefix to metadata columns
-rep_moa_df = pl.read_csv(
-    drug_repurposing_config_path, separator="\t", skip_rows=9, encoding="utf8-lossy"
-).rename(lambda x: f"Metadata_{x}" if not x.startswith("Metadata_") else x)
+if pert_type == "compound":
+    rep_moa_df = pl.read_csv(
+        cmp_metadata_path,
+        separator="\t",
+        columns=["Metadata_pert_iname", "Metadata_target", "Metadata_moa"],
+    ).unique(subset=["Metadata_pert_iname"])
 
-# merge the original cpjump1_profiles with rep_moa_df on Metadata_pert_iname
-cpjump1_profiles = cpjump1_profiles.join(
-    rep_moa_df, on="Metadata_pert_iname", how="left"
-)
+    # merge the original cpjump1_profiles with rep_moa_df on Metadata_pert_iname
+    cpjump1_profiles = cpjump1_profiles.join(
+        rep_moa_df, on="Metadata_pert_iname", how="left"
+    )
+
+    # merge cell type metadata with cpjump1_profiles on Metadata_Plate
+    cell_type_metadata = exp_metadata.select(
+        ["Assay_Plate_Barcode", "Cell_type"]
+    ).rename(
+        {"Assay_Plate_Barcode": "Metadata_Plate", "Cell_type": "Metadata_cell_type"}
+    )
+    cpjump1_profiles = cpjump1_profiles.join(
+        cell_type_metadata, on="Metadata_Plate", how="left"
+    )
+else:
+    print(
+        f"Skipping this step since the dataset is CPJUMP1 {pert_type} and not compound"
+    )
 
 # split meta and feature
 meta_cols, features_cols = split_meta_and_features(cpjump1_profiles)
@@ -280,18 +250,18 @@ meta_cols, features_cols = split_meta_and_features(cpjump1_profiles)
 # save the feature space information into a json file
 meta_features_dict = {
     "concat-profiles": {
+        "data-type": f"{pert_type}_plates",
         "meta-features": meta_cols,
         "shared-features": features_cols,
     }
 }
-with open(cpjump1_output_dir / "concat_profiles_meta_features.json", "w") as f:
+with open(
+    cpjump1_output_dir / f"{pert_type}_concat_profiles_meta_features.json", "w"
+) as f:
     json.dump(meta_features_dict, f, indent=4)
 
 # save concatenated profiles
 # Loading compound profiles with shared features and concat into a single DataFrame
-concat_output_path = (
-    cpjump1_output_dir / "cpjump1_compound_concat_profiles.parquet"
-).resolve()
 cpjump1_profiles.select(meta_cols + features_cols).write_parquet(concat_output_path)
 
 
@@ -312,7 +282,7 @@ cpjump1_profiles.select(meta_cols + features_cols).write_parquet(concat_output_p
 #
 # The preprocessing ensures that all MitoCheck datasets share a common feature space and are ready for comparative analysis with CPJUMP1 profiles.
 
-# In[7]:
+# In[8]:
 
 
 # load in mitocheck profiles and save as parquet
@@ -356,7 +326,7 @@ mitocheck_pos_control_profiles = mitocheck_pos_control_profiles.with_columns(
 
 # Filter Cell Profiler (CP) features and preprocess columns by removing the "CP__" prefix to standardize feature names for downstream analysis.
 
-# In[8]:
+# In[9]:
 
 
 # Split profiles to only retain cell profiler features
@@ -379,7 +349,7 @@ cp_mitocheck_pos_control_profiles = remove_feature_prefixes(
 
 # Splitting the metadata and feature columns for each dataset to enable targeted downstream analysis and ensure consistent data structure across all profiles.
 
-# In[9]:
+# In[10]:
 
 
 # manually selecting metadata features that are present across all 3 profiles
@@ -398,6 +368,7 @@ mitocheck_meta_data = [
     "Metadata_Gene",
     "Metadata_Gene_Replicate",
 ]
+
 
 # select morphology features by dropping the metadata features and getting only the column names
 cp_mitocheck_profile_features = cp_mitocheck_profile.drop(mitocheck_meta_data).columns
@@ -428,7 +399,7 @@ with open(mitocheck_dir / "mitocheck_feature_space_configs.json", "w") as f:
     )
 
 
-# In[10]:
+# In[ ]:
 
 
 # create concatenated mitocheck profiles
@@ -453,6 +424,16 @@ concat_mitocheck_profiles = (
 # add unique cell ID based on features of a single profiles
 concat_mitocheck_profiles = add_cell_id_hash(concat_mitocheck_profiles)
 
+# get a list of all unique ENSG IDs in the Metadata_Gene column that starts with "ENSG"
+ensg_ids = [
+    gene
+    for gene in concat_mitocheck_profiles.select("Metadata_Gene")
+    .unique()
+    .to_series()
+    .to_list()
+    if gene.startswith("ENSG")
+]
+
 # save concatenated mitocheck profiles
 concat_mitocheck_profiles.write_parquet(
     mitocheck_dir / "mitocheck_concat_profiles.parquet"
@@ -466,11 +447,12 @@ concat_mitocheck_profiles.write_parquet(
 # - **Unique cell identification**: Adding `Metadata_cell_id` column with unique hash values based on all profile features to enable precise cell tracking and deduplication
 #
 
-# In[11]:
+# In[12]:
 
 
 # load in cfret profiles and add a unique cell ID
 cfret_profiles = pl.read_parquet(cfret_profiles_path)
+
 
 # adding a unique cell ID based on all features
 cfret_profiles = add_cell_id_hash(cfret_profiles, force=True)
