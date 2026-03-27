@@ -15,7 +15,7 @@ repos:
 
   # Format TOML files early (before other tools might read config)
 -   repo: https://github.com/pappasam/toml-sort
-    rev: v0.24.3
+    rev: v0.24.4
     hooks:
     -   id: toml-sort
         args: ["--in-place"]
@@ -37,10 +37,14 @@ repos:
   # Ruff for linting and formatting Python files
 -   repo: https://github.com/astral-sh/ruff-pre-commit
 <<<<<<< HEAD
+<<<<<<< HEAD
     rev: v0.15.5
 =======
     rev: v0.15.7
 >>>>>>> 2c578a6 (Mitocheck analysis (#79))
+=======
+    rev: v0.15.8
+>>>>>>> 761a036 (Updated CFReT plots  (#82))
     hooks:
     -   id: ruff-check
         args: ["--fix"]
