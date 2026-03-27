@@ -109,7 +109,7 @@ scores_plot <- ggplot(scores_df, aes(x = off_score, y = on_score, color = treatm
     legend.position  = "right",
     legend.title     = element_text(face = "bold", size = 20),
     legend.text      = element_text(size = 18),
-    legend.key.size  = grid::unit(1.4, "lines"),
+    legend.key.size  = unit(1.4, "lines"),
     panel.grid.major = element_line(color = "gray88", linewidth = 0.4),
     panel.grid.minor = element_blank(),
     plot.margin      = margin(15, 15, 15, 15)

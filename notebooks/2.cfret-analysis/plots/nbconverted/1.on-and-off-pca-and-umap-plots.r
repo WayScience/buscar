@@ -408,7 +408,7 @@ umap_contour_combined <- ggplot(umap_contour_df, aes(x = UMAP1, y = UMAP2, color
         )
 
 # Display plot
-options(repr.plot.width = 14, repr.plot.height = 7, repr.plot.res = render_dpi)
+options(repr.plot.width = 14, repr.plot.height = 7, rep.plot.res = render_dpi)
 
 # Save UMAP KDE contour plot
 ggsave(
@@ -435,11 +435,7 @@ for (treat in treatment_order) {
   p <- ggplot(df_sub, aes(x = UMAP1, y = UMAP2, color = signature_type)) +
     geom_point(alpha = 0.1, size = 1, shape = point_shape) +
     geom_density_2d(linewidth = 0.8, bins = 12) +
-    scale_color_manual(values = c(
-      "On-morph sig." = "#1b9e77",
-      "Off-morph sig." = "#d95f02",
-      "All-Features"  = "#7570b3"
-    )) +
+    scale_color_manual(values = c("On-morphological signature" = "#1b9e77", "Off-morphological signature" = "#d95f02")) +
     facet_grid(. ~ signature_type) +
     labs(
       title = paste("UMAP KDE contour:", treat),

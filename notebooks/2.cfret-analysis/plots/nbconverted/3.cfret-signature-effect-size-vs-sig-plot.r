@@ -52,6 +52,10 @@ dark2_palette <- brewer.pal(max(3, min(n_channels, 8)), "Dark2")
 y_max <- max(combined_df$neg_log10_p_value[is.finite(combined_df$neg_log10_p_value)], na.rm = TRUE) * 1.1
 
 make_plots <- function(df, show_yside = TRUE, title_suffix = "") {
+
+  # remove infinite values for plotting
+  df <- df[is.finite(df$neg_log10_p_value), ]
+
   # Add a newline before the suffix to prevent cutoff
   display_suffix <- if(title_suffix != "") paste0("\n", title_suffix) else ""
 
@@ -84,7 +88,7 @@ make_plots <- function(df, show_yside = TRUE, title_suffix = "") {
       legend.position = "right",
       legend.title = element_text(face = "bold", size = 32),
       legend.text = element_text(size = 28),
-      legend.key.size = grid::unit(1.2, "lines"),
+      legend.key.size = unit(1.2, "lines"),
       legend.background = element_blank(),
       panel.grid.minor = element_blank(),
       plot.margin = margin(35, 15, 25, 25), # Increased top margin for multi-line titles
