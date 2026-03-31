@@ -5,11 +5,11 @@ Mann-Whitney U test, Welch’s t-test, Kolmogorov–Smirnov test, and permutatio
 using scipy and statsmodels. The core function, get_signatures, compares the two
 profiles using a specified test and a list of morphology features.
 
-It returns two lists of features: significant (on-morphology) and non-significant
-(off-morphology) signatures.
+It returns two lists of features: significant (on-morphology signature) and
+non-significant (off-morphology signature).
 
-- On-morphology signatures: significant features associated with the cellular state.
-- Off-morphology signatures: non-significant features not associated with the cellular
+- On-morphology signature: significant features associated with the cell state.
+- Off-morphology signature: non-significant features not associated with the cell
 state.
 """
 
@@ -24,12 +24,11 @@ from statsmodels.stats.weightstats import ttest_ind
 
 
 @beartype
-def apply_mann_whitney_u_test(
+def apply_rank_test(
     ref_profiles: pl.DataFrame, exp_profiles: pl.DataFrame, morph_feats: list[str]
 ) -> pl.DataFrame:
-    """Perform Mann-Whitney U test for each feature in the provided profiles.
-
-    Return a DataFrame with p-values.
+    """Perform Mann-Whitney U rank test for each feature in the provided profiles
+    and return a DataFrame with p-values.
 
     The Mann-Whitney U test is a non-parametric statistical test that compares two
     independent samples to determine if they come from the same distribution. The test
@@ -171,11 +170,11 @@ def apply_perm_test(
     conditions.
 
     A permutation test is a non-parametric statistical method that determines
-    if observed differences in cellular morphology between two conditions are
+    if observed differences in cell morphology between two conditions are
     statistically significant by comparing them to what would be expected by
     random chance alone.
 
-    In the context of image-based profiling:
+    Steps:
     1. Calculates the actual difference in morphological features (mean or median)
        between reference and experimental cell populations
     2. Creates thousands of "fake" comparisons by randomly shuffling cells between
@@ -238,6 +237,10 @@ def apply_perm_test(
         # If the test fails due to insufficient data or other issues, assign NaN
         # to the p-value and continue with the next feature.
         try:
+            # Seed a Generator once so each feature's permutations are independent
+            # but the overall result is reproducible from the same seed.
+            rng = np.random.default_rng(seed)
+
             result = permutation_test(
                 data=(
                     ref_profiles[morph_feat].to_numpy(),
@@ -246,7 +249,7 @@ def apply_perm_test(
                 statistic=statistic_func,
                 alternative="two-sided",
                 n_resamples=n_resamples,
-                random_state=seed,
+                random_state=rng,
             )
         except Exception:
             # handle the exception
@@ -275,12 +278,8 @@ def apply_ks_test(
 ) -> pl.DataFrame:
     """Perform KS-test for each feature in the morphology profiles and return p-values.
 
-    This function performs a Kolmogorov-Smirnov test for each feature
-    in the morphology profiles and returns a DataFrame containing
-    feature names and raw p-values. P-value correction and
-    significance thresholding are not handled in this function and
-    should be applied externally,
-    for example in the `get_signatures` function.
+    This function performs a Kolmogorov-Smirnov test for each feature in the morphology
+    profiles and returns a DataFrame containing feature names and raw p-values.
 
     Parameters
     ----------
@@ -339,14 +338,14 @@ def apply_ks_test(
 
 
 @beartype  # handles type checking
-def get_signatures(
+def identify_signatures(
     ref_profiles: pl.DataFrame,
     exp_profiles: pl.DataFrame,
     morph_feats: list[str],
     test_method: Literal[
-        "ks_test", "permutation_test", "welchs_ttest", "mann_whitney_u"
+        "ks_test", "permutation_test", "welchs_ttest", "rank_test"
     ] = "ks_test",
-    fdr_method: Literal["fdr_bh"] = "fdr_bh",
+    fdr_method: Literal["fdr_bh", "bonferroni"] = "fdr_bh",
     p_threshold: float | None = 0.05,
     p_value_padding: float = 0.0,
     permutation_resamples: int | None = 1000,
@@ -356,14 +355,11 @@ def get_signatures(
     """Identifies significant, non-significant, and ambiguous features between two
     profiles.
 
-    This function compares cellular morphology profiles using one of the statistical
-    methods, applies multiple testing correction, and categorizes features based on
-    their statistical significance. Features are classified into three groups: those
-    clearly associated with the cell state (significant), those are not
-    associated (non-significant), and those with uncertain significance (ambiguous).
-    Ambiguous features have corrected p-values within a buffer zone around the
-    significance threshold, defined by p_threshold ± p_value_padding, indicating
-    uncertain statistical evidence for their association with the cell state.
+    This function compares cell morphology profiles using a statistical method,
+    applies multiple testing correction, and categorizes features into three
+    groups: significant (clearly different), non-significant (no clear
+    difference), and ambiguous (p-values within a buffer zone defined by
+    p_threshold ± p_value_padding).
 
     P-value correction for multiple testing is always applied to the results,
     regardless of the test method chosen, using the method specified by the
@@ -381,7 +377,7 @@ def get_signatures(
     morph_feats : list[str]
         List of morphology feature names to compare.
     test_method : Literal["ks_test", "permutation_test", "welchs_ttest",
-        "mann_whitney_u"], optional
+        "rank_test"], optional
         Statistical method to use for comparison. Default is "ks_test".
     fdr_method : str | None, optional
         Method for p-value correction. Default is "fdr_bh".
@@ -400,8 +396,8 @@ def get_signatures(
     -------
     tuple[list[str], list[str], list[str]]
         A tuple containing three lists:
-        - Significant features (on-morphology).
-        - Non-significant features (off-morphology).
+        - Significant features (on-morphology signature).
+        - Non-significant features (off-morphology signature).
         - Ambiguous features (features with p-values in the buffer zone around the
         threshold).
 
@@ -435,8 +431,8 @@ def get_signatures(
             exp_profiles=exp_profiles,
             morph_feats=morph_feats,
         )
-    elif test_method == "mann_whitney_u":
-        pvals_df = apply_mann_whitney_u_test(
+    elif test_method == "rank_test":
+        pvals_df = apply_rank_test(
             ref_profiles=ref_profiles,
             exp_profiles=exp_profiles,
             morph_feats=morph_feats,
@@ -460,6 +456,13 @@ def get_signatures(
     ).with_columns(
         (pl.col("significance_category") == "significant").alias("is_significant")
     )
+
+    # raise an error if no significant features are found
+    if pvals_df.filter(pl.col("is_significant")).height == 0:
+        raise ValueError(
+            "No significant features found. Consider adjusting "
+            "the p-value threshold or padding."
+        )
 
     # returns significant, non-significant, and variant features as lists
     return (

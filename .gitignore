@@ -181,3 +181,6 @@ results/
 
 # ignore analytical notebooks
 notebooks*
+
+# remove ruff caching files
+.ruff_cache/

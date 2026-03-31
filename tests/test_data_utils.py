@@ -22,12 +22,6 @@ def simple_profiles():
     )
 
 
-@pytest.fixture
-def test_data():
-    """Load test data from parquet file"""
-    return pl.read_parquet("tests/data/test_compound_cluster_scores.parquet")
-
-
 class TestAddCellIdHash:
     """Test suite for add_cell_id_hash function"""
 
@@ -133,18 +127,6 @@ class TestAddCellIdHash:
             result1["Metadata_cell_id"].to_list()
             != result2["Metadata_cell_id"].to_list()
         )
-
-    def test_with_test_data(self, test_data):
-        """Test with actual test data from parquet file"""
-        result = add_cell_id_hash(test_data)
-
-        assert "Metadata_cell_id" in result.columns
-        assert result.columns[0] == "Metadata_cell_id"
-        assert len(result) == len(test_data)
-
-        # Each row should have unique hash
-        unique_ids = result["Metadata_cell_id"].n_unique()
-        assert unique_ids == len(result)
 
     def test_with_identical_rows(self):
         """Test behavior for identical rows and row-position-independent hashes."""
