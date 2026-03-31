@@ -54,14 +54,14 @@ scores_plot <- ggplot(scores_df, aes(x = off_score, y = on_score, color = treatm
 
   # Quadrant annotation labels — all left-aligned within their quadrant
   # Left quadrants: text on the right side (near center line)
-  annotate("text", x = 0.48, y = 0.02, label = "Strong reversal\nminimal off-target",
+  annotate("text", x = 0.48, y = 0.02, label = "High efficacy\nHigh specificity",
            hjust = 1, vjust = 0, size = 5.3, fontface = "italic", color = "gray25") +
-  annotate("text", x = 0.48, y = 0.98, label = "Weak reversal\nminimal off-target",
+  annotate("text", x = 0.48, y = 0.98, label = "Low efficacy\nHigh specificity",
            hjust = 1, vjust = 1, size = 5.3, fontface = "italic", color = "gray25") +
   # Right quadrants: text on the left side (near center line)
-  annotate("text", x = 0.52, y = 0.02, label = "Reversal with\noff-target effects",
+  annotate("text", x = 0.52, y = 0.02, label = "High efficacy\nLow specificity",
            hjust = 0, vjust = 0, size = 5.3, fontface = "italic", color = "gray25") +
-  annotate("text", x = 0.52, y = 0.98, label = "Weak reversal\nhigh off-target",
+  annotate("text", x = 0.52, y = 0.98, label = "Low efficacy\nLow specificity",
            hjust = 0, vjust = 1, size = 5.3, fontface = "italic", color = "gray25") +
 
   # Data points

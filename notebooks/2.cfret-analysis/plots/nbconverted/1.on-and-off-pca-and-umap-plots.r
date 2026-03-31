@@ -387,7 +387,7 @@ treatment_labels <- c(
 umap_contour_combined <- ggplot(umap_contour_df, aes(x = UMAP1, y = UMAP2, color = Metadata_cell_treatment)) +
     geom_point(alpha = 0.1, size = 1, shape = point_shape) +
     geom_density_2d(linewidth = 0.8, bins = 15) +
-    scale_color_manual(values = color_palette, name = "Cell Treatment") +
+    scale_color_manual(values = color_palette, name = "Cell treatment", labels = treatment_labels) +
     facet_grid(
         signature_type ~ Metadata_cell_treatment,
         scales = "free",
