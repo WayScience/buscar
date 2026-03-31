@@ -8,7 +8,7 @@
 # - **Global Distribution Plots**: KDE plots comparing the distributions of mean `on_score` and `off_score` for real and shuffled conditions, annotated with statistical tests (Mann-Whitney U, KS test).
 # - **Plate-Pairing Heatmaps**: Per-treatment `ref_plate × compared_plate` matrices of mean `on_score`, shown for the top, middle, and bottom treatments by mean score.
 
-# In[31]:
+# In[1]:
 
 
 import pathlib
@@ -26,7 +26,7 @@ from statsmodels.stats.multitest import multipletests
 PALETTE = {"real": "#2196F3", "shuffled": "#FF5722"}
 
 
-# In[32]:
+# In[2]:
 
 
 data_dir = pathlib.Path("./results/replicate_analysis")
@@ -74,7 +74,7 @@ plot_output.mkdir(parents=True, exist_ok=True)
 #
 # **Approach:** aggregate each treatment's scores (mean across all iterations and plate comparisons, excluding self-comparisons where `ref_plate_rep == compared_plate_rep`) so each treatment contributes equally to the distribution.
 
-# In[33]:
+# In[3]:
 
 
 def prepare_cross_data(real_df: pl.DataFrame, shuffled_df: pl.DataFrame):
@@ -154,7 +154,7 @@ def plot_global_distributions(
             "On-BUSCAR score distribution",
             "Off-BUSCAR score distribution",
         ],
-        ["Mean on-BUSCAR score per treatment", "Mean off-BUSCAR score per treatment"],
+        ["Mean on-buscar score per treatment", "Mean off-buscar score per treatment"],
     ):
         for label, df in [("paired", real_agg), ("non-paired", shuf_agg)]:
             color = palette[label]
@@ -310,7 +310,7 @@ def plot_plate_pair_heatmaps(
 print("Functions loaded.")
 
 
-# In[34]:
+# In[4]:
 
 
 u2os_cross_df, u2os_agg_df, u2os_real_agg, u2os_shuf_agg = prepare_cross_data(
@@ -324,7 +324,7 @@ print(
 )
 
 
-# In[35]:
+# In[5]:
 
 
 a549_cross_df, a549_agg_df, a549_real_agg, a549_shuf_agg = prepare_cross_data(
@@ -338,7 +338,7 @@ print(
 )
 
 
-# In[36]:
+# In[6]:
 
 
 u2os_stats_df = run_statistical_tests(u2os_real_agg, u2os_shuf_agg)
@@ -350,7 +350,7 @@ u2os_stats_df.write_csv(output_dir / "u2os_statistical_tests.csv", separator=","
 u2os_stats_df
 
 
-# In[37]:
+# In[7]:
 
 
 a549_stats_df = run_statistical_tests(a549_real_agg, a549_shuf_agg)
@@ -361,7 +361,7 @@ a549_stats_df.write_csv(output_dir / "a549_statistical_tests.csv", separator=","
 a549_stats_df
 
 
-# In[38]:
+# In[8]:
 
 
 plot_global_distributions(
@@ -373,7 +373,7 @@ plot_global_distributions(
 )
 
 
-# In[39]:
+# In[9]:
 
 
 plot_global_distributions(
@@ -389,7 +389,7 @@ plot_global_distributions(
 #
 # For selected treatments, build a `ref_plate × compared_plate` matrix of mean `on_score` (averaged across iterations). A well-replicated treatment should produce a near-uniform matrix (~1.0). Outlier plates appear as divergent rows or columns.
 
-# In[ ]:
+# In[10]:
 
 
 plot_plate_pair_heatmaps(
@@ -402,7 +402,7 @@ plot_plate_pair_heatmaps(
 )
 
 
-# In[ ]:
+# In[11]:
 
 
 plot_plate_pair_heatmaps(
@@ -415,7 +415,7 @@ plot_plate_pair_heatmaps(
 )
 
 
-# In[ ]:
+# In[12]:
 
 
 plot_plate_pair_heatmaps(
@@ -428,7 +428,7 @@ plot_plate_pair_heatmaps(
 )
 
 
-# In[ ]:
+# In[13]:
 
 
 plot_plate_pair_heatmaps(
@@ -446,7 +446,7 @@ plot_plate_pair_heatmaps(
 # Assessing replicate consistency for CRISPR perturbations.
 #
 
-# In[ ]:
+# In[14]:
 
 
 # U2OS CRISPR
@@ -484,7 +484,7 @@ plot_global_distributions(
 )
 
 
-# In[ ]:
+# In[15]:
 
 
 # Heatmaps for U2OS CRISPR
