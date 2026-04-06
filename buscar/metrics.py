@@ -252,7 +252,7 @@ def calculate_score(
 
 
 @beartype
-def caclulate_buscar_scores(
+def calculate_buscar_scores(
     profiles: pl.DataFrame,
     meta_cols: list[str],
     on_morphology_signature: list[str],
