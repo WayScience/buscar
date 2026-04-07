@@ -70,8 +70,8 @@ def _normalize_on_buscar_scores(
 
 
 def compute_earth_movers_distance(
-    profile1: pl.DataFrame,
-    profile2: pl.DataFrame,
+    target_profile: pl.DataFrame,
+    treated_profile: pl.DataFrame,
     subsample_size: int | None = None,
     seed: int | None = 0,
     n_threads: int = 1,
@@ -103,12 +103,27 @@ def compute_earth_movers_distance(
 
     # check if either profile is empty and raise an error if so
     # this avoid division by zero errors when computing the EMD
-    if profile1.is_empty() or profile2.is_empty():
+    if target_profile.is_empty() or treated_profile.is_empty():
         raise ValueError("Both profiles must contain at least one row.")
 
+    # Check for non-numeric columns in the profiles
+    # EMD requires all input features to be numeric for distance calculations
+    for profile, name in [
+        (target_profile, "target_profile"),
+        (treated_profile, "treated_profile"),
+    ]:
+        non_numeric_cols = [
+            col for col, dtype in profile.schema.items() if not dtype.is_numeric()
+        ]
+        if non_numeric_cols:
+            raise ValueError(
+                f"Non-numeric columns detected in {name}: {non_numeric_cols}. "
+                "Ensure all metadata columns are removed before computing EMD."
+            )
+
     # Convert the profiles to numpy arrays
-    p1 = profile1.to_numpy()
-    p2 = profile2.to_numpy()
+    p1 = target_profile.to_numpy()
+    p2 = treated_profile.to_numpy()
 
     # Subsample if requested
     if subsample_size is not None:

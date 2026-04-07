@@ -671,9 +671,13 @@ def shuffle_feature_profiles(
 
     # column-wise shuffling
     elif method == "column":
+        # Use a stable hash-derived seed per column so shuffling is reproducible
         return profiles.with_columns(
             [
-                pl.col(col).shuffle(seed=seed + hash(col) % (2**32))
+                pl.col(col).shuffle(
+                    seed=seed
+                    + int(hashlib.md5(col.encode("utf-8")).hexdigest()[:8], 16)
+                )
                 for col in feature_cols
             ]
         )
@@ -687,3 +691,40 @@ def shuffle_feature_profiles(
         return profiles.with_columns(pl.col(label_col).shuffle(seed=seed))
     else:
         raise ValueError(f"Unknown shuffle method: {method}")
+
+
+def shuffle_signatures(
+    on_sig: list[str], off_sig: list[str], all_features: list[str], seed: int = 0
+) -> tuple[list[str], list[str]]:
+    """
+    Breaks biological meaning of on/off signatures by randomly sampling
+    features from the full feature space, while preserving the original
+    on/off size ratio.
+
+    Preserves:
+      - len(on_sig) and len(off_sig)  ← ratio intact
+      - Features drawn from same pool as real signatures
+
+    Breaks:
+      - Which specific features are "on" vs "off"
+      - Any biological grouping derived from KS test
+    """
+    rng = np.random.default_rng(seed)
+
+    n_on = len(on_sig)
+    n_off = len(off_sig)
+
+    # guard: need enough features to fill both without overlap
+    if n_on + n_off > len(all_features):
+        raise ValueError(
+            f"Not enough features ({len(all_features)}) to fill "
+            f"on ({n_on}) + off ({n_off}) without replacement"
+        )
+
+    # sample without replacement so on and off don't overlap
+    sampled = rng.choice(all_features, size=n_on + n_off, replace=False)
+
+    shuffled_on = sampled[:n_on].tolist()
+    shuffled_off = sampled[n_on:].tolist()
+
+    return shuffled_on, shuffled_off
