@@ -14,6 +14,7 @@ import polars as pl
 
 sys.path.append("../../")
 from buscar.preprocess import apply_pca, apply_umap
+
 from utils.data_utils import split_meta_and_features
 from utils.io_utils import load_configs, load_profiles
 

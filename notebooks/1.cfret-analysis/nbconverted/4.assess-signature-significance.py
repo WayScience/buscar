@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 
-# In[11]:
+# # Assess Morphology Signature Significance
+#
+# This notebook measures the statistical significance and effect size of each morphology feature in the CFReT dataset. We compare healthy and failing cardiomyocyte cells (both treated with DMSO) to identify which features differ between the two conditions.
+#
+# For each morphology feature, we run a two-sample Kolmogorov-Smirnov (KS) test and apply Benjamini-Hochberg FDR correction. Features that pass the significance threshold are labeled **"on"** (part of the morphology signature), while the rest are labeled **"off"**.
+#
+# We also run the same analysis on shuffled data as a null control to confirm that the features identified in the observed data are not due to chance.
+
+# In[1]:
 
 
 import pathlib
@@ -15,7 +23,11 @@ from statsmodels.stats.multitest import fdrcorrection
 from utils.data_utils import shuffle_feature_profiles, split_meta_and_features
 from utils.io_utils import load_configs, load_profiles
 
-# In[12]:
+# ## KS Test Function
+#
+# `compute_ks_signature` runs a two-sample KS test for each morphology feature between a reference and a target population. It applies FDR correction to control for multiple testing, then labels each feature as **"on"** (statistically significant) or **"off"** (not significant). Results are saved to a CSV file.
+
+# In[2]:
 
 
 def compute_ks_signature(
@@ -47,6 +59,9 @@ def compute_ks_signature(
         KS test results with FDR-corrected p-values, -log10 transform, signature
         label, and channel.
     """
+    # known channels in the dataset
+    KNOWN_CHANNELS = {"Actin", "ER", "Hoechst", "Mitochondria", "PM"}
+    channel_pattern = "|".join(KNOWN_CHANNELS)
     ks_stats, p_values = zip(
         *[ks_2samp(ref_df[feat], target_df[feat]) for feat in features]
     )
@@ -71,17 +86,31 @@ def compute_ks_signature(
             .otherwise(pl.lit("off"))
             .alias("signature")
         )
-        .with_columns(pl.col("feature").str.split("_").list.get(0).alias("channel"))
+        .with_columns(pl.col("feature").str.split("_").list.get(0).alias("compartment"))
+    )
+
+    # add channel extraction logic here if needed, e.g. using regex to extract known channels
+    results_df = results_df.with_columns(
+        [
+            pl.col("feature")
+            .str.extract(rf"_({channel_pattern})(?:_|$)", group_index=1)
+            .fill_null("no-channel")
+            .alias("channel")
+        ]
     )
 
     results_df.write_csv(output_path)
     return results_df
 
 
-# In[13]:
+# ## Setup
+#
+# Define file paths for the input data and create output directories for saving the signature results.
+
+# In[3]:
 
 
-# load in raw data from
+# load raw data paths
 cfret_data_dir = pathlib.Path("../0.download-data/data/sc-profiles/cfret/").resolve(
     strict=True
 )
@@ -92,28 +121,38 @@ cfret_feature_space_path = (
     cfret_data_dir / "cfret_feature_space_configs.json"
 ).resolve(strict=True)
 
-# make results dir
+# create results directory
 results_dir = pathlib.Path("./results").resolve()
 results_dir.mkdir(parents=True, exist_ok=True)
 
-# signatures effect
+# create subdirectory for signature outputs
 signatures_results_dir = pathlib.Path(results_dir / "signatures")
 signatures_results_dir.mkdir(exist_ok=True)
 
 
-# In[14]:
+# ## Parameters
+#
+# Set the column names and labels used to identify the healthy and failing cell populations, and the method used to compute the on/off signature labels.
+
+# In[4]:
 
 
-# setting parameters
+# column that holds the combined cell type and treatment label
 treatment_col = "Metadata_cell_type_and_treatment"
 
-# buscar parameters
-healthy_label = "healthy_DMSO"
-failing_label = "failing_DMSO"
+# population labels used to split cells into reference and target groups
+healthy_label = "healthy_DMSO"  # target: healthy cardiomyocytes treated with DMSO
+failing_label = "failing_DMSO"  # reference: failing cardiomyocytes treated with DMSO
+
+# statistical method used to compute signature feature importance
 on_off_signatures_method = "ks_test"
 
 
-# In[15]:
+# ## Load Data
+#
+# Load the CFReT single-cell profiles and restrict columns to the relevant metadata and morphology features. A combined cell-type-and-treatment label is added for easy population filtering.
+
+# In[5]:
 
 
 # loading profiles
@@ -151,14 +190,25 @@ print(f"Dataframe shape: {cfret_df.shape}")
 cfret_df.head()
 
 
-# In[16]:
+# ## Split Populations
+#
+# Separate cells into the reference (failing DMSO) and target (healthy DMSO) populations. The KS test will compare these two groups feature by feature.
+
+# In[6]:
 
 
+# reference population: failing cardiomyocytes (DMSO-treated)
 ref_df = cfret_df.filter(pl.col("Metadata_cell_type_and_treatment") == failing_label)
+
+# target population: healthy cardiomyocytes (DMSO-treated)
 target_df = cfret_df.filter(pl.col("Metadata_cell_type_and_treatment") == healthy_label)
 
 
-# In[17]:
+# ## Run KS Test on Observed Data
+#
+# Compute the KS statistic and FDR-corrected p-value for each morphology feature. Features with a corrected p-value below the significance threshold (alpha = 0.05) are labeled **"on"** and make up the morphology signature. All results are saved to a CSV file.
+
+# In[7]:
 
 
 ks_results_df = compute_ks_signature(
@@ -172,20 +222,22 @@ print(ks_results_df.shape)
 ks_results_df.head()
 
 
-# Now apply on shuffled data
+# ## Null Control: Shuffled Data
+#
+# To verify that the observed signatures are not due to chance, we repeat the KS test on shuffled data. Shuffling randomly permutes feature values across all cells, breaking any real biological signal. We expect very few (or no) features to be labeled **"on"** in the shuffled results.
 
-# In[18]:
+# In[8]:
 
 
-# concat
+# combine reference and target into one dataframe before shuffling
 concat_df = pl.concat([ref_df, target_df])
 
-# shuffle
+# shuffle feature values across all cells to remove biological signal (null control)
 shuffled_concat_df = shuffle_feature_profiles(
     concat_df, cfret_feats, method="column", seed=0
 )
 
-# filter shuffled_concat_df to get shuffled_ref_df and shuffled_target_df
+# re-split the shuffled data into reference and target populations
 shuffled_ref_df = shuffled_concat_df.filter(
     pl.col("Metadata_cell_type_and_treatment") == failing_label
 )
@@ -194,7 +246,7 @@ shuffled_target_df = shuffled_concat_df.filter(
 )
 
 
-# In[19]:
+# In[9]:
 
 
 ks_results_df = compute_ks_signature(
@@ -206,6 +258,3 @@ ks_results_df = compute_ks_signature(
 
 print(ks_results_df.shape)
 ks_results_df.head()
-
-
-# In[ ]:
