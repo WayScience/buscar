@@ -176,3 +176,6 @@ results/
 
 # ignore .vscode settings
 .vscode/
+
+# ignore ruff catch
+.ruff_cache/
