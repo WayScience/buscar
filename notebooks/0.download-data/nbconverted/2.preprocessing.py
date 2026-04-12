@@ -25,7 +25,11 @@ import sys
 import polars as pl
 
 sys.path.append("../../")
-from utils.data_utils import add_cell_id_hash, split_meta_and_features
+from utils.data_utils import (
+    add_cell_id_hash,
+    split_meta_and_features,
+    transform_ensg_to_gene_symbol,
+)
 from utils.io_utils import load_profiles
 
 # ## Helper functions
@@ -258,7 +262,7 @@ cpjump1_profiles = load_and_concat_profiles(
 cpjump1_profiles = add_cell_id_hash(cpjump1_profiles)
 
 
-# Next, we annotate the compound treatments in the CPJUMP1 dataset. We annotate each cell with Mechanism of Action (MoA) information using the [Clue Drug Repurposing Hub](https://clue.io/data/REP#REP). This resource provides comprehensive drug and tool compound annotations, including target information and clinical development status.
+# Next we annotate the compound treatments in the CPJUMP1 dataset, we annotate each cell with Mechanism of Action (MoA) information using the [Clue Drug Repurposing Hub](https://clue.io/data/REP#REP). This resource provides comprehensive drug and tool compound annotations, including target information and clinical development status.
 #
 
 # In[6]:
@@ -312,7 +316,7 @@ cpjump1_profiles.select(meta_cols + features_cols).write_parquet(concat_output_p
 #
 # The preprocessing ensures that all MitoCheck datasets share a common feature space and are ready for comparative analysis with CPJUMP1 profiles.
 
-# In[7]:
+# In[5]:
 
 
 # load in mitocheck profiles and save as parquet
@@ -356,7 +360,7 @@ mitocheck_pos_control_profiles = mitocheck_pos_control_profiles.with_columns(
 
 # Filter Cell Profiler (CP) features and preprocess columns by removing the "CP__" prefix to standardize feature names for downstream analysis.
 
-# In[8]:
+# In[6]:
 
 
 # Split profiles to only retain cell profiler features
@@ -379,7 +383,7 @@ cp_mitocheck_pos_control_profiles = remove_feature_prefixes(
 
 # Splitting the metadata and feature columns for each dataset to enable targeted downstream analysis and ensure consistent data structure across all profiles.
 
-# In[9]:
+# In[7]:
 
 
 # manually selecting metadata features that are present across all 3 profiles
@@ -398,6 +402,7 @@ mitocheck_meta_data = [
     "Metadata_Gene",
     "Metadata_Gene_Replicate",
 ]
+
 
 # select morphology features by dropping the metadata features and getting only the column names
 cp_mitocheck_profile_features = cp_mitocheck_profile.drop(mitocheck_meta_data).columns
@@ -428,7 +433,7 @@ with open(mitocheck_dir / "mitocheck_feature_space_configs.json", "w") as f:
     )
 
 
-# In[10]:
+# In[8]:
 
 
 # create concatenated mitocheck profiles
@@ -452,6 +457,21 @@ concat_mitocheck_profiles = (
 
 # add unique cell ID based on features of a single profiles
 concat_mitocheck_profiles = add_cell_id_hash(concat_mitocheck_profiles)
+
+# get a list of all unique ENSG IDs in the Metadata_Gene column that starts with "ENSG"
+ensg_ids = [
+    gene
+    for gene in concat_mitocheck_profiles.select("Metadata_Gene")
+    .unique()
+    .to_series()
+    .to_list()
+    if gene.startswith("ENSG")
+]
+decoded_genes = transform_ensg_to_gene_symbol(ensg_ids)
+
+# save the mapping of ENSG IDs to gene symbols in a json file
+with open(mitocheck_dir / "mitocheck_ensg_to_gene_symbol_mapping.json", "w") as f:
+    json.dump(decoded_genes, f, indent=4)
 
 # save concatenated mitocheck profiles
 concat_mitocheck_profiles.write_parquet(
