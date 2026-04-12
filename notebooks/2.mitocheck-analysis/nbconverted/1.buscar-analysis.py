@@ -17,7 +17,7 @@
 
 # ## Importing packages
 
-# In[38]:
+# In[1]:
 
 
 import pathlib
@@ -36,7 +36,7 @@ from utils.io_utils import load_configs, load_profiles
 
 # ## Setting helper functions
 
-# In[39]:
+# In[2]:
 
 
 def shuffle_signatures(
@@ -78,7 +78,7 @@ def shuffle_signatures(
 
 # ## setting input and output paths
 
-# In[40]:
+# In[3]:
 
 
 # set data path
@@ -102,13 +102,13 @@ mitocheck_feature_space_config = (
 results_dir = pathlib.Path("./results/").resolve()
 results_dir.mkdir(exist_ok=True)
 
-moa_analysis_output = (results_dir / "moa_analysis").resolve()
+moa_analysis_output = (results_dir / "logo_analysis").resolve()
 moa_analysis_output.mkdir(exist_ok=True)
 
 
 # ## Loading data
 
-# In[41]:
+# In[4]:
 
 
 # load in configs
@@ -118,7 +118,7 @@ meta_feats = feature_space_configs["metadata-features"]
 morph_feats = feature_space_configs["morphology-features"]
 
 
-# In[42]:
+# In[5]:
 
 
 # load in mitocheck profiles
@@ -142,7 +142,7 @@ mitocheck_df = mitocheck_df.with_columns(
 )
 
 
-# In[43]:
+# In[6]:
 
 
 labeled_mitocheck_df = mitocheck_df.filter(
@@ -154,7 +154,7 @@ print("Shape of the labeled mitocheck profiles:", labeled_mitocheck_df.shape)
 labeled_mitocheck_df.head()
 
 
-# In[44]:
+# In[7]:
 
 
 # Creating a proportion dataframe for all genes and phenotypic classes
@@ -172,7 +172,7 @@ cell_proportion_df = (
 
 # Get cell state information
 
-# In[45]:
+# In[8]:
 
 
 cell_states = (
@@ -190,15 +190,15 @@ cell_states = (
 
 # ## LOGO analysis
 
-# In[46]:
+# In[9]:
 
 
 # parameters for the analysis
-shuffle_flag = False
+shuffle_flag = True
 seed = 0
 
 
-# In[47]:
+# In[10]:
 
 
 if shuffle_flag:
@@ -212,7 +212,7 @@ if shuffle_flag:
     )
 
 
-# In[ ]:
+# In[11]:
 
 
 # select data based on shuffle_flag
