@@ -447,7 +447,7 @@ concat_mitocheck_profiles.write_parquet(
 # - **Unique cell identification**: Adding `Metadata_cell_id` column with unique hash values based on all profile features to enable precise cell tracking and deduplication
 #
 
-# In[12]:
+# In[ ]:
 
 
 # load in cfret profiles and add a unique cell ID
