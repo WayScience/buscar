@@ -11,3 +11,4 @@ jupyter nbconvert --to script --output-dir=./nbconverted ./*.ipynb
 python ./nbconverted/1.generate-on-off-signatures.py
 python ./nbconverted/2.run-compound-replicate-analysis.py
 python ./nbconverted/3.plot-replicate-consistency-analysis.py
+python ./nbconverted/4.plot-replicate-consistency-analysis.py

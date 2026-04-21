@@ -28,7 +28,7 @@ from utils.io_utils import download_compressed_file, load_configs
 
 # setting perturbation type
 # other options are "compound", "crispr",
-pert_type = "crispr"
+pert_type = "compound"
 
 
 # setting input and output paths

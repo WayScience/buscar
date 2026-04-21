@@ -174,6 +174,10 @@ plot_prop_vs_rank(
   'shuffled_proportion_vs_rank_all_profiles.png'
 )
 
+tst_all <- cor.test(shuf_prop_df$proportion, shuf_prop_df$rank, method = 'spearman', exact = FALSE)
+tst_all
+
+
 options(repr.plot.width = 18, repr.plot.height = 14)
 
 plot_prop_vs_rank_faceted <- function(prop_df, title_txt, out_name) {
