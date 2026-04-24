@@ -56,7 +56,7 @@ def _normalize_on_buscar_scores(
     # get the reference distance from the row where is_reference_distance is True
     reference_rows = scores_df.filter(pl.col("is_reference_distance"))
     ref_dist = reference_rows.select("on_buscar_scores").item()
-    if ref_dist == 0:
+    if ref_dist <= 1e-9:
         raise ValueError(
             "Reference distance is zero and cannot be used for normalization."
         )
