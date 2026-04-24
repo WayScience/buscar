@@ -299,9 +299,7 @@ def run_replicate_consistency_analysis(
             if t in checked_perturbations
         ]
     else:
-        print("DEBUGG: filtering to only unprocessed perturbations")
         perturbations = profiles["Metadata_pert_iname"].unique().to_list()
-        print(f"DEBUGG: perturbations to analyze: {len(perturbations)}")
 
     unique_plates = list(plate_name_dict.keys())
     meta_cols_with_label = meta_cols + ["_plate_label"]
@@ -312,14 +310,8 @@ def run_replicate_consistency_analysis(
         # treatment_pbar = perturbation_pbar # alias for compatibility if needed, though we should use perturbation_pbar
         perturbation_pbar.set_postfix(perturbation=perturbation)
 
-        # debugging message
-        print(
-            f"DEBUGG: Analyzing perturbation: {perturbation} (cell type: {cell_type})"
-        )
         if perturbation is not None and perturbation in perturbation_to_ignore:
-            print(
-                f"DEBUGG: Skipping perturbation {perturbation} as it is in the ignore list."
-            )
+            print(f"Skipping perturbation {perturbation} as it is in the ignore list.")
             continue
 
         for iteration in tqdm(
@@ -570,7 +562,7 @@ n_iterations = 10
 
 # run analysis
 print(
-    f"DEBUGG: Running replicate consistency analysis for U2OS cells (n_iterations={n_iterations})..."
+    f"Running replicate consistency analysis for U2OS cells (n_iterations={n_iterations})..."
 )
 u2os_results_df = run_replicate_consistency_analysis(
     profiles=u2os_df,
