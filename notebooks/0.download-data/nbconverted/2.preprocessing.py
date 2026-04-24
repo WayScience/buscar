@@ -399,7 +399,7 @@ with open(mitocheck_dir / "mitocheck_feature_space_configs.json", "w") as f:
     )
 
 
-# In[ ]:
+# In[11]:
 
 
 # create concatenated mitocheck profiles
@@ -447,7 +447,7 @@ concat_mitocheck_profiles.write_parquet(
 # - **Unique cell identification**: Adding `Metadata_cell_id` column with unique hash values based on all profile features to enable precise cell tracking and deduplication
 #
 
-# In[ ]:
+# In[12]:
 
 
 # load in cfret profiles and add a unique cell ID

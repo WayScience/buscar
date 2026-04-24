@@ -1,0 +1,6 @@
+comparison,value
+real,0.30773746792521994
+perm_null_mean,0.06255757136638564
+perm_null_sd,0.01545064614590501
+empirical_p_real_vs_perm,0
+zscore_real_vs_perm,15.868585316337466
