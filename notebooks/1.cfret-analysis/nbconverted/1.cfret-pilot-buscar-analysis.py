@@ -16,7 +16,7 @@
 # - Paper: https://www.ahajournals.org/doi/full/10.1161/CIRCULATIONAHA.124.071956
 # - Data repo: https://github.com/WayScience/cellpainting_predicts_cardiac_fibrosis
 
-# In[3]:
+# In[1]:
 
 
 import json
@@ -39,7 +39,7 @@ from utils.io_utils import load_profiles
 # - `healthy_label`: the healthy target state (healthy cells + DMSO)
 # - `on_off_signatures_method`: statistical test used to identify on/off morphological features
 
-# In[4]:
+# In[2]:
 
 
 # setting parameters
@@ -56,7 +56,7 @@ on_off_signatures_method = "ks_test"
 # Input: single-cell morphology profiles from the CFReT pilot dataset.
 # Output: signature files and phenotypic score CSVs written to `./results/`.
 
-# In[5]:
+# In[3]:
 
 
 # load in raw data from
@@ -89,7 +89,7 @@ phenotypic_scores_results_dir.mkdir(parents=True, exist_ok=True)
 # - `Metadata_treatment_and_heart`: links a treatment to its biological replicate (heart number)
 # - `Metadata_cell_type_and_treatment`: combined group label used throughout the analysis (e.g. `failing_DMSO`, `healthy_TGFRi`)
 
-# In[6]:
+# In[4]:
 
 
 # Load raw single-cell morphology profiles
@@ -123,7 +123,7 @@ cfret_df.head()
 #
 # Verify how many single cells are available per treatment group before running BUSCAR.
 
-# In[7]:
+# In[5]:
 
 
 # show how many cells per treatment
@@ -141,7 +141,7 @@ cells_per_treatment_counts
 # - **On_morphology signatures (`on_sigs`):** Features that shift significantly between failing and healthy cells — the morphological hallmarks of the disease-to-health transition.
 # - **Off_morpholgy signatures (`off_sigs`):** Features that remain stable between failing and healthy cells. A treatment that perturbs these is causing non-specific morphological changes.
 
-# In[8]:
+# In[6]:
 
 
 # Reference: failing DMSO cells — the diseased baseline
@@ -151,7 +151,7 @@ ref_df = cfret_df.filter(pl.col(treatment_col) == failing_label)
 target_df = cfret_df.filter(pl.col(treatment_col) == healthy_label)
 
 
-# In[9]:
+# In[7]:
 
 
 signatures_outpath = (signatures_results_dir / "cfret_pilot_signatures.json").resolve()
@@ -176,7 +176,7 @@ else:
         json.dump({"on": on_sigs, "off": off_sigs}, f, indent=4)
 
 
-# ### Measuring phenotypic activity
+# ### Calculating pertrubations scores
 #
 # This section quantifies how each treatment affects cell morphology compared to the reference control (DMSO_heart_11), using the previously defined on and off signatures. The resulting buscar scores are used to rank treatments and highlight the most active compounds.
 #
@@ -185,26 +185,31 @@ else:
 # - **On-signature features:** We use the Earth Mover's Distance (EMD) to measure how much the on-features for each treatment differ from the reference. A higher EMD means a greater morphological change.
 # - **Off_Buscar features:** We use the affected ratio, which detects if features that should remain stable (off-features) are altered by a treatment. A higher affected ratio suggests more off-target or unintended effects.
 
-# In[11]:
+# In[8]:
 
 
-treatment_scores = calculate_buscar_scores(
-    profiles=cfret_df,
-    meta_cols=cfret_meta,
-    on_morphology_signature=on_sigs,
-    off_morphology_signature=off_sigs,
-    ref_state=failing_label,
-    target=healthy_label,
-    on_method="emd",
-    off_method="affected_ratio",
-    ratio_stats_method=on_off_signatures_method,
-    perturbation_col=treatment_col,
-)
-
-# save phenotypic scores
-treatment_scores.write_csv(
+scores_output = (
     phenotypic_scores_results_dir / "cellpainting_cardiac_fibrosis_buscar_scores.csv"
-)
+).resolve()
+if scores_output.exists():
+    print("Phenotypic scores already exist, skipping this step.")
+    treatment_scores = pl.read_csv(scores_output)
+else:
+    treatment_scores = calculate_buscar_scores(
+        profiles=cfret_df,
+        meta_cols=cfret_meta,
+        on_morphology_signature=on_sigs,
+        off_morphology_signature=off_sigs,
+        ref_state=failing_label,
+        target=healthy_label,
+        on_method="emd",
+        off_method="affected_ratio",
+        ratio_stats_method=on_off_signatures_method,
+        perturbation_col=treatment_col,
+    )
+
+    # save phenotypic scores
+    treatment_scores.write_csv(scores_output)
 
 # display scores
 treatment_scores
@@ -214,7 +219,7 @@ treatment_scores
 #
 # The analysis before pools all replicates into a populations of cells to generate a score. however, for this analysis, we would like to see how each replicate scores seeing a more finner score
 
-# In[12]:
+# In[9]:
 
 
 # update Metadata_treatment column to have the "Metadata_treatment + Metadata_Well"
@@ -245,34 +250,56 @@ replicate_df = replicate_df.with_columns(
 )
 
 
-# In[14]:
+# In[10]:
 
 
-buscar_scores = calculate_buscar_scores(
-    profiles=replicate_df,
-    meta_cols=cfret_meta,
-    on_morphology_signature=on_sigs,
-    off_morphology_signature=off_sigs,
-    ref_state=failing_label,
-    target=healthy_label,
-    on_method="emd",
-    off_method="affected_ratio",
-    ratio_stats_method=on_off_signatures_method,
-    perturbation_col="Metadata_treatment",
-)
-
-# add cell counts per treatment
-buscar_scores = buscar_scores.join(
-    replicate_df.group_by("Metadata_treatment").len(),
-    left_on="perturbation",
-    right_on="Metadata_treatment",
-    how="left",
-)
-
-# save scores
-buscar_scores.write_csv(
+output_path = (
     phenotypic_scores_results_dir
-    / "cellpainting_cardiac_fibrosis_replicate_buscar_scores.csv"
-)
+    / "cellpainting_cardiac_fibrosis_buscar_scores_replicates.csv"
+).resolve()
+if output_path.exists():
+    print("Phenotypic scores with replicates already exist, skipping this step.")
+    buscar_scores = pl.read_csv(output_path)
+else:
+    buscar_scores = calculate_buscar_scores(
+        profiles=replicate_df,
+        meta_cols=cfret_meta,
+        on_morphology_signature=on_sigs,
+        off_morphology_signature=off_sigs,
+        ref_state=failing_label,
+        target=healthy_label,
+        on_method="emd",
+        off_method="affected_ratio",
+        ratio_stats_method=on_off_signatures_method,
+        perturbation_col="Metadata_treatment",
+    )
+
+    # add cell counts per treatment
+    buscar_scores = buscar_scores.join(
+        replicate_df.group_by("Metadata_treatment")
+        .len()
+        .rename({"len": "cell_counts"}),
+        left_on="perturbation",
+        right_on="Metadata_treatment",
+        how="left",
+    )
+
+    # Split perturbation into treatment and well
+    # Extracts the well (last element after '-') and the treatment (everything before the last '-')
+    buscar_scores = (
+        buscar_scores.with_columns(
+            pl.col("perturbation")
+            .str.split_exact("-", 2)
+            .struct.rename_fields(["cell_type", "treatment", "well"])
+        )
+        .unnest("perturbation")
+        .with_columns(
+            (pl.col("cell_type") + "-" + pl.col("treatment")).alias("treatment")
+        )
+        .drop("cell_type")
+    )
+
+    # save scores
+    buscar_scores.write_csv(output_path)
 
 buscar_scores

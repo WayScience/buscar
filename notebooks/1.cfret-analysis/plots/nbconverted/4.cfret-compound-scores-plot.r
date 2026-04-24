@@ -67,13 +67,13 @@ replicate_scores_plot <- ggplot() +
 
   # Quadrant annotation labels
   annotate("text", x = 0.48, y = 0.02, label = "High efficacy\nHigh specificity",
-           hjust = 1, vjust = 0, size = 5.3, fontface = "italic", color = "gray25") +
-  annotate("text", x = 0.48, y = 0.98, label = "Low efficacy\nHigh specificity",
-           hjust = 1, vjust = 1, size = 5.3, fontface = "italic", color = "gray25") +
+           hjust = 1, vjust = 0, size = 7.4, fontface = "italic", color = "gray25") +
+  annotate("text", x = 0.48, y = 0.52, label = "Low efficacy\nHigh specificity",
+           hjust = 1, vjust = 0, size = 7.4, fontface = "italic", color = "gray25") +
   annotate("text", x = 0.52, y = 0.02, label = "High efficacy\nLow specificity",
-           hjust = 0, vjust = 0, size = 5.3, fontface = "italic", color = "gray25") +
-  annotate("text", x = 0.52, y = 0.98, label = "Low efficacy\nLow specificity",
-           hjust = 0, vjust = 1, size = 5.3, fontface = "italic", color = "gray25") +
+           hjust = 0, vjust = 0, size = 7.4, fontface = "italic", color = "gray25") +
+  annotate("text", x = 0.52, y = 0.52, label = "Low efficacy\nLow specificity",
+           hjust = 0, vjust = 0, size = 7.4, fontface = "italic", color = "gray25") +
 
   # Data points: individual replicates (dots)
   geom_point(data = replicate_scores_df, aes(x = off_buscar_scores, y = on_buscar_scores, color = perturbation, shape = "Replicate"),
@@ -119,15 +119,15 @@ replicate_scores_plot <- ggplot() +
   ) +
 
   # Theme
-  theme_classic(base_size = 22) +
+  theme_classic(base_size = 31) +
   theme(
-    plot.title       = element_text(hjust = 0.5, face = "bold", size = 25),
-    plot.subtitle    = element_text(hjust = 0.5, color = "gray40", size = 18, margin = margin(b = 8)),
-    axis.title       = element_text(face = "bold", size = 21),
-    axis.text        = element_text(size = 18),
+    plot.title       = element_text(hjust = 0.5, face = "bold", size = 35),
+    plot.subtitle    = element_text(hjust = 0.5, color = "gray40", size = 25, margin = margin(b = 8)),
+    axis.title       = element_text(face = "bold", size = 29),
+    axis.text        = element_text(size = 25),
     legend.position  = "right",
-    legend.title     = element_text(face = "bold", size = 20),
-    legend.text      = element_text(size = 18),
+    legend.title     = element_text(face = "bold", size = 28),
+    legend.text      = element_text(size = 25),
     panel.grid.major = element_line(color = "gray88", linewidth = 0.4),
     plot.margin      = margin(15, 15, 15, 15)
   )

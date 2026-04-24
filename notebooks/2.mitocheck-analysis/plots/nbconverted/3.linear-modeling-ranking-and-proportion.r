@@ -7,6 +7,7 @@ suppressPackageStartupMessages({
     library(viridisLite)
     library(stringr)
     library(stats)
+    library(MASS)
     library(grid)
     library(gridExtra)
 })
@@ -66,7 +67,9 @@ profiles <- sort(unique(df$target))
 n_profiles <- length(profiles)
 
 run_prop_rank_summary <- function(input_df, label = 'original') {
-  prop_df <- input_df %>% select(target, rank, proportion) %>% drop_na()
+  prop_df <- input_df %>%
+    dplyr::select(target, rank, proportion) %>%
+    tidyr::drop_na()
 
   cat(sprintf('\n=== %s ===\n', toupper(label)))
   cat(sprintf('Rows used: %d\n', nrow(prop_df)))
@@ -75,7 +78,7 @@ run_prop_rank_summary <- function(input_df, label = 'original') {
   cat(sprintf('%-20s  %7s  %10s\n', 'Profile', '\u03c1', 'p-value'))
   cat(strrep('-', 55), '\n', sep = '')
   for (profile in sort(unique(prop_df$target))) {
-    grp <- prop_df %>% filter(target == profile)
+    grp <- prop_df %>% dplyr::filter(target == profile)
     tst <- suppressWarnings(cor.test(grp$proportion, grp$rank, method = 'spearman', exact = FALSE))
     rho_val <- unname(tst$estimate)
     pval <- tst$p.value
@@ -95,9 +98,21 @@ prop_df <- run_prop_rank_summary(df, 'original')
 shuf_prop_df <- run_prop_rank_summary(shuf_df, 'shuffled')
 
 fit_and_report <- function(prop_df, label = 'original') {
-  cat(sprintf('\n=== OLS: %s (rank ~ proportion) ===\n', toupper(label)))
-  model_prop <- lm(rank ~ proportion, data = prop_df)
-  print(summary(model_prop))
+  cat(sprintf('\n=== ORDINAL LOGIT: %s (rank ~ proportion) ===\n', toupper(label)))
+
+  model_prop <- MASS::polr(
+    as.ordered(rank) ~ proportion,
+    data = prop_df,
+    Hess = TRUE,
+    method = 'logistic'
+  )
+
+  coef_tbl <- coef(summary(model_prop))
+  coef_tbl <- as.data.frame(coef_tbl)
+  coef_tbl$p_value <- 2 * pnorm(abs(coef_tbl$`t value`), lower.tail = FALSE)
+  coef_tbl$odds_ratio <- exp(coef_tbl$Value)
+
+  print(coef_tbl)
   invisible(model_prop)
 }
 
@@ -107,25 +122,40 @@ model_prop_shuf <- fit_and_report(shuf_prop_df, 'shuffled')
 options(repr.plot.width = 13, repr.plot.height = 9)
 
 plot_prop_vs_rank <- function(prop_df, title_txt, out_name) {
-  fit <- lm(rank ~ proportion, data = prop_df)
-  r_val <- suppressWarnings(cor(prop_df$proportion, prop_df$rank, use = 'complete.obs', method = 'pearson'))
-  r2 <- r_val^2
+  prop_df <- prop_df %>% drop_na(proportion, rank)
 
-  tst_all <- suppressWarnings(cor.test(prop_df$proportion, prop_df$rank, method = 'spearman', exact = FALSE))
-  rho_all <- unname(tst_all$estimate)
-  pval_all <- tst_all$p.value
+  ord_fit <- MASS::polr(
+    as.ordered(rank) ~ proportion,
+    data = prop_df,
+    Hess = TRUE,
+    method = 'logistic'
+  )
+
+  coef_tbl <- coef(summary(ord_fit))
+  beta <- coef_tbl['proportion', 'Value']
+  z_val <- coef_tbl['proportion', 't value']
+  p_ord <- 2 * pnorm(abs(z_val), lower.tail = FALSE)
+  or_val <- exp(beta)
+
+  pred_df <- data.frame(
+    proportion = seq(min(prop_df$proportion), max(prop_df$proportion), length.out = 200)
+  )
+  prob_mat <- predict(ord_fit, newdata = pred_df, type = 'probs')
+  rank_levels <- as.numeric(colnames(prob_mat))
+  pred_df$expected_rank <- as.numeric(prob_mat %*% rank_levels)
 
   p_all <- ggplot(prop_df, aes(x = proportion, y = rank, color = target)) +
     geom_point(alpha = 0.7, size = 3.5, stroke = 0) +
-    geom_smooth(
-      method = 'lm', formula = y ~ x, se = FALSE,
-      color = '#1a1a2e', linetype = 'dashed', linewidth = 1.4,
-      inherit.aes = FALSE, aes(x = proportion, y = rank)
+    geom_line(
+      data = pred_df,
+      aes(x = proportion, y = expected_rank),
+      inherit.aes = FALSE,
+      color = '#1a1a2e', linetype = 'dashed', linewidth = 1.4
     ) +
     annotate(
       'label',
       x = Inf, y = Inf, hjust = 1.04, vjust = 1.04,
-      label = sprintf('Spearman \u03c1 = %+.2f\np = %.2e\nR^2 = %.2f', rho_all, pval_all, r2),
+      label = sprintf('OR = %.2f\np = %.2e', or_val, p_ord),
       size = 10, label.size = 0.8, fill = 'white', color = '#1a1a2e', fontface = 'bold'
     ) +
     scale_color_viridis_d(option = 'turbo', begin = 0.05, end = 0.95) +
@@ -164,13 +194,13 @@ plot_prop_vs_rank <- function(prop_df, title_txt, out_name) {
 
 plot_prop_vs_rank(
   prop_df,
-  'Proportion vs. gene rank across all phenotypes',
+  'Proportion vs. gene rank across all phenotypes (ordinal regression)',
   'proportion_vs_rank_all_profiles.png'
 )
 
 plot_prop_vs_rank(
   shuf_prop_df,
-  'Proportion vs. gene rank across all phenotypes\n(feature-shuffled)',
+  'Proportion vs. gene rank across all phenotypes\n(feature-shuffled, ordinal regression)',
   'shuffled_proportion_vs_rank_all_profiles.png'
 )
 
@@ -181,37 +211,55 @@ tst_all
 options(repr.plot.width = 18, repr.plot.height = 14)
 
 plot_prop_vs_rank_faceted <- function(prop_df, title_txt, out_name) {
-  # compute per-phenotype spearman stats and R^2 for annotation labels
-  annot_df <- prop_df %>%
-    group_by(target) %>%
-    summarise(
-      rho  = suppressWarnings(cor.test(proportion, rank, method = 'spearman', exact = FALSE)$estimate),
-      pval = suppressWarnings(cor.test(proportion, rank, method = 'spearman', exact = FALSE)$p.value),
-      r2   = cor(proportion, rank, use = 'complete.obs', method = 'pearson')^2,
-      .groups = 'drop'
-    ) %>%
-    mutate(
-      stars = sapply(pval, sig_stars),
-      label = sprintf('Spearman \u03c1 = %+.2f\np = %.2e  %s\nR\u00b2 = %.2f', rho, pval, stars, r2),
-      x_pos = Inf,
-      y_pos = Inf
+  prop_df <- prop_df %>% drop_na(proportion, rank)
+
+  fit_one_target <- function(df_one) {
+    if (nrow(df_one) < 5 || dplyr::n_distinct(df_one$rank) < 3) {
+      return(NULL)
+    }
+
+    fit <- tryCatch(
+      MASS::polr(as.ordered(rank) ~ proportion, data = df_one, Hess = TRUE, method = 'logistic'),
+      error = function(e) NULL
     )
+    if (is.null(fit)) return(NULL)
+
+    coef_tbl <- coef(summary(fit))
+    if (!('proportion' %in% rownames(coef_tbl))) return(NULL)
+
+    beta <- coef_tbl['proportion', 'Value']
+    z_val <- coef_tbl['proportion', 't value']
+    pval <- 2 * pnorm(abs(z_val), lower.tail = FALSE)
+    or_val <- exp(beta)
+    stars <- sig_stars(pval)
+
+    pred_df <- data.frame(
+      proportion = seq(min(df_one$proportion), max(df_one$proportion), length.out = 120)
+    )
+    prob_mat <- predict(fit, newdata = pred_df, type = 'probs')
+    rank_levels <- as.numeric(colnames(prob_mat))
+    pred_df$expected_rank <- as.numeric(prob_mat %*% rank_levels)
+    pred_df$target <- unique(df_one$target)[1]
+
+    annot_row <- data.frame(
+      target = unique(df_one$target)[1],
+      label = sprintf('OR = %.2f\np = %.2e\n%s', or_val, pval, stars),
+      x_pos = Inf,
+      y_pos = Inf,
+      stringsAsFactors = FALSE
+    )
+
+    list(annot = annot_row, pred = pred_df)
+  }
+
+  split_list <- split(prop_df, prop_df$target)
+  fit_list <- lapply(split_list, fit_one_target)
+
+  annot_df <- dplyr::bind_rows(lapply(fit_list, function(x) if (is.null(x)) NULL else x$annot))
+  pred_df <- dplyr::bind_rows(lapply(fit_list, function(x) if (is.null(x)) NULL else x$pred))
 
   p_facet <- ggplot(prop_df, aes(x = proportion, y = rank)) +
     geom_point(aes(color = target), alpha = 0.65, size = 2.2, stroke = 0) +
-    geom_smooth(
-      method = 'lm', formula = y ~ x, se = TRUE,
-      color = '#1a1a2e', fill = '#1a1a2e', alpha = 0.12,
-      linetype = 'dashed', linewidth = 1.1
-    ) +
-    geom_label(
-      data = annot_df,
-      aes(x = x_pos, y = y_pos, label = label),
-      hjust = 1.05, vjust = 1.05,
-      size = 5.0, label.size = 0.3,
-      fill = 'white', color = '#1a1a2e', fontface = 'bold',
-      inherit.aes = FALSE
-    ) +
     facet_wrap(~ target, scales = 'free_y', ncol = 4) +
     scale_color_viridis_d(option = 'turbo', begin = 0.05, end = 0.95) +
     scale_x_continuous(labels = scales::label_number(accuracy = 0.1)) +
@@ -241,6 +289,28 @@ plot_prop_vs_rank_faceted <- function(prop_df, title_txt, out_name) {
       plot.margin      = margin(14, 20, 14, 14)
     )
 
+  if (nrow(pred_df) > 0) {
+    p_facet <- p_facet +
+      geom_line(
+        data = pred_df,
+        aes(x = proportion, y = expected_rank),
+        inherit.aes = FALSE,
+        color = '#1a1a2e', linetype = 'dashed', linewidth = 1.1
+      )
+  }
+
+  if (nrow(annot_df) > 0) {
+    p_facet <- p_facet +
+      geom_label(
+        data = annot_df,
+        aes(x = x_pos, y = y_pos, label = label),
+        hjust = 1.05, vjust = 1.05,
+        size = 5.0, label.size = 0.3,
+        fill = 'white', color = '#1a1a2e', fontface = 'bold',
+        inherit.aes = FALSE
+      )
+  }
+
   out_path <- file.path(output_dir, out_name)
   ggsave(out_path, p_facet, width = 18, height = 14, dpi = 300, bg = 'white')
   cat(sprintf('Saved -> %s\n', out_path))
@@ -249,12 +319,12 @@ plot_prop_vs_rank_faceted <- function(prop_df, title_txt, out_name) {
 
 plot_prop_vs_rank_faceted(
   prop_df,
-  'Proportion vs. gene rank faceted by phenotype',
+  'Proportion vs. gene rank faceted by phenotype (ordinal regression)',
   'proportion_vs_rank_faceted_by_phenotype.png'
 )
 
 plot_prop_vs_rank_faceted(
   shuf_prop_df,
-  'Proportion vs. gene rank faceted by phenotype (feature-shuffled)',
+  'Proportion vs. gene rank faceted by phenotype\n(feature-shuffled, ordinal regression)',
   'shuffled_proportion_vs_rank_faceted_by_phenotype.png'
 )

@@ -269,6 +269,11 @@ ggsave(
 
 cat("Saved UMAP faceted plots to:", figures_dir, "\n")
 
+# notebook render option
+height <- 7
+width <- 14
+options(repr.plot.width = width, repr.plot.height = height, repr.plot.res = render_dpi)
+
 # Prepare combined data with signature type for faceting
 umap_on_contour_df <- umap_on_df %>% mutate(signature_type = "On-morph sig.")
 umap_off_contour_df <- umap_off_df %>% mutate(signature_type = "Off-morph sig.")
@@ -310,66 +315,26 @@ umap_contour_combined <- ggplot(umap_contour_df, aes(x = UMAP1, y = UMAP2, color
         x = "UMAP 1",
         y = "UMAP 2"
     ) +
-    guides(color = guide_legend(override.aes = list(alpha = 1, size = 2, linewidth = 1))) +
+    guides(color = guide_legend(override.aes = list(alpha = 1, size = 3, linewidth = 1.2))) +
     theme(
-        strip.text = element_text(face = "bold", size = 16),
+        strip.text = element_text(face = "bold", size = 21),
+        axis.title = element_text(face = "bold", size = 22),
+        axis.text = element_text(size = 22),
+        legend.text = element_text(size = 21),
+        legend.title = element_text(face = "bold", size = 22),
         panel.spacing = unit(1, "lines"),
-        plot.title = element_text(face = "bold", size = 20, hjust = 0.5)
+        plot.title = element_text(face = "bold", size = 26, hjust = 0.5)
     )
 
-# Display plot
-options(repr.plot.width = 14, repr.plot.height = 6, repr.plot.res = render_dpi)
 
 # Save UMAP KDE contour plot
 ggsave(
     filename = file.path(figures_dir, "umap_kde_contour_faceted.png"),
     plot = umap_contour_combined,
-    width = 14,
-    height = 6,
+    width = width,
+    height = height,
     dpi = render_dpi,
     bg = "white"
 )
 
 umap_contour_combined
-
-# Define the order of perturbations
-perturbation_order <- c("failing_DMSO", "failing_TGFRi", "healthy_TGFRi", "healthy_DMSO")
-perturbation_labels <- c(
-    failing_DMSO = "Failing DMSO",
-    failing_TGFRi = "Failing TGFβRi",
-    healthy_TGFRi = "Healthy TGFβRi",
-    healthy_DMSO = "Healthy DMSO"
-)
-
-# Extract axis limits from the static plot
-xlim_vals <- ggplot_build(umap_contour_combined)$layout$panel_params[[1]]$x.range
-ylim_vals <- ggplot_build(umap_contour_combined)$layout$panel_params[[1]]$y.range
-
-plot_list <- list()
-
-for (pert in perturbation_order) {
-  df_sub <- umap_contour_df %>% filter(Metadata_perturbation == pert)
-  p <- ggplot(df_sub, aes(x = UMAP1, y = UMAP2, color = signature_type)) +
-    geom_point(alpha = 0.1, size = 1, shape = point_shape) +
-    geom_density_2d(linewidth = 0.8, bins = 12) +
-    scale_color_manual(values = c("On-morph sig." = "#1b9e77", "Off-morph sig." = "#d95f02")) +
-    facet_grid(. ~ signature_type) +
-    labs(
-      title = paste("UMAP KDE contour:", perturbation_labels[[pert]]),
-      x = "UMAP 1",
-      y = "UMAP 2"
-    ) +
-    xlim(xlim_vals) +
-    ylim(ylim_vals) +
-    theme(
-      strip.text = element_text(face = "bold", size = 14),
-      panel.spacing = unit(1, "lines")
-    )
-  fname <- paste0("tmp_", pert, ".png")
-  ggsave(fname, plot = p, width = 12, height = 6, dpi = 300, bg = "white")
-  plot_list[[pert]] <- image_read(fname)
-}
-
-gif <- image_animate(image_join(plot_list), fps = 1)
-image_write(gif, path = file.path(figures_dir, "umap_kde_contour_by_perturbation.gif"))
-file.remove(paste0("tmp_", perturbation_order, ".png"))
