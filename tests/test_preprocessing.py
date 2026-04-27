@@ -7,7 +7,6 @@ import contextlib
 import numpy as np
 import polars as pl
 import pytest
-
 from buscar.preprocess import apply_pca
 
 
