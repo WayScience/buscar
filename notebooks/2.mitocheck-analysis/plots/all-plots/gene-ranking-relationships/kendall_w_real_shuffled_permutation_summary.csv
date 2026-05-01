@@ -1,7 +1,0 @@
-comparison,value
-real,0.3479798616202346
-shuffled,0.5279823817815249
-perm_null_mean,0.06281686675219941
-perm_null_sd,0.015558153566819985
-empirical_p_real_vs_perm,0
-zscore_real_vs_perm,18.32884562061314
