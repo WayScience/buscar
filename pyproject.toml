@@ -18,7 +18,7 @@ description = "A Python framework for prioritizing compounds in high-content ima
 authors = [{name = "Erik Serrano", email = "erik.serrano@cuanschutz.edu"}]
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.10,<3.15"
 keywords = ["single-cell", "drug-screening", "image-profiling", "phenotypic-screening"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -29,6 +29,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
   "Topic :: Scientific/Engineering :: Image Processing"
 ]

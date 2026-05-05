@@ -2,6 +2,9 @@
 
 ![Buscar Logo](./logo/with-text-for-light-bg.svg)
 
+[![DOI](https://img.shields.io/badge/DOI-10.64898%2F2026.04.15.718737-blue)](https://doi.org/10.64898/2026.04.15.718737)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://github.com/axiomcura/buscar/blob/main/pyproject.toml)
+
 ## About
 
 Buscar (Bioactive Unbiased Single-cell Compound Assessment and Ranking) is an open-source Python package for reproducible perturbation hit calling in high-content screening that operates directly on distributions of single-cell image-based profiles. The name is also a play on the Spanish and Portuguese verb "buscar," meaning "to search" or "to seek," reflecting the framework's core goal of identifying biologically active perturbations. Traditional high-content screening approaches rely on population-based aggregated profiles to evaluate compound-induced morphological activity, which obscures the biological heterogeneity present across individual cells within a treatment group. Buscar addresses this limitation by operating directly on single-cell profiles, enabling a more nuanced and interpretable assessment of perturbation activity.
@@ -57,7 +60,13 @@ uv sync --group dev
 uv run pytest
 ```
 
-4. Run linting and formatting checks
+4. Run tests with coverage
+
+```bash
+uv run pytest --cov=buscar --cov-report=term-missing --cov-report=xml --cov-report=html
+```
+
+5. Run linting and formatting checks
 
 ```bash
 uv run pre-commit run --all-files
