@@ -1,16 +1,22 @@
 """
 This module provides statistical tests to identify significant differences in
-morphology features between two profiles (reference and experimental). It supports
+morphology features between two profiles (reference and target). It supports
 Mann-Whitney U test, Welch’s t-test, Kolmogorov–Smirnov test, and permutation test,
 using scipy and statsmodels. The core function, get_signatures, compares the two
 profiles using a specified test and a list of morphology features.
 
-It returns two lists of features: significant (on-morphology signature) and
-non-significant (off-morphology signature).
+In typical Buscar usage, the reference profile represents the phenotype currently
+observed (for example, failing or diseased cells), and the target profile represents
+the desired phenotype (for example, healthy cells).
 
-- On-morphology signature: significant features associated with the cell state.
-- Off-morphology signature: non-significant features not associated with the cell
-state.
+It returns two core signature groups based on significance:
+- on-morphology signatures (significant features)
+- off-morphology signatures (non-significant features)
+
+- On-morphology signatures: features significantly different between reference and
+    target profiles and associated with the cell state.
+- Off-morphology signatures: features not significantly different between reference and
+    target profiles and not associated with the cell state.
 """
 
 from typing import Literal
@@ -25,7 +31,9 @@ from statsmodels.stats.weightstats import ttest_ind
 
 @beartype
 def apply_rank_test(
-    ref_profiles: pl.DataFrame, exp_profiles: pl.DataFrame, morph_feats: list[str]
+    ref_profiles: pl.DataFrame,
+    target_profiles: pl.DataFrame,
+    morph_feats: list[str],
 ) -> pl.DataFrame:
     """Perform Mann-Whitney U rank test for each feature in the provided profiles
     and return a DataFrame with p-values.
@@ -47,9 +55,10 @@ def apply_rank_test(
     Parameters
     ----------
     ref_profiles : polars.DataFrame
-        Reference profile containing features to be tested.
-    exp_profiles : polars.DataFrame
-        Experimental profile containing features to be tested.
+        Reference profile containing morphology features (for example, failing cells).
+    target_profiles : polars.DataFrame
+        Target profile containing desired morphology features (for example, healthy
+        cells).
     morph_feats : list[str]
         List of feature names to perform the statistical test on.
 
@@ -66,7 +75,7 @@ def apply_rank_test(
         try:
             _, p_value = mannwhitneyu(
                 ref_profiles[morph_feat].to_numpy(),
-                exp_profiles[morph_feat].to_numpy(),
+                target_profiles[morph_feat].to_numpy(),
                 alternative="two-sided",
             )
         except ValueError as e:
@@ -87,7 +96,7 @@ def apply_rank_test(
 @beartype
 def apply_welchs_ttest(
     ref_profiles: pl.DataFrame,
-    exp_profiles: pl.DataFrame,
+    target_profiles: pl.DataFrame,
     morph_feats: list[str],
 ) -> pl.DataFrame:
     """Perform Welch's t-test for each feature in the provided profiles and
@@ -109,9 +118,10 @@ def apply_welchs_ttest(
     Parameters
     ----------
     ref_profiles : polars.DataFrame
-        Reference profile containing features to be tested.
-    exp_profiles : polars.DataFrame
-        Experimental profile containing features to be tested.
+        Reference profile containing morphology features (for example, failing cells).
+    target_profiles : polars.DataFrame
+        Target profile containing desired morphology features (for example, healthy
+        cells).
     morph_feats : list[str]
         List of feature names to perform the statistical test on.
     sig_threshold : float, optional
@@ -133,7 +143,7 @@ def apply_welchs_ttest(
             # Perform Welch's t-test (two-sided, unequal variance)
             _, p_value, _ = ttest_ind(
                 ref_profiles[morph_feat].to_numpy(),
-                exp_profiles[morph_feat].to_numpy(),
+                target_profiles[morph_feat].to_numpy(),
                 alternative="two-sided",
                 usevar="unequal",
                 value=0,
@@ -159,7 +169,7 @@ def apply_welchs_ttest(
 @beartype
 def apply_perm_test(
     ref_profiles: pl.DataFrame,
-    exp_profiles: pl.DataFrame,
+    target_profiles: pl.DataFrame,
     morph_feats: list[str],
     n_resamples: int | None = 1000,
     statistic: Literal["mean", "median"] = "mean",
@@ -188,8 +198,8 @@ def apply_perm_test(
     ----------
     ref_profiles : pl.DataFrame
         Reference DataFrame containing morphology features.
-    exp_profiles : pl.DataFrame
-        Experimental DataFrame containing morphology features.
+    target_profiles : pl.DataFrame
+        Target DataFrame containing desired morphology features.
     morph_feats : list[str]
         List of morphology feature names to test.
     n_resamples : int, optional
@@ -213,17 +223,17 @@ def apply_perm_test(
     if statistic == "mean":
 
         def _compute_mean_difference(
-            ref_vals: np.ndarray, exp_vals: np.ndarray
+            ref_vals: np.ndarray, target_vals: np.ndarray
         ) -> float:
-            return np.mean(exp_vals) - np.mean(ref_vals)
+            return np.mean(target_vals) - np.mean(ref_vals)
 
         statistic_func = _compute_mean_difference
     elif statistic == "median":
 
         def _compute_median_difference(
-            ref_vals: np.ndarray, exp_vals: np.ndarray
+            ref_vals: np.ndarray, target_vals: np.ndarray
         ) -> float:
-            return np.median(exp_vals) - np.median(ref_vals)
+            return np.median(target_vals) - np.median(ref_vals)
 
         statistic_func = _compute_median_difference
 
@@ -244,7 +254,7 @@ def apply_perm_test(
             result = permutation_test(
                 data=(
                     ref_profiles[morph_feat].to_numpy(),
-                    exp_profiles[morph_feat].to_numpy(),
+                    target_profiles[morph_feat].to_numpy(),
                 ),
                 statistic=statistic_func,
                 alternative="two-sided",
@@ -273,7 +283,7 @@ def apply_perm_test(
 @beartype
 def apply_ks_test(
     ref_profiles: pl.DataFrame,
-    exp_profiles: pl.DataFrame,
+    target_profiles: pl.DataFrame,
     morph_feats: list[str],
 ) -> pl.DataFrame:
     """Perform KS-test for each feature in the morphology profiles and return p-values.
@@ -284,9 +294,9 @@ def apply_ks_test(
     Parameters
     ----------
     ref_profiles : pl.DataFrame
-        Reference DataFrame.
-    exp_profiles : pl.DataFrame
-        Experimental DataFrame.
+        Reference DataFrame containing morphology features.
+    target_profiles : pl.DataFrame
+        Target DataFrame containing desired morphology features.
     morph_feats : list[str]
         List of morphology feature names.
 
@@ -311,7 +321,7 @@ def apply_ks_test(
         try:
             p_value = ks_2samp(
                 ref_profiles[morph_feat].to_numpy(),
-                exp_profiles[morph_feat].to_numpy(),
+                target_profiles[morph_feat].to_numpy(),
                 method="auto",
                 nan_policy="omit",
             )[1]
@@ -340,7 +350,7 @@ def apply_ks_test(
 @beartype  # handles type checking
 def identify_signatures(
     ref_profiles: pl.DataFrame,
-    exp_profiles: pl.DataFrame,
+    target_profiles: pl.DataFrame,
     morph_feats: list[str],
     test_method: Literal[
         "ks_test", "permutation_test", "welchs_ttest", "rank_test"
@@ -371,9 +381,9 @@ def identify_signatures(
     Parameters
     ----------
     ref_profiles : pl.DataFrame
-        Reference profile as a Polars DataFrame.
-    exp_profiles : pl.DataFrame
-        Experimental profile as a Polars DataFrame.
+        Reference profile as a Polars DataFrame (for example, failing cells).
+    target_profiles : pl.DataFrame
+        Target profile as a Polars DataFrame (for example, healthy cells).
     morph_feats : list[str]
         List of morphology feature names to compare.
     test_method : Literal["ks_test", "permutation_test", "welchs_ttest",
@@ -396,10 +406,10 @@ def identify_signatures(
     -------
     tuple[list[str], list[str], list[str]]
         A tuple containing three lists:
-        - Significant features (on-morphology signature).
-        - Non-significant features (off-morphology signature).
+        - On-morphology signatures (significant features).
+        - Off-morphology signatures (non-significant features).
         - Ambiguous features (features with p-values in the buffer zone around the
-        threshold).
+        threshold if provided).
 
     Raises
     ------
@@ -413,13 +423,13 @@ def identify_signatures(
     if test_method == "ks_test":
         pvals_df = apply_ks_test(
             ref_profiles=ref_profiles,
-            exp_profiles=exp_profiles,
+            target_profiles=target_profiles,
             morph_feats=morph_feats,
         )
     elif test_method == "permutation_test":
         pvals_df = apply_perm_test(
             ref_profiles=ref_profiles,
-            exp_profiles=exp_profiles,
+            target_profiles=target_profiles,
             morph_feats=morph_feats,
             n_resamples=permutation_resamples,
             statistic=permutation_statistic,
@@ -428,13 +438,13 @@ def identify_signatures(
     elif test_method == "welchs_ttest":
         pvals_df = apply_welchs_ttest(
             ref_profiles=ref_profiles,
-            exp_profiles=exp_profiles,
+            target_profiles=target_profiles,
             morph_feats=morph_feats,
         )
     elif test_method == "rank_test":
         pvals_df = apply_rank_test(
             ref_profiles=ref_profiles,
-            exp_profiles=exp_profiles,
+            target_profiles=target_profiles,
             morph_feats=morph_feats,
         )
 

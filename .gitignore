@@ -179,8 +179,5 @@ results/
 # ignore .vscode settings
 .vscode/
 
-# ignore analytical notebooks
-notebooks*
-
-# remove ruff caching files
+# ignore ruff catch
 .ruff_cache/

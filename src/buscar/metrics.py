@@ -1,9 +1,11 @@
-"""Metrics for perturbations efficact and specificity.
+"""This module provides metrics for quantifying phenotypic efficacy and specificity.
 
-This module compares the on and off morphology signatures.
-These signatures represent distinct sets of features within morphological
-profiles, enabling the measurement of differences between reference and
-experimental conditions.
+In typical Buscar usage:
+- ``target`` is the desired phenotype (for example, healthy cells).
+- ``ref_state`` is the starting phenotype (for example, diseased cells).
+
+On-morphology signature distances are normalized by the distance between the selected
+``target`` and ``ref_state`` so scores are interpretable across perturbations.
 """
 
 from typing import Literal
@@ -13,90 +15,63 @@ import ot
 import polars as pl
 from beartype import beartype
 
-from .signatures import identify_signatures
+from buscar.signatures import identify_signatures
 
 
 @beartype
-def _normalize_scores(
+def _normalize_on_buscar_scores(
     scores_df: pl.DataFrame,
-    target_state: str,
-    on_method: bool = False,
-    off_method: bool = False,
 ) -> pl.DataFrame:
-    """Normalize EMD scores relative to the target state.
+    """Normalize on-Buscar_scores by the reference-distance.
 
-    This function normalizes scores by dividing all values by the target state's score,
-    making the target state equal to 1.0 and all other scores relative to it.
-
-    This enables interpretation as:
-    - score < 1.0: closer to reference than target
-    - score = 1.0: equivalent to target state
-    - score > 1.0: further from reference than target
+    The row marked with ``is_reference_distance == True`` is used as the
+    denominator so the target-reference on distance becomes ``1.0``.
 
     Parameters
     ----------
     scores_df : pl.DataFrame
-        DataFrame containing computed scores with columns:
-        - "treatment": treatment identifiers
-        - "on_buscar_score": EMD scores in on-feature space
-        - "off_buscar_score": EMD scores in off-feature space
-    target_state : str
-        Treatment identifier representing the desired phenotypic state.
-        Used as the normalization reference (its score becomes 1.0).
-    on_method : bool, optional
-        If True, normalize the "on_buscar_score" column, by default False.
-    off_method : bool, optional
-        If True, normalize the "off_buscar_score" column, by default False.
+        DataFrame containing, at minimum, the columns:
+        - ``on_buscar_scores``: raw on-signature distances
+        - ``is_reference_distance``: boolean marker for the reference row
 
     Returns
     -------
     pl.DataFrame
-        DataFrame with normalized scores. Columns are unchanged if their
-        corresponding method flag is False.
+        The same dataframe with ``on_buscar_scores`` normalized.
 
     Raises
     ------
     ValueError
-        If target_state is not found in the scores DataFrame.
-        If the target state's score is 0 (division by zero).
+        If required columns are missing.
+        If zero or multiple rows are marked as reference distance.
+        If the reference on-score is zero.
     """
 
-    # normalize on_buscar_scores if set to true
-    if on_method:
-        target_rows = scores_df.filter(pl.col("treatment") == target_state)
-        if target_rows.height == 0:
-            raise ValueError(
-                f"Target state '{target_state}' not found in scores DataFrame. "
-                "Cannot normalize EMD scores."
-            )
-        ref_on_score = target_rows.select("on_buscar_score").item()
-        if ref_on_score == 0:
-            raise ValueError("Target state on_buscar_score is 0, cannot normalize.")
-        scores_df = scores_df.with_columns(
-            (pl.col("on_buscar_score") / ref_on_score).alias("on_buscar_score")
+    if "is_reference_distance" not in scores_df.columns:
+        raise ValueError(
+            "The scores DataFrame must contain an 'is_reference_distance' column "
+            "indicating which row corresponds to the reference state."
         )
 
-    # normalize off_buscar_scores if set to true
-    if off_method:
-        target_rows = scores_df.filter(pl.col("treatment") == target_state)
-        if target_rows.height == 0:
-            raise ValueError(
-                f"Target state '{target_state}' not found in scores DataFrame. "
-                "Cannot normalize EMD scores."
-            )
-        ref_off_score = target_rows.select("off_buscar_score").item()
-        if ref_off_score == 0:
-            raise ValueError("Target state off_buscar_score is 0, cannot normalize.")
-        scores_df = scores_df.with_columns(
-            (pl.col("off_buscar_score") / ref_off_score).alias("off_buscar_score")
+    # get the reference distance from the row where is_reference_distance is True
+    reference_rows = scores_df.filter(pl.col("is_reference_distance"))
+    ref_dist = reference_rows.select("on_buscar_scores").item()
+    if ref_dist <= 1e-9:
+        raise ValueError(
+            "Reference distance is zero and cannot be used for normalization."
         )
 
-    return scores_df
+    # dividing all on_scores by the reference distance to normalize
+    normalized_scores_df = scores_df.with_columns(
+        (pl.col("on_buscar_scores") / ref_dist).alias("on_buscar_scores")
+    )
+
+    return normalized_scores_df
 
 
 def compute_earth_movers_distance(
-    profile1: pl.DataFrame,
-    profile2: pl.DataFrame,
+    target_profile: pl.DataFrame,
+    treated_profile: pl.DataFrame,
     subsample_size: int | None = None,
     seed: int | None = 0,
     n_threads: int = 1,
@@ -128,12 +103,27 @@ def compute_earth_movers_distance(
 
     # check if either profile is empty and raise an error if so
     # this avoid division by zero errors when computing the EMD
-    if profile1.is_empty() or profile2.is_empty():
+    if target_profile.is_empty() or treated_profile.is_empty():
         raise ValueError("Both profiles must contain at least one row.")
 
+    # Check for non-numeric columns in the profiles
+    # EMD requires all input features to be numeric for distance calculations
+    for profile, name in [
+        (target_profile, "target_profile"),
+        (treated_profile, "treated_profile"),
+    ]:
+        non_numeric_cols = [
+            col for col, dtype in profile.schema.items() if not dtype.is_numeric()
+        ]
+        if non_numeric_cols:
+            raise ValueError(
+                f"Non-numeric columns detected in {name}: {non_numeric_cols}. "
+                "Ensure all metadata columns are removed before computing EMD."
+            )
+
     # Convert the profiles to numpy arrays
-    p1 = profile1.to_numpy()
-    p2 = profile2.to_numpy()
+    p1 = target_profile.to_numpy()
+    p2 = treated_profile.to_numpy()
 
     # Subsample if requested
     if subsample_size is not None:
@@ -159,24 +149,24 @@ def compute_earth_movers_distance(
 
 def affected_off_features_ratio(
     ref_profiles: pl.DataFrame,
-    target_profiles: pl.DataFrame,
-    off_signature: list[str],
+    treated_profiles: pl.DataFrame,
+    off_morphology_signature: list[str],
     method: str = "ks_test",
 ) -> float:
     """Calculate the ratio of affected off features
 
     This metric calculates the ratio of features within the off-morphological signature
-    that have become significant in the target profiles compared to the reference
+    that have become significant in the treated profiles compared to the reference
     profiles. A higher ratio indicates that more off features have been affected by
-    the treatment or condition being evaluated.
+    the perturbation or condition being evaluated.
 
     Parameters
     ----------
     ref_profiles : pl.DataFrame
         DataFrame containing the reference morphological profiles.
-    target_profiles : pl.DataFrame
-        DataFrame containing the target morphological profiles.
-    off_signature : list[str]
+    treated_profiles : pl.DataFrame
+        DataFrame containing the treated morphological profiles.
+    off_morphology_signature : list[str]
         List of feature names that constitute the off-morphological signature.
     method : str, optional
         Statistical test method to use for determining significance,
@@ -190,30 +180,24 @@ def affected_off_features_ratio(
     """
 
     # generate signatures for the off features and count how many are affected
-    try:
-        affected_off_sig, _, _ = identify_signatures(
-            ref_profiles,
-            target_profiles,
-            morph_feats=off_signature,
-            test_method=method,
-        )
-    except ValueError as e:
-        if "No significant features found" in str(e):
-            affected_off_sig = []
-        else:
-            raise e
+    affected_off_sig, _, _ = identify_signatures(
+        ref_profiles,
+        treated_profiles,
+        morph_feats=off_morphology_signature,
+        test_method=method,
+    )
 
-    return len(affected_off_sig) / len(off_signature)
+    return len(affected_off_sig) / len(off_morphology_signature)
 
 
 @beartype
 def calculate_score(
-    ref_profile: pl.DataFrame,
     target_profile: pl.DataFrame,
+    treated_profile: pl.DataFrame,
     signature: list[str],
     signature_type: Literal["on", "off"],
     on_calculation: Literal["emd"] = "emd",
-    off_calculation: Literal["ratio_affected"] = "ratio_affected",
+    off_calculation: Literal["affected_ratio"] = "affected_ratio",
     ratio_stats_method: str = "ks_test",
     n_threads: int = 1,
     seed: int = 0,
@@ -226,10 +210,12 @@ def calculate_score(
 
     Parameters
     ----------
-    ref_profile : pl.DataFrame
-        DataFrame containing the reference morphological profile.
     target_profile : pl.DataFrame
-        DataFrame containing the target morphological profile.
+        DataFrame containing the desired phenotype profile used as the comparison
+        anchor (for example, healthy cells).
+    treated_profile : pl.DataFrame
+        DataFrame containing the perturbation profile being scored, typically starting
+        from the reference phenotype (for example, diseased cells).
     signature : list[str]
         List of feature names that constitute the morphological signature.
     signature_type : Literal["on", "off"]
@@ -237,12 +223,12 @@ def calculate_score(
     on_calculation : Literal["emd"], optional
         Method used to compute the on-score. Only Earth Mover's Distance ("emd") is
         currently supported, by default "emd".
-    off_calculation : Literal["ratio_affected"]
+    off_calculation : Literal["affected_ratio"]
         Method used to compute the off-score:
-        - "ratio_affected": proportion of off features that became significant.
-        By default "ratio_affected".
+        - "affected_ratio": proportion of off features that became significant.
+        By default "affected_ratio".
     ratio_stats_method : str, optional
-        Statistical test used when ``off_calculation`` is ``"ratio_affected"`` to assess
+        Statistical test used when ``off_calculation`` is ``"affected_ratio"`` to assess
         significance of changes in off-signature features, by default "ks_test".
     seed : int, optional
         Random seed for reproducibility in stochastic methods, by default 0.
@@ -256,8 +242,8 @@ def calculate_score(
     if signature_type == "on":
         if on_calculation == "emd":
             return compute_earth_movers_distance(
-                ref_profile.select(pl.col(signature)),
                 target_profile.select(pl.col(signature)),
+                treated_profile.select(pl.col(signature)),
                 n_threads=n_threads,
             )
         else:
@@ -266,13 +252,13 @@ def calculate_score(
             )
 
     elif signature_type == "off":
-        if off_calculation == "ratio_affected":
+        if off_calculation == "affected_ratio":
             return affected_off_features_ratio(
-                ref_profile, target_profile, signature, method=ratio_stats_method
+                target_profile, treated_profile, signature, method=ratio_stats_method
             )
         else:
             raise ValueError(
-                f"Invalid off_calculation '{off_calculation}'. Must be 'ratio_affected'"
+                f"Invalid off_calculation '{off_calculation}'. Must be 'affected_ratio'"
             )
 
     else:
@@ -282,35 +268,34 @@ def calculate_score(
 
 
 @beartype
-def score_compounds(
+def calculate_buscar_scores(
     profiles: pl.DataFrame,
     meta_cols: list[str],
-    on_signature: list[str],
-    off_signature: list[str],
+    on_morphology_signature: list[str],
+    off_morphology_signature: list[str],
     ref_state: str,
-    target_state: str,
-    treatment_col: str,
+    target: str,
+    perturbation_col: str,
     state_col: str | None = None,
     on_method: Literal["emd"] = "emd",
-    off_method: Literal["ratio_affected", "emd"] = "ratio_affected",
+    off_method: Literal["affected_ratio", "emd"] = "affected_ratio",
     raw_emd_scores: bool = False,
     ratio_stats_method: str = "ks_test",
     seed: int = 0,
     n_threads: int = 1,
 ) -> pl.DataFrame:
-    """Score compounds by comparing morphological profiles across conditions.
+    """Calculate BUSCAR scores for perturbations relative to a desired phenotype.
 
-    This function quantifies phenotypic changes between a reference state and multiple
-    treatment conditions using two complementary metrics:
+    This function quantifies phenotypic movement between a desired phenotype
+    (``target``) and perturbation conditions that begin from another phenotype
+    (``ref_state``), using two complementary metrics:
 
-    1. on_buscar_score (efficacy): measures the magnitude of change in features expected
-       to be affected.
-    2. off_buscar_score (specificity): measures unintended effects on features expected
-       to remain unchanged.
+    1. ``on_buscar_scores``: distance in on-signature features
+    2. ``off_buscar_scores``: off-target effect score in off-signature features
 
-    Lower on_buscar_scores indicate higher efficacy (profiles more similar to the target
-    phenotype), while lower off_buscar_scores indicate higher specificity (fewer
-    off-target effects).
+    ``on_buscar_scores`` are normalized by the on-signature distance between the
+    selected ``target`` and ``ref_state``. This normalization sets the
+    target-reference distance to ``1.0``.
 
     Parameters
     ----------
@@ -318,23 +303,27 @@ def score_compounds(
         Morphological profiles containing feature measurements and metadata for all
         experimental conditions.
     meta_cols : list[str]
-        Column names containing metadata (e.g., treatment, well, plate). These columns
+        Column names containing metadata (e.g., perturbation, well, plate). These
+        columns
         will be excluded from distance calculations.
-    on_signature : list[str]
+    on_morphology_signature : list[str]
         Feature names expected to change between reference and target states. These
         define the desired phenotypic response.
-    off_signature : list[str]
+    off_morphology_signature : list[str]
         Feature names expected to remain unchanged. These serve as controls to detect
         off-target or non-specific effects.
     ref_state : str
-        Value in treatment_col representing the baseline/control condition.
-    target_state : str
-        Value in treatment_col representing the desired phenotypic state.
-    treatment_col : str, optional
-        Column name containing treatment identifiers, by default "Metadata_treatment"
+        Starting phenotype used as the perturbation baseline (for example, diseased
+        cells). The row where ``perturbation == ref_state`` is used as the
+        reference-distance row
+        for on-score normalization.
+    target : str
+        Desired phenotype used as the comparison anchor (for example, healthy cells).
+    perturbation_col : str
+        Column name containing perturbation identifiers.
     state_col : str, optional
-        Column containing cell state or treatment identifier. If None, defaults to
-        treatment_col indicating the state of intrest is within the treatment_col.
+        Column containing cell state or perturbation identifier. If None, defaults to
+        perturbation_col, indicating the state of interest is in perturbation_col.
     on_method : Literal["emd"], optional
         Method for computing on_buscar_scores. Currently only Earth Mover's Distance
         (EMD) is supported, by default "emd"
@@ -352,127 +341,128 @@ def score_compounds(
     Returns
     -------
     pl.DataFrame
-        Ranked results with columns:
-        - rank: integer ranking (1 = best match to target)
-        - ref_profile: reference state identifier
-        - treatment: treatment condition identifier
-        - on_buscar_score: normalized distance in on-feature space (lower is more
-          efficacious)
-        - off_buscar_score: measure of off-target effects (lower is more specific)
+        Results with columns:
+        - target: target phenotype used for comparison
+        - perturbation: perturbation condition
+        - on_buscar_scores: on-signature score (normalized unless ``raw_emd_scores``)
+        - off_buscar_scores: off-signature score
+        - is_reference_distance: row containing the reference distance
 
     Raises
     ------
     ValueError
         If the profiles DataFrame is empty.
-        If treatment_col is not in the profiles DataFrame.
-        If treatment_col contains null values.
-        If on_signature or off_signature features are missing from profiles.
+        If perturbation_col is not in the profiles DataFrame.
+        If perturbation_col contains null values.
+        If on_morphology_signature or off_morphology_signature features are missing
+        from profiles.
 
     Notes
     -----
-    On-scores are normalized relative to the reference state's self-distance to enable
-    comparison across different feature sets and experimental conditions.
+    ``target`` is excluded from the scored perturbation list because its distance
+    to itself is not informative for ranking.
     """
 
     # validate input data integrity
     if profiles.is_empty():
         raise ValueError("The profiles DataFrame is empty.")
-    if treatment_col not in profiles.columns:
+    if perturbation_col not in profiles.columns:
         raise ValueError(
-            f"The treatment column '{treatment_col}' is not in the profiles DataFrame"
+            f"The perturbation column '{perturbation_col}' is not in the "
+            / "profiles DataFrame"
         )
-    if profiles[treatment_col].is_null().any():
+    if profiles[perturbation_col].is_null().any():
         raise ValueError(
-            f"The treatment column '{treatment_col}' contains null values."
+            f"The perturbation column '{perturbation_col}' contains null values."
         )
-    if not set(on_signature).issubset(profiles.columns):
+    if not set(on_morphology_signature).issubset(profiles.columns):
         raise ValueError(
-            "Some features in the on_signature are not present in the "
+            "Some features in the on_morphology_signature are not present in the "
             "profiles DataFrame."
         )
-    if not set(off_signature).issubset(profiles.columns):
+    if not set(off_morphology_signature).issubset(profiles.columns):
         raise ValueError(
-            "Some features in the off_signature are not present in the "
+            "Some features in the off_morphology_signature are not present in the "
             "profiles DataFrame."
         )
 
-    # extract all unique treatment conditions excluding the reference
-    treatments = (
-        profiles.filter(pl.col(treatment_col) != ref_state)
-        .select(treatment_col)
+    # extract all unique perturbation conditions excluding the target phenotype
+    perturbations = (
+        profiles.filter(pl.col(perturbation_col) != target)
+        .select(perturbation_col)
         .unique()
         .to_series()
         .to_list()
     )
 
+    # generate desired target profile (e.g. healthy state) to compare against
+    comparison_state_col = state_col if state_col is not None else perturbation_col
+    target_profile = profiles.filter(pl.col(comparison_state_col) == target)
+    if target_profile.is_empty():
+        raise ValueError(
+            f"No profiles found for target state '{target}' in column "
+            f"'{comparison_state_col}'."
+        )
+
     # initialize storage for computed scores
     scores = []
 
-    # iterate through each treatment condition
-    for treatment in treatments:
-        # skipping the reference state itself it will be comparing to itself
-        if treatment == ref_state:
-            continue
-
-        # extract morphological features for reference condition (excluding metadata)
-
-        # state can either be defined in the treatment column or in a separate column
-        # (state_col) parameter
-        _state_col = state_col if state_col is not None else treatment_col
-        ref_profile = profiles.filter(pl.col(_state_col) == ref_state).drop(meta_cols)
-
-        # extract morphological features for current treatment condition
-        target_profile = profiles.filter(pl.col(treatment_col) == treatment).drop(
+    # iterate through each perturbation condition
+    for perturbation in perturbations:
+        # extract morphological features for current perturbation condition
+        trt_profile = profiles.filter(pl.col(perturbation_col) == perturbation).drop(
             meta_cols
         )
 
-        # raise error if the shape of both target and ref profiles are 0
-        if ref_profile.height == 0 or target_profile.height == 0:
+        # raise error if the perturbation profile is empty
+        if trt_profile.height == 0 or trt_profile.is_empty():
             raise ValueError(
-                f"Empty profile detected: target {target_profile.height} "
-                f"rows, reference {ref_profile.height} rows."
+                f"Empty perturbation profile detected: {trt_profile.shape}"
             )
 
-        # compute distance in on-feature space (expected changes)
-        on_buscar_score = calculate_score(
-            ref_profile,
+        # compute on-Buscar score between target and current treated profile
+        on_buscar_scores = calculate_score(
             target_profile,
-            on_signature,
+            trt_profile,
+            on_morphology_signature,
             signature_type="on",
             on_calculation=on_method,
             n_threads=n_threads,
             seed=seed,
         )
 
-        # compute distance in off-feature space (unintended changes)
-        off_buscar_score = calculate_score(
-            ref_profile,
+        # compute off-Buscar score between target and current treated profile
+        off_buscar_scores = calculate_score(
             target_profile,
-            off_signature,
+            trt_profile,
+            off_morphology_signature,
             signature_type="off",
             ratio_stats_method=ratio_stats_method,
             off_calculation=off_method,
             seed=seed,
         )
 
-        # store computed scores for this treatment
-        scores.append([ref_state, treatment, on_buscar_score, off_buscar_score])
+        # store computed scores for this perturbation
+        scores.append([target, perturbation, on_buscar_scores, off_buscar_scores])
 
     # construct dataframe from collected scores
     scores_df = pl.DataFrame(
         scores,
-        schema=["ref_profile", "treatment", "on_buscar_score", "off_buscar_score"],
+        schema=["target", "perturbation", "on_buscar_scores", "off_buscar_scores"],
         orient="row",
+    )
+
+    # add a column indicating the reference distance
+    scores_df = scores_df.with_columns(
+        pl.when(pl.col("perturbation") == ref_state)
+        .then(pl.lit(True))
+        .otherwise(pl.lit(False))
+        .alias("is_reference_distance")
     )
 
     # normalize scores if EMD method was used to enable comparison across different
     # feature sets
     if not raw_emd_scores:
-        return _normalize_scores(
-            scores_df,
-            target_state,
-            on_method=(on_method == "emd"),
-            off_method=(off_method == "emd"),
-        )
+        return _normalize_on_buscar_scores(scores_df)
 
     return scores_df
