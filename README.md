@@ -16,9 +16,9 @@ Buscar requires two reference populations defining distinct morphology states, f
 | --- | --- |
 | Defining morphology signatures | Establishes the morphology reference for evaluating perturbations by comparing two control populations: a reference state (e.g., disease cells) and a target state (e.g., healthy cells). Non-parametric statistical tests (e.g., Kolmogorov-Smirnov test) are applied per feature with FDR correction to assign features to either an on-morphology signature (features significantly altered between states) or an off-morphology signature (features that remain unchanged). These signatures define which morphologies must change for a perturbation to achieve efficacy and which serve as indicators of off-target activity. |
 | Perturbation efficacy and specificity scoring | Scores each perturbation by computing two complementary metrics. The on-Buscar score quantifies efficacy by measuring the Earth Mover's Distance (EMD) between the perturbed and target single-cell populations using the on-morphology signature features, where a lower score indicates greater phenotypic rescue. The off-Buscar score quantifies specificity by measuring the proportion of off-morphology signature features that become significantly altered under perturbation, where a lower score indicates fewer off-target effects.
-## How to install
+## Installation
 
-### Option 1: Use Buscar (pip install)
+### Install from PyPI
 
 If you only want to use the package, install it directly from PyPI:
 
@@ -26,9 +26,17 @@ If you only want to use the package, install it directly from PyPI:
 python -m pip install buscar
 ```
 
-### Option 2: Develop Buscar (clone + Poetry)
+### Install from source
 
-If you want to modify code, run tests, or contribute:
+If you want the current repository version before a release is published:
+
+```bash
+python -m pip install git+https://github.com/WayScience/buscar.git
+```
+
+## Development
+
+Buscar uses [uv](https://docs.astral.sh/uv/) for environment and package management.
 
 1. Clone the repository
 
@@ -37,26 +45,53 @@ git clone https://github.com/WayScience/buscar.git
 cd buscar
 ```
 
-2. Create a Python 3.10+ environment
+2. Create the development environment
 
 ```bash
-conda create -n buscar python=3.12
-conda activate buscar
+uv sync --group dev
 ```
 
-3. Install Poetry
+3. Run tests
 
 ```bash
-conda install -c conda-forge poetry
+uv run pytest
 ```
 
-4. Run tests
+4. Run linting and formatting checks
 
 ```bash
-poetry run pytest
+uv run pre-commit run --all-files
 ```
 
-This command will set up all packages as specified in the `pyproject.toml` and `poetry.lock` files.
+## Build and publish
+
+Build the source distribution and wheel:
+
+```bash
+uv build
+```
+
+Validate the package metadata:
+
+```bash
+uv run twine check dist/*
+```
+
+Install the built wheel locally to verify the package import:
+
+```bash
+uv run python -m pip install --force-reinstall dist/*.whl
+uv run python -c "import buscar; print(buscar.__name__, buscar.__version__)"
+```
+
+Publish to PyPI after configuring a PyPI token:
+
+```bash
+uv publish
+```
+
+Package metadata and dependencies are defined in `pyproject.toml`; the uv lockfile is
+used for reproducible local and CI development environments.
 
 ## Notes
 
