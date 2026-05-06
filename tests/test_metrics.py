@@ -1,10 +1,10 @@
 import polars as pl
 import pytest
 
-from buscar.metrics import compute_earth_movers_distance, score_compounds
+from buscar.metrics import calculate_buscar_scores, compute_earth_movers_distance
 
 
-def test_score_compounds(synthetic_profiles):
+def test_calculate_buscar_scores(synthetic_profiles):
     df, features = synthetic_profiles
 
     # Identify signatures first (simple way, subsets for speed)
@@ -12,21 +12,27 @@ def test_score_compounds(synthetic_profiles):
     off_sig = features[:30]  # Non-significant ones
 
     # Run the main scoring function
-    scored_df = score_compounds(
+    scored_df = calculate_buscar_scores(
         profiles=df,
         meta_cols=["Metadata_treatment"],
-        on_signature=on_sig,
-        off_signature=off_sig,
-        ref_state="control",
-        target_state="disease",
-        treatment_col="Metadata_treatment",
+        on_morphology_signature=on_sig,
+        off_morphology_signature=off_sig,
+        ref_state="disease",
+        target="control",
+        perturbation_col="Metadata_treatment",
         on_method="emd",
-        off_method="ratio_affected",
+        off_method="affected_ratio",
         raw_emd_scores=False,
     )
 
     # Column assertions
-    expected_cols = ["ref_profile", "treatment", "on_buscar_score", "off_buscar_score"]
+    expected_cols = [
+        "target",
+        "perturbation",
+        "on_buscar_scores",
+        "off_buscar_scores",
+        "is_reference_distance",
+    ]
     assert all(col in scored_df.columns for col in expected_cols)
 
     # Ranking/Logic assertions base on data characteristics
@@ -37,36 +43,36 @@ def test_score_compounds(synthetic_profiles):
     # res = scored_df.to_pandas().set_index("treatment")
 
     # on_buscar_score for disease should be 1.0 (normalization target)
-    disease_score = scored_df.filter(pl.col("treatment") == "disease")[
-        "on_buscar_score"
+    disease_score = scored_df.filter(pl.col("perturbation") == "disease")[
+        "on_buscar_scores"
     ][0]
     assert disease_score == pytest.approx(1.0)
 
     # treatment_control_like should have lower on_buscar_score than disease (closer to
     # reference)
-    ctrl_like_score = scored_df.filter(pl.col("treatment") == "treatment_control_like")[
-        "on_buscar_score"
-    ][0]
+    ctrl_like_score = scored_df.filter(
+        pl.col("perturbation") == "treatment_control_like"
+    )["on_buscar_scores"][0]
     assert ctrl_like_score < 1.0
 
     # treatment_disease_like should have similar score to disease (~1.0)
     disease_like_score = scored_df.filter(
-        pl.col("treatment") == "treatment_disease_like"
-    )["on_buscar_score"][0]
+        pl.col("perturbation") == "treatment_disease_like"
+    )["on_buscar_scores"][0]
     assert 0.8 < disease_like_score < 1.2
 
     # t_different should have the highest on_buscar_score and off_buscar_score
-    t_diff_row = scored_df.filter(pl.col("treatment") == "treatment_different")
-    t_diff_on = t_diff_row["on_buscar_score"][0]
-    t_diff_off = t_diff_row["off_buscar_score"][0]
+    t_diff_row = scored_df.filter(pl.col("perturbation") == "treatment_different")
+    t_diff_on = t_diff_row["on_buscar_scores"][0]
+    t_diff_off = t_diff_row["off_buscar_scores"][0]
 
     # compare t_diff on/off scores to all other treatment scores
     all_other_on_scores = scored_df.filter(
-        pl.col("treatment") != "treatment_different"
-    )["on_buscar_score"]
+        pl.col("perturbation") != "treatment_different"
+    )["on_buscar_scores"]
     all_other_off_scores = scored_df.filter(
-        pl.col("treatment") != "treatment_different"
-    )["off_buscar_score"]
+        pl.col("perturbation") != "treatment_different"
+    )["off_buscar_scores"]
 
     # Assert t_different is greater than all other treatments in on_buscar_score and
     # off_buscar_score

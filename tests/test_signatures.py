@@ -14,7 +14,7 @@ def test_identify_signatures(synthetic_profiles):
     # Test KS-test
     sig, non_sig, ambig = identify_signatures(
         ref_profiles=ctrl_df,
-        exp_profiles=disease_df,
+        target_profiles=disease_df,
         morph_feats=features,
         test_method="ks_test",
         p_threshold=0.05,
@@ -37,7 +37,7 @@ def test_identify_signatures_methods(synthetic_profiles):
     for method in ["welchs_ttest", "rank_test"]:
         sig, _, _ = identify_signatures(
             ref_profiles=ctrl_df,
-            exp_profiles=disease_df,
+            target_profiles=disease_df,
             morph_feats=features[:50],  # Subset for speed
             test_method=method,
         )
@@ -62,7 +62,7 @@ def test_identify_signatures_no_significance(not_significant_data):
     ):
         identify_signatures(
             ref_profiles=ctrl_df,
-            exp_profiles=disease_df,
+            target_profiles=disease_df,
             morph_feats=features,
             test_method="ks_test",
             p_threshold=0.05,

@@ -327,13 +327,13 @@ def calculate_buscar_scores(
     on_method : Literal["emd"], optional
         Method for computing on_buscar_scores. Currently only Earth Mover's Distance
         (EMD) is supported, by default "emd"
-    off_method : Literal["ratio_affected", "emd"], optional
+    off_method : Literal["affected_ratio", "emd"], optional
         Method for computing off_buscar_scores:
-        - "ratio_affected": proportion of off features that became significant
+        - "affected_ratio": proportion of off features that became significant
         - "emd": Earth Mover's Distance in off-feature space
-        by default "ratio_affected"
+        by default "affected_ratio"
     ratio_stats_method : str, optional
-        Statistical test used when ``off_method`` is set to ``"ratio_affected"`` to
+        Statistical test used when ``off_method`` is set to ``"affected_ratio"`` to
         assess significance of changes in off-signature features.
     seed : int, optional
         Random seed for reproducibility in stochastic methods, by default 0
