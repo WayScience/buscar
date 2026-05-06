@@ -181,3 +181,9 @@ results/
 
 # ignore ruff catch
 .ruff_cache/
+
+# ignore for now
+recipe/metal.yaml
+
+#ignore prototype files
+_*

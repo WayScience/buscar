@@ -12,13 +12,13 @@ management.
 ```bash
 git clone https://github.com/WayScience/buscar.git
 cd buscar
-uv sync --group dev
+uv sync --frozen --group dev
 ```
 
 Install the pre-commit hooks before making changes:
 
 ```bash
-uv run pre-commit install
+uv run --frozen pre-commit install
 ```
 
 ## Checks
@@ -26,26 +26,26 @@ uv run pre-commit install
 Run the test suite:
 
 ```bash
-uv run pytest
+uv run --frozen pytest
 ```
 
 Run tests with coverage:
 
 ```bash
-uv run pytest --cov=buscar --cov-report=term-missing --cov-report=xml --cov-report=html
+uv run --frozen pytest --cov=buscar --cov-report=term-missing --cov-report=xml --cov-report=html
 ```
 
 Run linting and formatting checks:
 
 ```bash
-uv run pre-commit run --all-files
+uv run --frozen pre-commit run --all-files
 ```
 
 Build the package:
 
 ```bash
 uv build
-uv run twine check dist/*
+uv run --frozen twine check dist/*
 ```
 
 ## Pull Requests
@@ -55,7 +55,7 @@ Before opening a pull request:
 - Keep changes focused on one bug fix, feature, or documentation update.
 - Add or update tests when behavior changes.
 - Update documentation when user-facing behavior changes.
-- Run `uv run pytest` and `uv run pre-commit run --all-files`.
+- Run `uv run --frozen pytest` and `uv run --frozen pre-commit run --all-files`.
 - Make sure generated files and large local artifacts are not committed.
 
 CI runs pre-commit checks, the test matrix across supported Python versions, and

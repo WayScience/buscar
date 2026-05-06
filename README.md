@@ -23,10 +23,11 @@ Buscar requires two reference populations defining distinct morphology states, f
 
 ### Install from PyPI
 
-If you only want to use the package, install it directly from PyPI:
+If you want to add Buscar to a uv-managed project, install it directly from
+PyPI:
 
 ```bash
-pip install buscar
+uv add buscar
 ```
 
 ### Install from source
@@ -34,7 +35,7 @@ pip install buscar
 If you want the current repository version before a release is published:
 
 ```bash
-python -m pip install git+https://github.com/WayScience/buscar.git
+uv add "buscar @ git+https://github.com/WayScience/buscar.git"
 ```
 
 ## Development
@@ -51,26 +52,29 @@ cd buscar
 2. Create the development environment
 
 ```bash
-uv sync --group dev
+uv sync --frozen --group dev
 ```
 
 3. Run tests
 
 ```bash
-uv run pytest
+uv run --frozen pytest
 ```
 
 4. Run tests with coverage
 
 ```bash
-uv run pytest --cov=buscar --cov-report=term-missing --cov-report=xml --cov-report=html
+uv run --frozen pytest --cov=buscar --cov-report=term-missing --cov-report=xml --cov-report=html
 ```
 
 5. Run linting and formatting checks
 
 ```bash
-uv run pre-commit run --all-files
+uv run --frozen pre-commit run --all-files
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and the full
+local development checklist.
 
 ## Build and publish
 
@@ -83,14 +87,14 @@ uv build
 Validate the package metadata:
 
 ```bash
-uv run twine check dist/*
+uv run --frozen twine check dist/*
 ```
 
 Install the built wheel locally to verify the package import:
 
 ```bash
-uv run python -m pip install --force-reinstall dist/*.whl
-uv run python -c "import buscar; print(buscar.__name__, buscar.__version__)"
+uv pip install --force-reinstall dist/*.whl
+uv run --frozen python -c "import buscar; print(buscar.__name__, buscar.__version__)"
 ```
 
 Publish to PyPI after configuring a PyPI token:
