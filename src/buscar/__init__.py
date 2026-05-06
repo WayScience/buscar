@@ -4,15 +4,16 @@ A Python framework for prioritizing compounds in high-content imaging drug scree
 using single-cell profiles.
 """
 
-from buscar.data_utils import add_cell_id_hash
-from buscar.metrics import compute_earth_movers_distance, score_compounds
-from buscar.signatures import identify_signatures
+from importlib.metadata import PackageNotFoundError, version
 
-__version__ = "0.1.0"
+from buscar._data_utils import add_cell_id_hash as add_cell_id_hash
+from buscar.metrics import calculate_buscar_scores as calculate_buscar_scores
+from buscar.metrics import (
+    compute_earth_movers_distance as compute_earth_movers_distance,
+)
+from buscar.signatures import identify_signatures as identify_signatures
 
-__all__ = [
-    "add_cell_id_hash",
-    "compute_earth_movers_distance",
-    "identify_signatures",
-    "score_compounds",
-]
+try:
+    __version__ = version("buscar")
+except PackageNotFoundError:
+    __version__ = "0.0.0"
