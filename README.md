@@ -26,7 +26,7 @@ Buscar requires two reference populations defining distinct morphology states, f
 If you only want to use the package, install it directly from PyPI:
 
 ```bash
-python -m pip install buscar
+pip install buscar
 ```
 
 ### Install from source
