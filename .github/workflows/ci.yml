@@ -25,7 +25,7 @@ jobs:
         run: uv sync --group dev --frozen
 
       - name: Run pre-commit (required)
-        run: uv run pre-commit run --all-files --show-diff-on-failure
+        run: uv run --frozen pre-commit run --all-files --show-diff-on-failure
 
   test:
     needs: pre-commit
@@ -53,7 +53,7 @@ jobs:
 
       - name: Run tests with coverage (Ubuntu 3.12)
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
-        run: uv run pytest --cov=buscar --cov-report=term-missing --cov-report=xml --cov-report=html
+        run: uv run --frozen pytest --cov=buscar --cov-report=term-missing --cov-report=xml --cov-report=html
 
       - name: Upload coverage artifact
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
@@ -71,7 +71,7 @@ jobs:
 
       - name: Run tests
         if: matrix.os != 'ubuntu-latest' || matrix.python-version != '3.12'
-        run: uv run pytest
+        run: uv run --frozen pytest
 
   build:
     needs: test
@@ -98,6 +98,5 @@ jobs:
       - name: Validate wheel import
         shell: bash
         run: |
-          uv run python -m pip install --upgrade pip
-          uv run python -m pip install dist/*.whl
-          uv run python -c "import buscar; print(buscar.__name__)"
+          uv pip install --force-reinstall dist/*.whl
+          uv run --frozen python -c "import buscar; print(buscar.__name__)"
