@@ -37,7 +37,6 @@ wheels = [
 
 [[package]]
 name = "buscar"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "beartype" },
@@ -52,15 +51,6 @@ dependencies = [
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "statsmodels" },
     { name = "umap-learn" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "twine" },
 ]
 
 [package.dev-dependencies]
@@ -78,18 +68,12 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.2.5,<3.0.0" },
     { name = "polars", specifier = ">=1.29.0,<2.0.0" },
     { name = "pot", specifier = ">=0.9.5,<0.10.0" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.2.0" },
     { name = "pycytominer", specifier = ">=1.2.3,<2.0.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.1" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.1" },
     { name = "scikit-learn", specifier = ">=1.6.1,<2.0.0" },
     { name = "scipy", specifier = ">=1.15.3,<2.0.0" },
     { name = "statsmodels", specifier = ">=0.14.4,<0.15.0" },
-    { name = "twine", marker = "extra == 'dev'", specifier = ">=6.1.0" },
     { name = "umap-learn", specifier = ">=0.5.9" },
 ]
-provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [
