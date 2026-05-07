@@ -19,6 +19,7 @@ It returns two core signature groups based on significance:
     target profiles and not associated with the cell state.
 """
 
+import warnings
 from typing import Literal
 
 import numpy as np
@@ -467,22 +468,32 @@ def identify_signatures(
         (pl.col("significance_category") == "significant").alias("is_significant")
     )
 
-    # raise an error if no significant features are found
-    if pvals_df.filter(pl.col("is_significant")).height == 0:
-        raise ValueError(
-            "No significant features found. Consider adjusting "
-            "the p-value threshold or padding."
+    significant_features = pvals_df.filter(
+        pl.col("significance_category") == "significant"
+    )["features"].to_list()
+    non_significant_features = pvals_df.filter(
+        pl.col("significance_category") == "non_significant"
+    )["features"].to_list()
+    ambiguous_features = pvals_df.filter(
+        pl.col("significance_category") == "ambiguous"
+    )["features"].to_list()
+
+    empty_signature_categories = [
+        signature_category
+        for signature_category, features in [
+            ("significant", significant_features),
+            ("non-significant", non_significant_features),
+            ("ambiguous", ambiguous_features),
+        ]
+        if len(features) == 0
+    ]
+    if empty_signature_categories:
+        warnings.warn(
+            "No features were assigned to the following signature categories: "
+            f"{', '.join(empty_signature_categories)}.",
+            UserWarning,
+            stacklevel=2,
         )
 
     # returns significant, non-significant, and variant features as lists
-    return (
-        pvals_df.filter(pl.col("significance_category") == "significant")[
-            "features"
-        ].to_list(),
-        pvals_df.filter(pl.col("significance_category") == "non_significant")[
-            "features"
-        ].to_list(),
-        pvals_df.filter(pl.col("significance_category") == "ambiguous")[
-            "features"
-        ].to_list(),
-    )
+    return significant_features, non_significant_features, ambiguous_features

@@ -179,7 +179,7 @@ def affected_off_features_ratio(
         of off features).
     """
 
-    # generate signatures for the off features and count how many are affected
+    # Generate signatures for the off features and count how many are affected.
     affected_off_sig, _, _ = identify_signatures(
         ref_profiles,
         treated_profiles,

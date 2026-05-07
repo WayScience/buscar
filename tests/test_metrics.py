@@ -12,18 +12,22 @@ def test_calculate_buscar_scores(synthetic_profiles):
     off_sig = features[:30]  # Non-significant ones
 
     # Run the main scoring function
-    scored_df = calculate_buscar_scores(
-        profiles=df,
-        meta_cols=["Metadata_treatment"],
-        on_morphology_signature=on_sig,
-        off_morphology_signature=off_sig,
-        ref_state="disease",
-        target="control",
-        perturbation_col="Metadata_treatment",
-        on_method="emd",
-        off_method="affected_ratio",
-        raw_emd_scores=False,
-    )
+    with pytest.warns(
+        UserWarning,
+        match="No features were assigned to the following signature categories",
+    ):
+        scored_df = calculate_buscar_scores(
+            profiles=df,
+            meta_cols=["Metadata_treatment"],
+            on_morphology_signature=on_sig,
+            off_morphology_signature=off_sig,
+            ref_state="disease",
+            target="control",
+            perturbation_col="Metadata_treatment",
+            on_method="emd",
+            off_method="affected_ratio",
+            raw_emd_scores=False,
+        )
 
     # Column assertions
     expected_cols = [
