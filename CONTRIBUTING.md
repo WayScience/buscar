@@ -18,7 +18,8 @@ uv sync --frozen --group dev
 Install the pre-commit hooks before making changes:
 
 ```bash
-uv run --frozen pre-commit install
+uv tool install pre-commit
+pre-commit install
 ```
 
 ## Checks
@@ -35,10 +36,15 @@ Run tests with coverage:
 uv run --frozen pytest --cov=buscar --cov-report=term-missing --cov-report=xml --cov-report=html
 ```
 
+The coverage run creates `coverage.xml` and an `htmlcov/` directory. CI uploads
+these files from the Ubuntu Python 3.12 test job so maintainers can download the
+machine-readable coverage report or inspect the browsable HTML coverage report
+when reviewing pull requests.
+
 Run linting and formatting checks:
 
 ```bash
-uv run --frozen pre-commit run --all-files
+pre-commit run --all-files
 ```
 
 Build the package:
@@ -55,7 +61,7 @@ Before opening a pull request:
 - Keep changes focused on one bug fix, feature, or documentation update.
 - Add or update tests when behavior changes.
 - Update documentation when user-facing behavior changes.
-- Run `uv run --frozen pytest` and `uv run --frozen pre-commit run --all-files`.
+- Run `uv run --frozen pytest` and `pre-commit run --all-files`.
 - Make sure generated files and large local artifacts are not committed.
 
 CI runs pre-commit checks, the test matrix across supported Python versions, and

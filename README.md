@@ -32,7 +32,7 @@ uv add buscar
 
 ### Install from source
 
-If you want the current repository version before a release is published:
+If you want the current repository version before a release is available:
 
 ```bash
 uv add "buscar @ git+https://github.com/WayScience/buscar.git"
@@ -70,13 +70,13 @@ uv run --frozen pytest --cov=buscar --cov-report=term-missing --cov-report=xml -
 5. Run linting and formatting checks
 
 ```bash
-uv run --frozen pre-commit run --all-files
+pre-commit run --all-files
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and the full
 local development checklist.
 
-## Build and publish
+## Build and validate
 
 Build the source distribution and wheel:
 
@@ -96,13 +96,6 @@ Install the built wheel locally to verify the package import:
 uv pip install --force-reinstall dist/*.whl
 uv run --frozen python -c "import buscar; print(buscar.__name__, buscar.__version__)"
 ```
-
-Publish to PyPI after configuring a PyPI token:
-
-```bash
-uv publish
-```
-
 Package metadata and dependencies are defined in `pyproject.toml`; the uv lockfile is
 used for reproducible local and CI development environments.
 
