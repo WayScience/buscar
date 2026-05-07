@@ -67,6 +67,13 @@ Before opening a pull request:
 CI runs pre-commit checks, the test matrix across supported Python versions, and
 package build validation.
 
+## Releases
+
+Releases are published to PyPI through PyPI Trusted Publishing from the GitHub
+Actions workflow. Maintainers should create a GitHub release only after the PyPI
+project has a trusted publisher configured for this repository, the `ci.yml`
+workflow, and the `pypi` GitHub environment.
+
 ## Reporting Issues
 
 When reporting a bug, include:
