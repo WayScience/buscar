@@ -1,0 +1,40 @@
+# GitHub Dependabot configuration
+# Note: this configuration controls Dependabot version updates. Dependabot security
+# updates are configured separately in the repository security settings.
+# See:
+# https://docs.github.com/en/code-security/dependabot/dependabot-security-updates/about-dependabot-security-updates
+
+version: 2
+updates:
+  # GitHub Actions workflow dependencies under .github/workflows.
+  # See:
+  # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuring-dependabot-version-updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      # Check for GitHub Actions updates every week.
+      interval: "weekly"
+
+  # Python project dependencies managed by uv.
+  # Dependabot's uv ecosystem updates uv.lock for projects using uv.
+  # See:
+  # https://docs.github.com/en/code-security/dependabot/ecosystems-supported-by-dependabot/supported-ecosystems-and-repositories
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      # Check for project dependency updates every month.
+      interval: "monthly"
+    groups:
+      python-packages:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Pre-commit hook revisions in .pre-commit-config.yaml.
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      # Check for pre-commit hook updates every week.
+      interval: "weekly"

@@ -67,6 +67,10 @@ Before opening a pull request:
 CI runs pre-commit checks, the test matrix across supported Python versions, and
 package build validation.
 
+Dependabot checks GitHub Actions and pre-commit hooks weekly, and uv-managed
+Python dependencies monthly. Review dependency update pull requests like any
+other change and make sure CI passes before merging.
+
 ## Releases
 
 Releases are published to PyPI through PyPI Trusted Publishing from the GitHub
