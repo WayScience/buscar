@@ -166,6 +166,8 @@ data/
 
 # ignoring prototype files
 _*
+!**/__init__.py
+!**/__main__.py
 
 # ignoring results files as they are generated when running the notebooks
 # also to prevent storing large datasets
@@ -179,3 +181,9 @@ results/
 
 # ignore ruff catch
 .ruff_cache/
+
+# ignore for now
+recipe/metal.yaml
+
+#ignore prototype files
+_*

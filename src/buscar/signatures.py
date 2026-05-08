@@ -19,6 +19,7 @@ It returns two core signature groups based on significance:
     target profiles and not associated with the cell state.
 """
 
+import warnings
 from typing import Literal
 
 import numpy as np
@@ -30,13 +31,13 @@ from statsmodels.stats.weightstats import ttest_ind
 
 
 @beartype
-def apply_mann_whitney_u_test(
+def apply_rank_test(
     ref_profiles: pl.DataFrame,
     target_profiles: pl.DataFrame,
     morph_feats: list[str],
 ) -> pl.DataFrame:
-    """Perform Mann-Whitney U test for each feature in the provided profiles and return a
-    DataFrame with p-values.
+    """Perform Mann-Whitney U rank test for each feature in the provided profiles
+    and return a DataFrame with p-values.
 
     The Mann-Whitney U test is a non-parametric statistical test that compares two
     independent samples to determine if they come from the same distribution. The test
@@ -180,11 +181,11 @@ def apply_perm_test(
     conditions.
 
     A permutation test is a non-parametric statistical method that determines
-    if observed differences in cellular morphology between two conditions are
+    if observed differences in cell morphology between two conditions are
     statistically significant by comparing them to what would be expected by
     random chance alone.
 
-    In the context of image-based profiling:
+    Steps:
     1. Calculates the actual difference in morphological features (mean or median)
        between reference and experimental cell populations
     2. Creates thousands of "fake" comparisons by randomly shuffling cells between
@@ -247,6 +248,10 @@ def apply_perm_test(
         # If the test fails due to insufficient data or other issues, assign NaN
         # to the p-value and continue with the next feature.
         try:
+            # Seed a Generator once so each feature's permutations are independent
+            # but the overall result is reproducible from the same seed.
+            rng = np.random.default_rng(seed)
+
             result = permutation_test(
                 data=(
                     ref_profiles[morph_feat].to_numpy(),
@@ -255,7 +260,7 @@ def apply_perm_test(
                 statistic=statistic_func,
                 alternative="two-sided",
                 n_resamples=n_resamples,
-                random_state=seed,
+                random_state=rng,
             )
         except Exception:
             # handle the exception
@@ -284,10 +289,8 @@ def apply_ks_test(
 ) -> pl.DataFrame:
     """Perform KS-test for each feature in the morphology profiles and return p-values.
 
-    This function performs a Kolmogorov-Smirnov test for each feature in the morphology profiles
-    and returns a DataFrame containing feature names and raw p-values. P-value correction and
-    significance thresholding are not handled in this function and should be applied externally,
-    for example in the `get_signatures` function.
+    This function performs a Kolmogorov-Smirnov test for each feature in the morphology
+    profiles and returns a DataFrame containing feature names and raw p-values.
 
     Parameters
     ----------
@@ -346,14 +349,14 @@ def apply_ks_test(
 
 
 @beartype  # handles type checking
-def get_signatures(
+def identify_signatures(
     ref_profiles: pl.DataFrame,
     target_profiles: pl.DataFrame,
     morph_feats: list[str],
     test_method: Literal[
-        "ks_test", "permutation_test", "welchs_ttest", "mann_whitney_u"
+        "ks_test", "permutation_test", "welchs_ttest", "rank_test"
     ] = "ks_test",
-    fdr_method: Literal["fdr_bh"] = "fdr_bh",
+    fdr_method: Literal["fdr_bh", "bonferroni"] = "fdr_bh",
     p_threshold: float | None = 0.05,
     p_value_padding: float = 0.0,
     permutation_resamples: int | None = 1000,
@@ -363,14 +366,11 @@ def get_signatures(
     """Identifies significant, non-significant, and ambiguous features between two
     profiles.
 
-    This function compares cellular morphology profiles using one of the statistical
-    methods, applies multiple testing correction, and categorizes features based on
-    their statistical significance. Features are classified into three groups: those
-    clearly associated with the cell state (significant), those are not
-    associated (non-significant), and those with uncertain significance (ambiguous).
-    Ambiguous features have corrected p-values within a buffer zone around the
-    significance threshold, defined by p_threshold ± p_value_padding, indicating
-    uncertain statistical evidence for their association with the cell state.
+    This function compares cell morphology profiles using a statistical method,
+    applies multiple testing correction, and categorizes features into three
+    groups: significant (clearly different), non-significant (no clear
+    difference), and ambiguous (p-values within a buffer zone defined by
+    p_threshold ± p_value_padding).
 
     P-value correction for multiple testing is always applied to the results,
     regardless of the test method chosen, using the method specified by the
@@ -388,7 +388,7 @@ def get_signatures(
     morph_feats : list[str]
         List of morphology feature names to compare.
     test_method : Literal["ks_test", "permutation_test", "welchs_ttest",
-        "mann_whitney_u"], optional
+        "rank_test"], optional
         Statistical method to use for comparison. Default is "ks_test".
     fdr_method : str | None, optional
         Method for p-value correction. Default is "fdr_bh".
@@ -442,8 +442,8 @@ def get_signatures(
             target_profiles=target_profiles,
             morph_feats=morph_feats,
         )
-    elif test_method == "mann_whitney_u":
-        pvals_df = apply_mann_whitney_u_test(
+    elif test_method == "rank_test":
+        pvals_df = apply_rank_test(
             ref_profiles=ref_profiles,
             target_profiles=target_profiles,
             morph_feats=morph_feats,
@@ -468,15 +468,32 @@ def get_signatures(
         (pl.col("significance_category") == "significant").alias("is_significant")
     )
 
+    significant_features = pvals_df.filter(
+        pl.col("significance_category") == "significant"
+    )["features"].to_list()
+    non_significant_features = pvals_df.filter(
+        pl.col("significance_category") == "non_significant"
+    )["features"].to_list()
+    ambiguous_features = pvals_df.filter(
+        pl.col("significance_category") == "ambiguous"
+    )["features"].to_list()
+
+    empty_signature_categories = [
+        signature_category
+        for signature_category, features in [
+            ("significant", significant_features),
+            ("non-significant", non_significant_features),
+            ("ambiguous", ambiguous_features),
+        ]
+        if len(features) == 0
+    ]
+    if empty_signature_categories:
+        warnings.warn(
+            "No features were assigned to the following signature categories: "
+            f"{', '.join(empty_signature_categories)}.",
+            UserWarning,
+            stacklevel=2,
+        )
+
     # returns significant, non-significant, and variant features as lists
-    return (
-        pvals_df.filter(pl.col("significance_category") == "significant")[
-            "features"
-        ].to_list(),
-        pvals_df.filter(pl.col("significance_category") == "non_significant")[
-            "features"
-        ].to_list(),
-        pvals_df.filter(pl.col("significance_category") == "ambiguous")[
-            "features"
-        ].to_list(),
-    )
+    return significant_features, non_significant_features, ambiguous_features

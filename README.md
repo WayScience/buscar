@@ -2,6 +2,9 @@
 
 ![Buscar Logo](./logo/with-text-for-light-bg.svg)
 
+[![DOI](https://img.shields.io/badge/DOI-10.64898%2F2026.04.15.718737-blue)](https://doi.org/10.64898/2026.04.15.718737)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://github.com/axiomcura/buscar/blob/main/pyproject.toml)
+
 ## About
 
 Buscar (Bioactive Unbiased Single-cell Compound Assessment and Ranking) is an open-source Python package for reproducible perturbation hit calling in high-content screening that operates directly on distributions of single-cell image-based profiles. The name is also a play on the Spanish and Portuguese verb "buscar," meaning "to search" or "to seek," reflecting the framework's core goal of identifying biologically active perturbations. Traditional high-content screening approaches rely on population-based aggregated profiles to evaluate compound-induced morphological activity, which obscures the biological heterogeneity present across individual cells within a treatment group. Buscar addresses this limitation by operating directly on single-cell profiles, enabling a more nuanced and interpretable assessment of perturbation activity.
@@ -16,43 +19,85 @@ Buscar requires two reference populations defining distinct morphology states, f
 | --- | --- |
 | Defining morphology signatures | Establishes the morphology reference for evaluating perturbations by comparing two control populations: a reference state (e.g., disease cells) and a target state (e.g., healthy cells). Non-parametric statistical tests (e.g., Kolmogorov-Smirnov test) are applied per feature with FDR correction to assign features to either an on-morphology signature (features significantly altered between states) or an off-morphology signature (features that remain unchanged). These signatures define which morphologies must change for a perturbation to achieve efficacy and which serve as indicators of off-target activity. |
 | Perturbation efficacy and specificity scoring | Scores each perturbation by computing two complementary metrics. The on-Buscar score quantifies efficacy by measuring the Earth Mover's Distance (EMD) between the perturbed and target single-cell populations using the on-morphology signature features, where a lower score indicates greater phenotypic rescue. The off-Buscar score quantifies specificity by measuring the proportion of off-morphology signature features that become significantly altered under perturbation, where a lower score indicates fewer off-target effects.
-## How to install
+## Installation
 
-### 1. Clone the Repository
+### Install from PyPI
 
-Start by cloning the buscar repository and navigating into the project directory:
+If you want to add Buscar to a uv-managed project, install it directly from
+PyPI:
+
+```bash
+uv add buscar
+```
+
+### Install from source
+
+If you want the current repository version before a release is available:
+
+```bash
+uv add "buscar @ git+https://github.com/WayScience/buscar.git"
+```
+
+## Development
+
+Buscar uses [uv](https://docs.astral.sh/uv/) for environment and package management.
+
+1. Clone the repository
 
 ```bash
 git clone https://github.com/WayScience/buscar.git
 cd buscar
 ```
 
-### 2. Set Up a Conda Environment
-
-Create and activate a dedicated Conda environment for buscar:
+2. Create the development environment
 
 ```bash
-conda create -n buscar python=3.12
-conda activate buscar
+uv sync --frozen --group dev
 ```
 
-### 3. Install Poetry
-
-Install Poetry within your Conda environment to manage project dependencies:
+3. Run tests
 
 ```bash
-conda install poetry
+uv run --frozen pytest
 ```
 
-### 4. Install Project Dependencies
-
-With Poetry installed and your environment activated, install all required dependencies:
+4. Run tests with coverage
 
 ```bash
-poetry install
+uv run --frozen pytest --cov=buscar --cov-report=term-missing --cov-report=xml --cov-report=html
 ```
 
-This command will set up all packages as specified in the `pyproject.toml` and `poetry.lock` files.
+5. Run linting and formatting checks
+
+```bash
+pre-commit run --all-files
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and the full
+local development checklist.
+
+## Build and validate
+
+Build the source distribution and wheel:
+
+```bash
+uv build
+```
+
+Validate the package metadata:
+
+```bash
+uv run --frozen twine check dist/*
+```
+
+Install the built wheel locally to verify the package import:
+
+```bash
+uv pip install --force-reinstall dist/*.whl
+uv run --frozen python -c "import buscar; print(buscar.__name__, buscar.__version__)"
+```
+Package metadata and dependencies are defined in `pyproject.toml`; the uv lockfile is
+used for reproducible local and CI development environments.
 
 ## Notes
 
