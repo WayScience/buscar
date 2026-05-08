@@ -13,7 +13,7 @@ updates:
     directory: "/"
     schedule:
       # Check for GitHub Actions updates every week.
-      interval: "weekly"
+      interval: "monthly"
 
   # Python project dependencies managed by uv.
   # Dependabot's uv ecosystem updates uv.lock for projects using uv.
