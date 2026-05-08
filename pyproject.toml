@@ -33,7 +33,7 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Image Processing"
 ]
 dependencies = [
-  "beartype>=0.21.0,<0.22.0",
+  "beartype>=0.22.9,<0.23.0",
   "numpy>=2.2.5,<3.0.0",
   "polars>=1.29.0,<2.0.0",
   "pot>=0.9.5,<0.10.0",
