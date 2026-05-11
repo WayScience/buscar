@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: If you use Buscar, please cite it using the metadata from this file.
+title: >-
+  Buscar: Bioactive Unbiased Single-cell Compound Assessment and Ranking
+version: 0.1.0
+date-released: 2026-05-09
+authors:
+  - family-names: Serrano
+    given-names: Erik
+  - family-names: Wei-shan
+    given-names: Li
+  - family-names: Bunten
+    given-names: Dave
+  - family-names: Way
+    given-names: Greg
+    email: erik.serrano@cuanschutz.com
+title: Single-cell hit calling in high-content imaging screens with Buscar
+license: BSD-3-Clause
+doi: 10.64898/2026.04.15.718737
+repository-code: https://github.com/WayScience/buscar
+abstract: Buscar is a Python framework for prioritizing compounds in high-content imaging drug screening using single-cell profiles.
