@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: If you use Buscar, please cite it using the metadata from this file.
+message: If you use Buscar, please cite it using the metadata from the CITATION.cff file.
 title: >-
   Buscar: Bioactive Unbiased Single-cell Compound Assessment and Ranking
 version: 0.1.0
