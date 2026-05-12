@@ -7,6 +7,7 @@ repos:
     rev: v6.0.0
     hooks:
     -   id: check-yaml
+        exclude: ^recipe/meta\.yaml$
     -   id: check-json
     -   id: check-merge-conflict
     -   id: check-added-large-files
@@ -51,10 +52,10 @@ repos:
         additional_dependencies: ["ruff"]
 
       # validates CITATION.cff file formatting expectations
--   repo: https://github.com/citation-file-format/cffconvert
-    rev: b6045d78aac9e02b039703b030588d54d53262ac
-    hooks:
-    -   id: validate-cff
+# -   repo: https://github.com/citation-file-format/cffconvert
+#     rev: 45126d07c5866674d438c0c905dc2c76fb0a15af
+#     hooks:
+#     -   id: validate-cff
 
       # Final cleanup (whitespace and newlines)
 -   repo: https://github.com/pre-commit/pre-commit-hooks

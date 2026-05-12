@@ -15,7 +15,7 @@ import ot
 import polars as pl
 from beartype import beartype
 
-from .signatures import get_signatures
+from buscar.signatures import identify_signatures
 
 
 @beartype
@@ -169,7 +169,8 @@ def affected_off_features_ratio(
     off_morphology_signature : list[str]
         List of feature names that constitute the off-morphological signature.
     method : str, optional
-        Statistical test method to use for determining significance, by default "ks_test"
+        Statistical test method to use for determining significance,
+        by default "ks_test"
 
     Returns
     -------
@@ -178,8 +179,8 @@ def affected_off_features_ratio(
         of off features).
     """
 
-    # generate signatures for the off features and count how many are affected
-    affected_off_sig, _, _ = get_signatures(
+    # Generate signatures for the off features and count how many are affected.
+    affected_off_sig, _, _ = identify_signatures(
         ref_profiles,
         treated_profiles,
         morph_feats=off_morphology_signature,
@@ -324,10 +325,10 @@ def calculate_buscar_scores(
         Column containing cell state or perturbation identifier. If None, defaults to
         perturbation_col, indicating the state of interest is in perturbation_col.
     on_method : Literal["emd"], optional
-        Method for computing on-scores. Currently only Earth Mover's Distance (EMD)
-        is supported, by default "emd"
+        Method for computing on_buscar_scores. Currently only Earth Mover's Distance
+        (EMD) is supported, by default "emd"
     off_method : Literal["affected_ratio", "emd"], optional
-        Method for computing off-scores:
+        Method for computing off_buscar_scores:
         - "affected_ratio": proportion of off features that became significant
         - "emd": Earth Mover's Distance in off-feature space
         by default "affected_ratio"
@@ -367,7 +368,8 @@ def calculate_buscar_scores(
         raise ValueError("The profiles DataFrame is empty.")
     if perturbation_col not in profiles.columns:
         raise ValueError(
-            f"The perturbation column '{perturbation_col}' is not in the profiles DataFrame"
+            f"The perturbation column '{perturbation_col}' is not in the "
+            / "profiles DataFrame"
         )
     if profiles[perturbation_col].is_null().any():
         raise ValueError(
