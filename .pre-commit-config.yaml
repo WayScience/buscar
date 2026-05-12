@@ -52,10 +52,10 @@ repos:
         additional_dependencies: ["ruff"]
 
       # validates CITATION.cff file formatting expectations
-# -   repo: https://github.com/citation-file-format/cffconvert
-#     rev: 45126d07c5866674d438c0c905dc2c76fb0a15af
-#     hooks:
-#     -   id: validate-cff
+-   repo: https://github.com/citation-file-format/cffconvert
+    rev: 054bda51dbe278b3e86f27c890e3f3ac877d616c
+    hooks:
+    -   id: validate-cff
 
       # Final cleanup (whitespace and newlines)
 -   repo: https://github.com/pre-commit/pre-commit-hooks
@@ -69,7 +69,7 @@ repos:
     rev: v0.9.0
     hooks:
     -   id: pre-commit-update
-        args: ["--verbose"]
+        args: ["--verbose", "--exclude", "cffconvert"]
 
 -   repo: local
     hooks:
