@@ -40,7 +40,7 @@ dependencies = [
   "pot>=0.9.5,<0.10.0",
   "scikit-learn>=1.6.1,<2.0.0",
   "scipy>=1.15.3,<2.0.0",
-  "statsmodels>=0.14.4,<0.15.0",
+  "statsmodels>=0.14.4,<0.16.0",
   "umap-learn>=0.5.9",
   "pycytominer>=1.2.3,<2.0.0"
 ]
