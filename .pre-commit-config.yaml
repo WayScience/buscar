@@ -15,7 +15,7 @@ repos:
 
       # Format TOML files early (before other tools might read config)
 -   repo: https://github.com/pappasam/toml-sort
-    rev: v0.24.4
+    rev: v0.25.0
     hooks:
     -   id: toml-sort
         args: ["--in-place"]
