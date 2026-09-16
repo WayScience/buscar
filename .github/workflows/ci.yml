@@ -89,5 +89,5 @@ jobs:
       - name: Validate wheel import
         shell: bash
         run: |
-          uv pip install --force-reinstall dist/*.whl
-          uv run --frozen python -c "import buscar; print(buscar.__name__)"
+          uv run --isolated --no-project --with ./dist/buscar-*.whl -- \
+            python -c "import buscar; print(buscar.__name__)"
