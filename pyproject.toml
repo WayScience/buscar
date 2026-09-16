@@ -14,7 +14,7 @@ dev = [
 [project]
 name = "buscar"
 description = "A Python framework for prioritizing compounds in high-content imaging drug screening using single-cell profiles."
-authors = [{name = "Erik Serrano", email = "erik.serrano@cuanschutz.edu"}]
+authors = [{ name = "Erik Serrano", email = "erik.serrano@cuanschutz.edu" }]
 readme = "README.md"
 license = "BSD-3-Clause"
 requires-python = ">=3.10,<3.15"
