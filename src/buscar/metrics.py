@@ -8,6 +8,7 @@ On-morphology signature distances are normalized by the distance between the sel
 ``target`` and ``ref_state`` so scores are interpretable across perturbations.
 """
 
+import warnings
 from typing import Literal
 
 import numpy as np
@@ -176,8 +177,20 @@ def affected_off_features_ratio(
     -------
     float
         Ratio of affected off features (number of affected off features / total number
-        of off features).
+        of off features). Returns 0.0 if ``off_morphology_signature`` is empty.
     """
+
+    # Guard against an empty off-signature: there is nothing to compare, so no
+    # features can be considered affected. Without this guard the division below
+    # would raise a ZeroDivisionError.
+    if not off_morphology_signature:
+        warnings.warn(
+            "off_morphology_signature is empty; returning 0.0 for the affected "
+            "off features ratio instead of dividing by zero.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return 0.0
 
     # Generate signatures for the off features and count how many are affected.
     affected_off_sig, _, _ = identify_signatures(

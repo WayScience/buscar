@@ -1,7 +1,11 @@
 import polars as pl
 import pytest
 
-from buscar.metrics import calculate_buscar_scores, compute_earth_movers_distance
+from buscar.metrics import (
+    affected_off_features_ratio,
+    calculate_buscar_scores,
+    compute_earth_movers_distance,
+)
 
 
 def test_calculate_buscar_scores(synthetic_profiles):
@@ -93,3 +97,23 @@ def test_emd_direct(synthetic_profiles):
 
     emd = compute_earth_movers_distance(ctrl_df, disease_df, subsample_size=50)
     assert emd > 0.0
+
+
+def test_affected_off_features_ratio_empty_signature(synthetic_profiles):
+    """An empty off-morphology signature must not crash with ZeroDivisionError.
+
+    It should return 0.0 (no off features exist, so none can be affected) and
+    emit a warning to signal the degenerate input.
+    """
+    df, _ = synthetic_profiles
+    ctrl_df = df.filter(pl.col("Metadata_treatment") == "control")
+    disease_df = df.filter(pl.col("Metadata_treatment") == "disease")
+
+    with pytest.warns(UserWarning, match="off_morphology_signature is empty"):
+        ratio = affected_off_features_ratio(
+            ctrl_df,
+            disease_df,
+            off_morphology_signature=[],
+        )
+
+    assert ratio == 0.0
