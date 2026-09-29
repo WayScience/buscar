@@ -1,3 +1,5 @@
+import math
+
 import polars as pl
 import pytest
 
@@ -100,10 +102,9 @@ def test_emd_direct(synthetic_profiles):
 
 
 def test_affected_off_features_ratio_empty_signature(synthetic_profiles):
-    """An empty off-morphology signature must not crash with ZeroDivisionError.
+    """An empty off-morphology signature has no meaningful ratio.
 
-    It should return 0.0 (no off features exist, so none can be affected) and
-    emit a warning to signal the degenerate input.
+    Warn and return NaN instead of a misleading zero score.
     """
     df, _ = synthetic_profiles
     ctrl_df = df.filter(pl.col("Metadata_treatment") == "control")
@@ -116,4 +117,4 @@ def test_affected_off_features_ratio_empty_signature(synthetic_profiles):
             off_morphology_signature=[],
         )
 
-    assert ratio == 0.0
+    assert math.isnan(ratio)
