@@ -8,6 +8,7 @@ On-morphology signature distances are normalized by the distance between the sel
 ``target`` and ``ref_state`` so scores are interpretable across perturbations.
 """
 
+import warnings
 from typing import Literal
 
 import numpy as np
@@ -167,7 +168,12 @@ def affected_off_features_ratio(
     treated_profiles : pl.DataFrame
         DataFrame containing the treated morphological profiles.
     off_morphology_signature : list[str]
-        List of feature names that constitute the off-morphological signature.
+        The caller supplies these feature names, often from the non-significant
+        features returned by ``identify_signatures`` for the reference and target
+        states. ``calculate_buscar_scores`` passes the list to this function, but
+        callers can also call this function directly. An empty list means there
+        are no off features to score. It does not prove that the treatment has no
+        off-target effects.
     method : str, optional
         Statistical test method to use for determining significance,
         by default "ks_test"
@@ -176,8 +182,18 @@ def affected_off_features_ratio(
     -------
     float
         Ratio of affected off features (number of affected off features / total number
-        of off features).
+        of off features). Returns NaN if ``off_morphology_signature`` is empty.
     """
+
+    # An empty off-signature has no ratio, unlike a valid score of 0.0.
+    if not off_morphology_signature:
+        warnings.warn(
+            "off_morphology_signature is empty; returning NaN because the "
+            "affected off features ratio cannot be computed.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return float("nan")
 
     # Generate signatures for the off features and count how many are affected.
     affected_off_sig, _, _ = identify_signatures(
