@@ -23,7 +23,8 @@ Buscar requires two reference populations defining distinct morphology states, f
 
 ### Install from PyPI
 
-Add Buscar to a uv-managed project:
+If you want to add Buscar to a uv-managed project, install it directly from
+PyPI:
 
 ```bash
 uv add buscar
@@ -31,7 +32,7 @@ uv add buscar
 
 ### Install from source
 
-To install the current repository version:
+If you want the current repository version before a release is available:
 
 ```bash
 uv add "buscar @ git+https://github.com/WayScience/buscar.git"
@@ -89,11 +90,11 @@ Validate the package metadata:
 uv run --frozen twine check dist/*
 ```
 
-Install the built wheel in an isolated environment to verify the package import:
+Install the built wheel locally to verify the package import:
 
 ```bash
-uv run --isolated --no-project --with ./dist/buscar-*.whl -- \
-  python -c "import buscar; print(buscar.__name__, buscar.__version__)"
+uv pip install --force-reinstall dist/*.whl
+uv run --frozen python -c "import buscar; print(buscar.__name__, buscar.__version__)"
 ```
 Package metadata and dependencies are defined in `pyproject.toml`; the uv lockfile is
 used for reproducible local and CI development environments.
