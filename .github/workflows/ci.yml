@@ -90,4 +90,4 @@ jobs:
         shell: bash
         run: |
           uv run --isolated --no-project --with ./dist/buscar-*.whl -- \
-            python -c "import buscar; print(buscar.__name__)"
+            python -c "import buscar; print(buscar.__name__, buscar.__version__)"

@@ -1,16 +1,22 @@
-name: Publish
+name: Publish PyPI release
 
 on:
   release:
     types: [published]
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout release tag and history
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v7.0.0
@@ -19,9 +25,8 @@ jobs:
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v10.1.0
-
-      - name: Install dependencies
-        run: uv sync --group dev --frozen
+        with:
+          enable-cache: false
 
       - name: Build package
         run: uv build
@@ -29,8 +34,8 @@ jobs:
       - name: Validate wheel import
         shell: bash
         run: |
-          uv pip install --force-reinstall dist/*.whl
-          uv run --frozen python -c "import buscar; print(buscar.__name__)"
+          uv run --isolated --no-project --with ./dist/buscar-*.whl -- \
+            python -c "import buscar; print(buscar.__name__, buscar.__version__)"
 
       # Jobs run on separate runners, so pass the validated distributions to
       # the publish job as an artifact instead of rebuilding them there.
@@ -39,17 +44,18 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
+          if-no-files-found: error
 
   pypi-publish:
     name: Upload release to PyPI
     needs: build
     runs-on: ubuntu-latest
     environment:
-      name: pypi
-      url: https://pypi.org/p/buscar
-    # Required for PyPI Trusted Publishing. No API token or password is stored
-    # in GitHub; PyPI verifies this workflow run through OpenID Connect.
+      name: release
+      url: https://pypi.org/project/buscar/
+    # PyPI verifies this workflow run through OpenID Connect.
     permissions:
+      contents: read
       id-token: write
 
     steps:

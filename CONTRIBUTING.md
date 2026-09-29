@@ -73,10 +73,28 @@ other change and make sure CI passes before merging.
 
 ## Releases
 
-Releases are published to PyPI through PyPI Trusted Publishing from the GitHub
-Actions workflow. Maintainers should create a GitHub release only after the PyPI
-project has a trusted publisher configured for this repository, the `ci.yml`
-workflow, and the `pypi` GitHub environment.
+A push to `main` runs `.github/workflows/draft-release.yml`. Release Drafter
+updates a draft GitHub release with merged pull requests. Use the `release-major`,
+`release-minor`, or `release-patch` label to choose the version bump; the default
+is a patch bump.
+
+Before the first release, a maintainer must:
+
+1. Create the `release` environment in the `WayScience/buscar` GitHub repository.
+   Add required reviewers if the release needs approval.
+2. Create the `release-major`, `release-minor`, and `release-patch` labels if they
+   do not exist. Apply them to pull requests that need a specific version bump.
+3. In their PyPI account's Publishing settings, add a pending trusted publisher
+   for the `buscar` project. Set the owner to `WayScience`, repository to `buscar`,
+   workflow filename to `publish-pypi.yml`, and environment to `release`. The
+   pending publisher does not reserve the project name until the first upload.
+
+To release, make sure CI passes on `main`. Review the draft release and its
+`vX.Y.Z` tag, then publish it from GitHub Releases. Publishing the GitHub
+release runs `.github/workflows/publish-pypi.yml`. That workflow builds a wheel
+and source distribution from the release tag, checks the wheel import, and
+uploads both files to PyPI with Trusted Publishing. No PyPI API token is needed.
+Check the new version on PyPI after the workflow finishes.
 
 ## Reporting Issues
 
