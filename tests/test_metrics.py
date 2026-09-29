@@ -155,6 +155,32 @@ def test_calculate_score_small_group_returns_nan_not_zero():
     assert large_score > 0.0
 
 
+@pytest.mark.parametrize(
+    ("signature_type", "small_group"),
+    [("off", "target"), ("on", "target"), ("on", "treated")],
+)
+def test_calculate_score_small_group_for_each_scoring_path(signature_type, small_group):
+    enough = pl.DataFrame({"Feature_0": [0.0, 1.0, 2.0]})
+    tiny = enough.head(2)
+    target = tiny if small_group == "target" else enough
+    treated = tiny if small_group == "treated" else enough
+
+    with pytest.warns(UserWarning, match="minimum group size of 3"):
+        score = calculate_score(
+            target, treated, ["Feature_0"], signature_type=signature_type
+        )
+
+    assert math.isnan(score)
+
+
+def test_calculate_score_accepts_group_at_minimum_size():
+    profile = pl.DataFrame({"Feature_0": [0.0, 1.0, 2.0]})
+
+    score = calculate_score(profile, profile, ["Feature_0"], signature_type="on")
+
+    assert score == pytest.approx(0.0)
+
+
 def test_affected_off_features_ratio_empty_signature(synthetic_profiles):
     """An empty off-morphology signature has no meaningful ratio.
 
