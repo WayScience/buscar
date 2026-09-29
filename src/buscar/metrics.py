@@ -168,7 +168,9 @@ def affected_off_features_ratio(
     treated_profiles : pl.DataFrame
         DataFrame containing the treated morphological profiles.
     off_morphology_signature : list[str]
-        List of feature names that constitute the off-morphological signature.
+        Features that did not differ significantly between the reference states.
+        An empty list means no such features were identified (or supplied), not
+        that the treatment has no off-target effects.
     method : str, optional
         Statistical test method to use for determining significance,
         by default "ks_test"
