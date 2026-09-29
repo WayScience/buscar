@@ -8,6 +8,7 @@ On-morphology signature distances are normalized by the distance between the sel
 ``target`` and ``ref_state`` so scores are interpretable across perturbations.
 """
 
+import warnings
 from typing import Literal
 
 import numpy as np
@@ -201,6 +202,7 @@ def calculate_score(
     ratio_stats_method: str = "ks_test",
     n_threads: int = 1,
     seed: int = 0,
+    min_group_size: int = 3,
 ) -> float:
     """Calculate on or off score for a given morphological signature.
 
@@ -232,12 +234,35 @@ def calculate_score(
         significance of changes in off-signature features, by default "ks_test".
     seed : int, optional
         Random seed for reproducibility in stochastic methods, by default 0.
+    min_group_size : int, optional
+        Minimum number of rows required in both ``target_profile`` and
+        ``treated_profile`` for a score to be considered meaningful, by default 3.
+        Statistical significance tests have little to no power with fewer rows, so a
+        group below this size can produce a score of 0.0 that looks identical to a
+        genuinely unaffected group. When either profile is smaller than this, a
+        warning is emitted and ``float("nan")`` is returned instead of a
+        potentially misleading 0.0.
 
     Returns
     -------
     float
-        Computed score for the given signature type and calculation method.
+        Computed score for the given signature type and calculation method, or
+        ``float("nan")`` if either profile has fewer than ``min_group_size`` rows.
     """
+
+    if (
+        target_profile.height < min_group_size
+        or treated_profile.height < min_group_size
+    ):
+        warnings.warn(
+            "Group size is below the minimum group size of "
+            f"{min_group_size} (target: {target_profile.height} rows, treated: "
+            f"{treated_profile.height} rows); returning NaN instead of a "
+            "potentially misleading 0.0 score.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return float("nan")
 
     if signature_type == "on":
         if on_calculation == "emd":

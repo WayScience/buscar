@@ -1,7 +1,12 @@
+import numpy as np
 import polars as pl
 import pytest
 
-from buscar.metrics import calculate_buscar_scores, compute_earth_movers_distance
+from buscar.metrics import (
+    calculate_buscar_scores,
+    calculate_score,
+    compute_earth_movers_distance,
+)
 
 
 def test_calculate_buscar_scores(synthetic_profiles):
@@ -93,3 +98,55 @@ def test_emd_direct(synthetic_profiles):
 
     emd = compute_earth_movers_distance(ctrl_df, disease_df, subsample_size=50)
     assert emd > 0.0
+
+
+def test_calculate_score_small_group_returns_nan_not_zero():
+    """A too-small treated group must not silently report a 0.0 off-score.
+
+    With only 1-2 rows in the treated group, the significance test has no power
+    to detect anything -- even a real, moderate shift in every feature (one that
+    IS picked up once the group is large enough, see below) comes back as "not
+    significant", producing the same 0.0 as a genuinely unaffected group.
+    calculate_score should refuse to compute a score below a minimum group
+    size, warn, and return NaN so the two situations aren't conflated.
+    """
+    rng = np.random.default_rng(0)
+    n_features = 10
+    feature_names = [f"Feature_{i}" for i in range(n_features)]
+
+    target_profile = pl.DataFrame(
+        rng.normal(0, 1, (200, n_features)), schema=feature_names
+    )
+
+    # A real, moderate shift in every feature. With a large enough treated
+    # group this is detected (score > 0, see the comparison below); the bug is
+    # that a too-small group hides that real effect behind the same 0.0 a
+    # genuinely unaffected group would produce.
+    shift = 0.5
+    tiny_treated = pl.DataFrame(
+        rng.normal(shift, 1, (2, n_features)), schema=feature_names
+    )
+
+    with pytest.warns(UserWarning, match="minimum group size"):
+        score = calculate_score(
+            target_profile,
+            tiny_treated,
+            feature_names,
+            signature_type="off",
+        )
+
+    assert score != score  # NaN check (NaN != NaN), never the misleading 0.0
+
+    # Sanity check: the same real effect, given enough rows, is NOT 0.0 --
+    # proving 0.0-from-too-few-rows and 0.0-from-no-effect really were
+    # indistinguishable before this guard existed.
+    large_treated = pl.DataFrame(
+        rng.normal(shift, 1, (500, n_features)), schema=feature_names
+    )
+    large_score = calculate_score(
+        target_profile,
+        large_treated,
+        feature_names,
+        signature_type="off",
+    )
+    assert large_score > 0.0
