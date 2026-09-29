@@ -168,9 +168,12 @@ def affected_off_features_ratio(
     treated_profiles : pl.DataFrame
         DataFrame containing the treated morphological profiles.
     off_morphology_signature : list[str]
-        Features that did not differ significantly between the reference states.
-        An empty list means no such features were identified (or supplied), not
-        that the treatment has no off-target effects.
+        The caller supplies these feature names, often from the non-significant
+        features returned by ``identify_signatures`` for the reference and target
+        states. ``calculate_buscar_scores`` passes the list to this function, but
+        callers can also call this function directly. An empty list means there
+        are no off features to score. It does not prove that the treatment has no
+        off-target effects.
     method : str, optional
         Statistical test method to use for determining significance,
         by default "ks_test"
