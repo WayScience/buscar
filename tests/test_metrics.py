@@ -1,8 +1,11 @@
+import math
+
 import numpy as np
 import polars as pl
 import pytest
 
 from buscar.metrics import (
+    affected_off_features_ratio,
     calculate_buscar_scores,
     calculate_score,
     compute_earth_movers_distance,
@@ -150,3 +153,22 @@ def test_calculate_score_small_group_returns_nan_not_zero():
         signature_type="off",
     )
     assert large_score > 0.0
+
+
+def test_affected_off_features_ratio_empty_signature(synthetic_profiles):
+    """An empty off-morphology signature has no meaningful ratio.
+
+    Warn and return NaN instead of a misleading zero score.
+    """
+    df, _ = synthetic_profiles
+    ctrl_df = df.filter(pl.col("Metadata_treatment") == "control")
+    disease_df = df.filter(pl.col("Metadata_treatment") == "disease")
+
+    with pytest.warns(UserWarning, match="off_morphology_signature is empty"):
+        ratio = affected_off_features_ratio(
+            ctrl_df,
+            disease_df,
+            off_morphology_signature=[],
+        )
+
+    assert math.isnan(ratio)
