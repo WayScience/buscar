@@ -23,7 +23,13 @@ Buscar requires two reference populations defining distinct morphology states, f
 
 ### Install from PyPI
 
-Add Buscar to a uv-managed project:
+Install Buscar with pip:
+
+```bash
+pip install buscar
+```
+
+Or add it to a uv-managed project:
 
 ```bash
 uv add buscar
