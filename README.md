@@ -1,6 +1,6 @@
 # Buscar
 
-![Buscar Logo](./logo/with-text-for-light-bg.svg)
+![Buscar Logo](https://raw.githubusercontent.com/WayScience/buscar/main/logo/with-text-for-light-bg.svg)
 
 [![DOI](https://img.shields.io/badge/DOI-10.64898%2F2026.04.15.718737-blue)](https://doi.org/10.64898/2026.04.15.718737)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://github.com/axiomcura/buscar/blob/main/pyproject.toml)
@@ -12,7 +12,7 @@ Buscar (Bioactive Unbiased Single-cell Compound Assessment and Ranking) is an op
 Buscar requires two reference populations defining distinct morphology states, for example diseased and healthy cells. It uses these populations to separate the high-dimensional feature space into two complementary, mutually exclusive signatures: an on-morphology signature (features that differ significantly between the reference and target states) and an off-morphology signature (features that remain unchanged). This separation enables the independent tracking of perturbation efficacy and specificity for every perturbation in a given screen. Buscar is designed to be compatible with the Cytomining Ecosystem, ensuring seamless interoperability with tools like Pycytominer, coSMicQC, and CytoTable. All analysis conducted in this project can be found in the [Buscar-benchmark-analysis](https://github.com/axiomcura/Buscar-benchmark-analysis) repository.
 
 ## Implementation
-![buscar-framework](./media/buscar-framework.png)
+![buscar-framework](https://raw.githubusercontent.com/WayScience/buscar/main/media/buscar-framework.png)
 > **Figure:** Figure: Schematic overview of the Buscar framework, highlighting its two main modules and their roles in perturbation hit calling.
 
 | Module | Description |
