@@ -1,0 +1,4 @@
+# Keep non-package assets and the development lockfile out of the sdist.
+prune media
+prune logo
+exclude uv.lock
