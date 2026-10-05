@@ -3,7 +3,7 @@
 ![Buscar Logo](https://raw.githubusercontent.com/WayScience/buscar/main/logo/with-text-for-light-bg.svg)
 
 [![DOI](https://img.shields.io/badge/DOI-10.64898%2F2026.04.15.718737-blue)](https://doi.org/10.64898/2026.04.15.718737)
-[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://github.com/axiomcura/buscar/blob/main/pyproject.toml)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://github.com/axiomcura/buscar/blob/main/pyproject.toml)
 
 ## About
 
