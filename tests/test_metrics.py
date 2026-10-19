@@ -103,6 +103,58 @@ def test_emd_direct(synthetic_profiles):
     assert emd > 0.0
 
 
+@pytest.mark.parametrize(
+    ("target", "treated", "expected"),
+    [
+        pytest.param(
+            [[0], [1], [3]],
+            [[3], [0], [1]],
+            0.0,
+            id="1d-identical-reordered",
+        ),
+        pytest.param(
+            [[0], [0], [2]],
+            [[0], [2], [2], [2]],
+            # 5/12 of the mass must move between 0 and 2 at a squared cost of 4
+            5 / 3,
+            id="1d-unequal-sample-sizes",
+        ),
+        pytest.param(
+            [[0, 0], [0, 1], [0, 2]],
+            [[3, 4], [3, 5], [3, 6]],
+            # every sample moves by (3, 4): squared distance 9 + 16 = 25
+            25.0,
+            id="2d-translation",
+        ),
+        pytest.param(
+            [[0, 0], [2, 2], [0, 0], [2, 2]],
+            [[0, 2], [2, 0], [0, 2], [2, 0]],
+            # same marginals, but every pairing costs a squared distance of 4
+            4.0,
+            id="2d-same-marginals-different-joint",
+        ),
+    ],
+)
+def test_compute_earth_movers_distance_matches_analytic_solution(
+    target, treated, expected
+):
+    """Check EMD against analytical costs for empirical distributions.
+
+    The ground metric is squared Euclidean distance (the ``ot.dist`` default),
+    so expected values are minimal *squared*-distance transport costs. All
+    samples are used (no subsampling) so every case has an exact solution.
+    """
+    features = [f"Feature_{i}" for i in range(len(target[0]))]
+    schema = {feature: pl.Float64 for feature in features}
+
+    target_df = pl.DataFrame(target, schema=schema, orient="row")
+    treated_df = pl.DataFrame(treated, schema=schema, orient="row")
+
+    actual = compute_earth_movers_distance(target_df, treated_df)
+
+    assert actual == pytest.approx(expected, rel=1e-9, abs=1e-12)
+
+
 def test_calculate_score_small_group_returns_nan_not_zero():
     """A too-small treated group must not silently report a 0.0 off-score.
 
