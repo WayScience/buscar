@@ -61,7 +61,7 @@ jobs:
     steps:
       # Retrieve the exact distributions built and validated by the build job.
       - name: Download package distributions
-        uses: actions/download-artifact@v8.0.1
+        uses: actions/download-artifact@v8.0.2
         with:
           name: python-package-distributions
           path: dist/
