@@ -44,7 +44,7 @@ repos:
 
       # nbQA to run Ruff on Jupyter Notebooks (after Python tools)
 -   repo: https://github.com/nbQA-dev/nbQA
-    rev: 1.9.1
+    rev: 1.10.0
     hooks:
     -   id: nbqa-ruff
         name: nbQA-Ruff
